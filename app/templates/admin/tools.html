@@ -1,0 +1,344 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "tools" %}
+{% block title %}工具列表 - 治未病平台{% endblock %}
+{% block page_title %}平台工具列表{% endblock %}
+
+{% block extra_head %}
+<style>
+  .method-badge { display:inline-flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:700;letter-spacing:.06em;
+    padding:2px 8px;border-radius:5px;min-width:52px; }
+  .method-GET    { background:#dcfce7;color:#15803d; }
+  .method-POST   { background:#dbeafe;color:#1d4ed8; }
+  .method-PATCH  { background:#fef3c7;color:#b45309; }
+  .method-DELETE { background:#fee2e2;color:#b91c1c; }
+
+  .group-card { transition:box-shadow .15s; }
+  .group-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.08); }
+
+  .tool-row { transition:background .1s; }
+  .tool-row:hover { background:#f8fafc; }
+
+  .param-table th { font-size:11px;color:#6b7280;font-weight:500;text-transform:uppercase;letter-spacing:.05em; }
+  .param-table td { font-size:12px;color:#374151;vertical-align:top; }
+
+  .collapse-btn { cursor:pointer;user-select:none; }
+  .tool-detail  { overflow:hidden;transition:max-height .25s ease; }
+
+  .chip-color-blue    { background:#eff6ff;color:#1d4ed8; }
+  .chip-color-green   { background:#f0fdf4;color:#15803d; }
+  .chip-color-rose    { background:#fff1f2;color:#be123c; }
+  .chip-color-amber   { background:#fffbeb;color:#b45309; }
+  .chip-color-red     { background:#fef2f2;color:#b91c1c; }
+  .chip-color-purple  { background:#faf5ff;color:#7e22ce; }
+  .chip-color-slate   { background:#f8fafc;color:#475569; }
+  .chip-color-teal    { background:#f0fdfa;color:#0f766e; }
+  .chip-color-emerald { background:#ecfdf5;color:#047857; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# 计算接口总数 #}
+{% set ns = namespace(total=0) %}
+{% for _g in tools_registry %}{% set ns.total = ns.total + (_g.tools | length) %}{% endfor %}
+
+{# ── 顶部汇总栏 ── #}
+<div class="grid grid-cols-2 gap-3 mb-6 sm:grid-cols-4">
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-xs text-gray-400 mb-1">接口模块</p>
+    <p class="text-2xl font-bold text-gray-800">{{ tools_registry | length }}</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-xs text-gray-400 mb-1">接口总数</p>
+    <p class="text-2xl font-bold text-gray-800">{{ ns.total }}</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-xs text-gray-400 mb-1">Agent 内置工具</p>
+    <p class="text-2xl font-bold text-emerald-600">6</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-xs text-gray-400 mb-1">快捷入口</p>
+    <p class="text-sm font-semibold text-gray-600 mt-1">
+      <kbd class="border border-gray-200 rounded px-1.5 py-0.5 bg-gray-50 font-mono text-xs">Ctrl K</kbd>
+      智能助手
+    </p>
+  </div>
+</div>
+
+{# ── 搜索 + 分组筛选 ── #}
+<div class="bg-white rounded-xl shadow-sm p-4 mb-5 flex flex-wrap gap-3 items-center">
+  <div class="relative flex-1 min-w-48">
+    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+    </svg>
+    <input id="search-input" type="text" placeholder="搜索接口名称或路径…"
+      class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm
+             focus:outline-none focus:ring-2 focus:ring-green-300">
+  </div>
+  <div class="flex flex-wrap gap-1.5" id="group-filters">
+    <button data-group="all" onclick="filterGroup('all')"
+      class="filter-btn px-3 py-1.5 rounded-full text-xs font-medium border
+             border-green-500 bg-green-50 text-green-700">全部</button>
+    {% for g in tools_registry %}
+    <button data-group="{{ g.group_en }}" onclick="filterGroup('{{ g.group_en }}')"
+      class="filter-btn px-3 py-1.5 rounded-full text-xs font-medium border
+             border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-700">
+      {{ g.group }}
+    </button>
+    {% endfor %}
+  </div>
+</div>
+
+{# ── 工具组卡片列表 ── #}
+<div id="groups-container" class="space-y-5">
+
+{% for group in tools_registry %}
+<div class="group-card bg-white rounded-xl shadow-sm overflow-hidden"
+     data-group="{{ group.group_en }}">
+
+  {# 组标题 #}
+  <div class="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
+    <div class="w-8 h-8 rounded-lg flex-shrink-0 chip-color-{{ group.color }}"
+         style="display:flex;align-items:center;justify-content:center">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+          d="{{ group.icon }}"/>
+      </svg>
+    </div>
+    <div class="flex-1">
+      <h3 class="font-semibold text-gray-800 text-sm">{{ group.group }}</h3>
+      <p class="text-xs text-gray-400">{{ group.tools | length }} 个接口</p>
+    </div>
+    <span class="text-xs px-2 py-0.5 rounded-full font-medium chip-color-{{ group.color }}">
+      /tools/{{ group.group_en }}
+    </span>
+  </div>
+
+  {# 接口列表 #}
+  <div class="divide-y divide-gray-50">
+  {% for tool in group.tools %}
+  <div class="tool-row tool-item"
+       data-name="{{ tool.name }}" data-path="{{ tool.path }}">
+
+    {# 摘要行（点击展开） #}
+    <div class="collapse-btn flex items-start gap-3 px-5 py-3.5"
+         onclick="toggleDetail(this)">
+      <span class="method-badge method-{{ tool.method }} mt-0.5 flex-shrink-0">
+        {{ tool.method }}
+      </span>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="font-medium text-sm text-gray-800">{{ tool.name }}</span>
+          <span class="text-xs text-gray-400 font-mono">{{ tool.path }}</span>
+        </div>
+        <p class="text-xs text-gray-500 mt-0.5">{{ tool.desc | truncate(80) }}</p>
+      </div>
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <span class="text-xs px-2 py-0.5 rounded-full
+          {% if tool.role == '公开' %}bg-gray-100 text-gray-500
+          {% elif tool.role == 'PATIENT' %}bg-blue-50 text-blue-600
+          {% elif tool.role == 'ADMIN' %}bg-red-50 text-red-600
+          {% else %}bg-amber-50 text-amber-700{% endif %}">
+          {{ tool.role }}
+        </span>
+        <svg class="expand-icon w-4 h-4 text-gray-400 transition-transform duration-200"
+             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M19 9l-7 7-7-7"/>
+        </svg>
+      </div>
+    </div>
+
+    {# 展开详情 #}
+    <div class="tool-detail" style="max-height:0">
+      <div class="px-5 pb-5 ml-16">
+
+        {# 完整描述 #}
+        <p class="text-sm text-gray-600 mb-3 leading-relaxed">{{ tool.desc }}</p>
+
+        {# 请求路径复制条 #}
+        <div class="flex items-center gap-2 mb-4 bg-gray-50 rounded-lg px-3 py-2">
+          <span class="method-badge method-{{ tool.method }}">{{ tool.method }}</span>
+          <code class="text-xs font-mono text-gray-700 flex-1">{{ tool.path }}</code>
+          <button onclick="copyPath('{{ tool.path }}')"
+            class="text-xs text-gray-400 hover:text-green-600 flex items-center gap-1 flex-shrink-0">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+            </svg>
+            复制路径
+          </button>
+        </div>
+
+        {# 参数表 #}
+        {% if tool.params %}
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">请求参数</p>
+        <div class="rounded-lg border border-gray-100 overflow-hidden mb-4">
+          <table class="w-full param-table">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-3 py-2 text-left w-32">参数名</th>
+                <th class="px-3 py-2 text-left w-20">类型</th>
+                <th class="px-3 py-2 text-left w-16">必填</th>
+                <th class="px-3 py-2 text-left">说明</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+              {% for p in tool.params %}
+              <tr>
+                <td class="px-3 py-2">
+                  <code class="text-xs bg-gray-100 rounded px-1.5 py-0.5 text-gray-700">{{ p.name }}</code>
+                </td>
+                <td class="px-3 py-2 text-gray-500 text-xs">{{ p.type }}</td>
+                <td class="px-3 py-2">
+                  {% if p.required %}
+                  <span class="text-xs text-red-500 font-medium">必填</span>
+                  {% else %}
+                  <span class="text-xs text-gray-400">可选</span>
+                  {% endif %}
+                </td>
+                <td class="px-3 py-2 text-gray-500">{{ p.desc }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-xs text-gray-400 mb-4">无请求参数</p>
+        {% endif %}
+
+        {# Agent 内置子工具 #}
+        {% if tool.sub_tools is defined %}
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Agent 内置工具（可通过 Ctrl+K 自动调用）</p>
+        <div class="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+          {% for st in tool.sub_tools %}
+          <div class="flex items-start gap-2 bg-emerald-50 rounded-lg px-3 py-2">
+            <svg class="w-3.5 h-3.5 text-emerald-500 flex-shrink-0 mt-0.5" fill="none"
+                 stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+            <div>
+              <code class="text-xs font-mono text-emerald-700 font-semibold">{{ st.name }}</code>
+              <p class="text-xs text-gray-500 mt-0.5">{{ st.desc }}</p>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
+
+  </div>
+  {% endfor %}
+  </div>
+
+</div>
+{% endfor %}
+
+</div>
+
+{# 无结果提示 #}
+<div id="no-result" class="hidden text-center py-16 text-gray-400">
+  <svg class="w-12 h-12 mx-auto mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+  </svg>
+  <p>未找到匹配的接口</p>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ── 展开/折叠详情 ────────────────────────────────────────────
+function toggleDetail(btn) {
+  const row   = btn.closest('.tool-item');
+  const panel = row.querySelector('.tool-detail');
+  const icon  = btn.querySelector('.expand-icon');
+  const isOpen = panel.style.maxHeight && panel.style.maxHeight !== '0px';
+
+  if (isOpen) {
+    panel.style.maxHeight = '0';
+    icon.style.transform = '';
+  } else {
+    panel.style.maxHeight = panel.scrollHeight + 300 + 'px';
+    icon.style.transform = 'rotate(180deg)';
+  }
+}
+
+// ── 复制路径 ─────────────────────────────────────────────────
+function copyPath(path) {
+  navigator.clipboard.writeText(path).then(() => showToast('已复制：' + path));
+}
+
+function showToast(msg) {
+  let t = document.getElementById('copy-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'copy-toast';
+    t.style.cssText =
+      'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);' +
+      'background:#1f2937;color:#fff;padding:8px 18px;border-radius:999px;' +
+      'font-size:13px;pointer-events:none;transition:opacity .3s;z-index:9999;opacity:0';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.style.opacity = '0'; }, 2000);
+}
+
+// ── 分组筛选 ─────────────────────────────────────────────────
+function filterGroup(group) {
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    const on = b.dataset.group === group;
+    b.className = b.className
+      .replace(/border-green-500|bg-green-50|text-green-700|border-gray-200|text-gray-600/g, '').trim();
+    if (on) {
+      b.classList.add('border-green-500', 'bg-green-50', 'text-green-700');
+    } else {
+      b.classList.add('border-gray-200', 'text-gray-600');
+    }
+  });
+
+  document.querySelectorAll('.group-card').forEach(card => {
+    card.style.display = (group === 'all' || card.dataset.group === group) ? '' : 'none';
+  });
+
+  applySearch(document.getElementById('search-input').value);
+}
+
+// ── 关键词搜索 ───────────────────────────────────────────────
+document.getElementById('search-input').addEventListener('input', e => {
+  applySearch(e.target.value);
+});
+
+function applySearch(q) {
+  q = q.trim().toLowerCase();
+  let anyVisible = false;
+
+  document.querySelectorAll('.group-card').forEach(card => {
+    if (card.style.display === 'none') return;
+    let cardHit = false;
+
+    card.querySelectorAll('.tool-item').forEach(item => {
+      const hit = !q ||
+        item.dataset.name.toLowerCase().includes(q) ||
+        item.dataset.path.toLowerCase().includes(q);
+      item.style.display = hit ? '' : 'none';
+      if (hit) cardHit = true;
+    });
+
+    card.style.display = cardHit ? '' : 'none';
+    if (cardHit) anyVisible = true;
+  });
+
+  document.getElementById('no-result').classList.toggle('hidden', anyVisible || !q);
+}
+</script>
+{% endblock %}

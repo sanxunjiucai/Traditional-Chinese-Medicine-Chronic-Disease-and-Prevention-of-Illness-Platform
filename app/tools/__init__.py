@@ -7,6 +7,8 @@ from app.tools.followup_tools import router as followup_router
 from app.tools.alert_tools import router as alert_router
 from app.tools.content_tools import router as content_router
 from app.tools.audit_tools import router as audit_router
+from app.tools.admin_tools import router as admin_router
+from app.tools.agent_tools import router as agent_router
 
 router = APIRouter(prefix="/tools")
 router.include_router(auth_router)
@@ -16,3 +18,5 @@ router.include_router(followup_router)
 router.include_router(alert_router)
 router.include_router(content_router)
 router.include_router(audit_router)
+router.include_router(admin_router)
+router.include_router(agent_router)

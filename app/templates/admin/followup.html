@@ -1,0 +1,128 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "followup" %}
+{% block title %}随访质控 - 治未病平台{% endblock %}
+{% block page_title %}随访质控台{% endblock %}
+
+{% block content %}
+<!-- 概览卡片 -->
+<div id="summary-cards" class="grid grid-cols-3 gap-4 mb-6">
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <p class="text-gray-500 text-sm">在管患者</p>
+    <p id="card-active" class="text-3xl font-bold text-green-600 mt-1">-</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <p class="text-gray-500 text-sm">整体依从率</p>
+    <p id="card-adherence" class="text-3xl font-bold text-blue-600 mt-1">-</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <p class="text-gray-500 text-sm">开放预警</p>
+    <p id="card-alerts" class="text-3xl font-bold text-red-500 mt-1">-</p>
+  </div>
+</div>
+
+<!-- 质控列表 -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+    <h3 class="font-semibold text-gray-700">随访计划依从性（最差优先）</h3>
+    <span class="text-gray-400 text-sm">共 <span id="total">-</span> 条在管计划</span>
+  </div>
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-5 py-3 text-left">患者</th>
+        <th class="px-5 py-3 text-left">病种</th>
+        <th class="px-5 py-3 text-left">计划周期</th>
+        <th class="px-5 py-3 text-left">完成/总数</th>
+        <th class="px-5 py-3 text-left">漏打</th>
+        <th class="px-5 py-3 text-left">依从率</th>
+      </tr>
+    </thead>
+    <tbody id="followup-list" class="divide-y divide-gray-100">
+      <tr><td colspan="6" class="px-5 py-8 text-center text-gray-400">加载中...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 分页 -->
+<div id="pagination" class="flex justify-center gap-2 mt-4 hidden"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let currentPage = 1;
+
+const DISEASE_LABELS = { HYPERTENSION: '高血压', DIABETES_T2: '2型糖尿病' };
+
+function adherenceColor(rate) {
+  if (rate >= 0.8) return 'text-green-600';
+  if (rate >= 0.6) return 'text-yellow-500';
+  return 'text-red-500';
+}
+
+async function loadStats() {
+  const resp = await fetch('/tools/admin/stats/overview');
+  const json = await resp.json();
+  if (!json.success) return;
+  const d = json.data;
+  document.getElementById('card-active').textContent = d.active_patients ?? '-';
+  document.getElementById('card-adherence').textContent =
+    d.overall_adherence_rate != null ? (d.overall_adherence_rate * 100).toFixed(1) + '%' : '-';
+  document.getElementById('card-alerts').textContent = d.open_alerts ?? '-';
+}
+
+async function loadList(page = 1) {
+  currentPage = page;
+  const params = new URLSearchParams({ page, page_size: 20 });
+  const resp = await fetch('/tools/admin/followup?' + params.toString());
+  const json = await resp.json();
+  if (!json.success) return;
+  const { total, items } = json.data;
+  document.getElementById('total').textContent = total;
+
+  const tbody = document.getElementById('followup-list');
+  if (items.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="px-5 py-8 text-center text-gray-400">暂无在管随访计划</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(it => {
+    const rate = it.adherence_rate;
+    const pct = (rate * 100).toFixed(0);
+    return `
+      <tr class="hover:bg-gray-50">
+        <td class="px-5 py-3">
+          <div class="font-medium text-gray-800">${it.user_name}</div>
+          <div class="text-gray-400 text-xs">${it.user_phone}</div>
+        </td>
+        <td class="px-5 py-3 text-gray-600">${DISEASE_LABELS[it.disease_type] || it.disease_type}</td>
+        <td class="px-5 py-3 text-gray-500 text-xs">${it.start_date} ~ ${it.end_date}</td>
+        <td class="px-5 py-3 text-gray-700">${it.done} / ${it.total_tasks}</td>
+        <td class="px-5 py-3 ${it.missed > 0 ? 'text-red-500 font-medium' : 'text-gray-400'}">${it.missed}</td>
+        <td class="px-5 py-3">
+          <div class="flex items-center gap-2">
+            <div class="w-20 bg-gray-100 rounded-full h-2">
+              <div class="h-2 rounded-full ${rate >= 0.8 ? 'bg-green-500' : rate >= 0.6 ? 'bg-yellow-400' : 'bg-red-400'}"
+                style="width:${pct}%"></div>
+            </div>
+            <span class="text-sm font-semibold ${adherenceColor(rate)}">${pct}%</span>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  const totalPages = Math.ceil(total / 20);
+  const pg = document.getElementById('pagination');
+  if (totalPages <= 1) { pg.classList.add('hidden'); return; }
+  pg.classList.remove('hidden');
+  pg.innerHTML = Array.from({length: totalPages}, (_, i) => i + 1).map(p => `
+    <button onclick="loadList(${p})"
+      class="px-3 py-1.5 rounded-lg text-sm ${p === currentPage ? 'bg-green-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}">
+      ${p}
+    </button>
+  `).join('');
+}
+
+loadStats();
+loadList(1);
+</script>
+{% endblock %}

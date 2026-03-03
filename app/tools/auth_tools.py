@@ -48,7 +48,7 @@ async def login(
         return fail("PERMISSION_ERROR", "账号已禁用", status_code=403)
 
     token = create_access_token(
-        {"sub": str(user.id), "role": user.role.value},
+        {"sub": str(user.id), "role": user.role.value, "name": user.name},
         expires_delta=timedelta(minutes=settings.access_token_expire_minutes),
     )
     await log_action(

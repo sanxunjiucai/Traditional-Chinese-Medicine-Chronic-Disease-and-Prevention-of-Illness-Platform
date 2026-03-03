@@ -17,5 +17,7 @@ class Settings(BaseSettings):
 
     demo_mode: bool = False
 
+    anthropic_api_key: str = ""
+
 
 settings = Settings()

@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import asyncio
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -13,7 +14,15 @@ async def lifespan(app: FastAPI):
     if settings.demo_mode:
         from scripts.seed_demo import run_seed
         await run_seed()
+    # 启动后台定时任务（漏打卡标记）
+    from app.tasks import run_scheduler
+    task = asyncio.create_task(run_scheduler())
     yield
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
 
 
 app = FastAPI(

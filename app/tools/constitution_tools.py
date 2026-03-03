@@ -9,8 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.deps import get_current_user
 from app.models.constitution import ConstitutionAnswer, ConstitutionAssessment, ConstitutionQuestion
-from app.models.enums import AssessmentStatus, DiseaseType
+from app.models.enums import AssessmentStatus, DiseaseType, PlanStatus
 from app.models.health import ChronicDiseaseRecord
+from app.models.recommendation import RecommendationPlan
 from app.services.audit_service import log_action
 from app.services.constitution_scorer import score_assessment
 from app.services.recommendation_engine import generate_plan
@@ -261,4 +262,33 @@ async def latest_assessment(
         "secondary_types": assessment.secondary_types,
         "result": assessment.result,
         "scored_at": assessment.scored_at.isoformat() if assessment.scored_at else None,
+    })
+
+
+@router.get("/recommendation")
+async def get_recommendation(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user=Depends(get_current_user),
+):
+    """获取当前用户最新的活跃调护建议方案。"""
+    result = await db.execute(
+        select(RecommendationPlan)
+        .where(
+            and_(
+                RecommendationPlan.user_id == current_user.id,
+                RecommendationPlan.status == PlanStatus.ACTIVE,
+            )
+        )
+        .order_by(RecommendationPlan.created_at.desc())
+        .limit(1)
+    )
+    plan = result.scalar_one_or_none()
+    if plan is None:
+        return ok(None)
+    return ok({
+        "id": str(plan.id),
+        "version": plan.version,
+        "items": plan.items,
+        "note": plan.note,
+        "created_at": plan.created_at.isoformat(),
     })

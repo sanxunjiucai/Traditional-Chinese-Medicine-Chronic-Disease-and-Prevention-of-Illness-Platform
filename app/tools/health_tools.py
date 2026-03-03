@@ -32,6 +32,33 @@ class ProfileRequest(BaseModel):
     stress_level: str | None = None
 
 
+@router.get("/profile")
+async def get_profile(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user=Depends(get_current_user),
+):
+    result = await db.execute(
+        select(HealthProfile).where(HealthProfile.user_id == current_user.id)
+    )
+    profile = result.scalar_one_or_none()
+    if profile is None:
+        return ok(None)
+    return ok({
+        "id": str(profile.id),
+        "gender": profile.gender,
+        "birth_date": str(profile.birth_date) if profile.birth_date else None,
+        "height_cm": profile.height_cm,
+        "weight_kg": profile.weight_kg,
+        "waist_cm": profile.waist_cm,
+        "smoking": profile.smoking,
+        "drinking": profile.drinking,
+        "exercise_frequency": profile.exercise_frequency,
+        "sleep_hours": profile.sleep_hours,
+        "stress_level": profile.stress_level,
+        "updated_at": profile.updated_at.isoformat(),
+    })
+
+
 @router.post("/profile")
 async def upsert_profile(
     body: ProfileRequest,
