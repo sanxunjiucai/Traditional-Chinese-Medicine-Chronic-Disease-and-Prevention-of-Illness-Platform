@@ -79,9 +79,9 @@ class CloseRequest(BaseModel):
 @router.patch("/{event_id}/ack")
 async def ack_alert(
     event_id: str,
-    body: AckRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user=Depends(require_role(UserRole.ADMIN, UserRole.PROFESSIONAL)),
+    body: AckRequest | None = None,
 ):
     import uuid
     result = await db.execute(
@@ -94,6 +94,8 @@ async def ack_alert(
         return fail("STATE_ERROR", f"预警状态为 {event.status.value}，无法确认", status_code=409)
 
     event.status = AlertStatus.ACKED
+    if body and body.handler_note:
+        event.handler_note = body.handler_note
     event.handled_by_id = current_user.id
     event.acked_at = datetime.now(timezone.utc)
     db.add(event)
@@ -110,9 +112,9 @@ async def ack_alert(
 @router.patch("/{event_id}/close")
 async def close_alert(
     event_id: str,
-    body: CloseRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user=Depends(require_role(UserRole.ADMIN, UserRole.PROFESSIONAL)),
+    body: CloseRequest | None = None,
 ):
     import uuid
     result = await db.execute(
@@ -125,7 +127,7 @@ async def close_alert(
         return fail("STATE_ERROR", f"预警状态为 {event.status.value}，无法关闭", status_code=409)
 
     event.status = AlertStatus.CLOSED
-    event.handler_note = body.handler_note
+    event.handler_note = body.handler_note if body else None
     event.handled_by_id = current_user.id
     event.closed_at = datetime.now(timezone.utc)
     db.add(event)
