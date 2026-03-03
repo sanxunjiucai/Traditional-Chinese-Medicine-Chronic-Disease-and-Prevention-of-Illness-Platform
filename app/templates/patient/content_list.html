@@ -1,0 +1,108 @@
+{% extends "_layouts/patient.html" %}
+{% block title %}健康知识{% endblock %}
+{% block page_title %}健康知识{% endblock %}
+
+{% block content %}
+<div class="px-4 pt-4 pb-6 space-y-3">
+
+  <!-- 搜索栏 -->
+  <div class="relative">
+    <input id="search-input" type="text" placeholder="搜索文章..."
+      class="w-full bg-white border border-gray-200 rounded-2xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
+    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
+    </svg>
+  </div>
+
+  <!-- 标签筛选 -->
+  <div id="tag-filters" class="flex space-x-2 overflow-x-auto pb-1">
+    <button onclick="filterTag('')" data-tag=""
+      class="tag-btn flex-shrink-0 bg-green-600 text-white text-xs px-3 py-1.5 rounded-full">全部</button>
+  </div>
+
+  <!-- 文章列表 -->
+  <div id="article-list" class="space-y-3">
+    <!-- 骨架屏 -->
+    <div class="animate-pulse space-y-3">
+      <div class="h-24 bg-gray-100 rounded-2xl"></div>
+      <div class="h-24 bg-gray-100 rounded-2xl"></div>
+      <div class="h-24 bg-gray-100 rounded-2xl"></div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let allArticles = [];
+let activeTag = '';
+
+async function load() {
+  const resp = await fetch('/tools/content');
+  const data = await resp.json();
+  if (!data.success) { renderEmpty(); return; }
+  allArticles = data.data || [];
+  buildTagFilters();
+  render();
+}
+
+function buildTagFilters() {
+  const tagSet = new Set();
+  allArticles.forEach(a => (a.tags || []).forEach(t => tagSet.add(t)));
+  const container = document.getElementById('tag-filters');
+  tagSet.forEach(tag => {
+    const btn = document.createElement('button');
+    btn.className = 'tag-btn flex-shrink-0 bg-white border border-gray-200 text-gray-600 text-xs px-3 py-1.5 rounded-full';
+    btn.textContent = tag;
+    btn.dataset.tag = tag;
+    btn.onclick = () => filterTag(tag);
+    container.appendChild(btn);
+  });
+}
+
+function filterTag(tag) {
+  activeTag = tag;
+  document.querySelectorAll('.tag-btn').forEach(btn => {
+    const isActive = btn.dataset.tag === tag;
+    btn.className = `tag-btn flex-shrink-0 text-xs px-3 py-1.5 rounded-full ${isActive ? 'bg-green-600 text-white' : 'bg-white border border-gray-200 text-gray-600'}`;
+  });
+  render();
+}
+
+function render() {
+  const query = document.getElementById('search-input').value.trim().toLowerCase();
+  let list = allArticles;
+  if (activeTag) list = list.filter(a => (a.tags || []).includes(activeTag));
+  if (query) list = list.filter(a => a.title.toLowerCase().includes(query) || (a.body || '').toLowerCase().includes(query));
+
+  const container = document.getElementById('article-list');
+  if (list.length === 0) {
+    container.innerHTML = '<p class="text-center text-gray-400 text-sm py-10">暂无相关文章</p>';
+    return;
+  }
+
+  container.innerHTML = list.map(a => {
+    const excerpt = a.body ? a.body.slice(0, 60).replace(/\n/g, ' ') + (a.body.length > 60 ? '...' : '') : '';
+    const tagsHtml = (a.tags || []).slice(0,3).map(t => `<span class="text-xs bg-green-50 text-green-600 px-1.5 py-0.5 rounded">${t}</span>`).join(' ');
+    return `
+    <a href="/h5/content/${a.id}" class="block bg-white rounded-2xl p-4 space-y-2">
+      <h3 class="font-semibold text-gray-800 text-sm leading-snug">${a.title}</h3>
+      ${excerpt ? `<p class="text-xs text-gray-400 leading-relaxed">${excerpt}</p>` : ''}
+      <div class="flex items-center justify-between">
+        <div class="flex space-x-1">${tagsHtml}</div>
+        <span class="text-xs text-gray-300">${a.published_at ? a.published_at.slice(0,10) : ''}</span>
+      </div>
+    </a>`;
+  }).join('');
+}
+
+function renderEmpty() {
+  document.getElementById('article-list').innerHTML = '<p class="text-center text-gray-400 text-sm py-10">暂无文章</p>';
+}
+
+document.getElementById('search-input').addEventListener('input', render);
+
+load();
+</script>
+{% endblock %}

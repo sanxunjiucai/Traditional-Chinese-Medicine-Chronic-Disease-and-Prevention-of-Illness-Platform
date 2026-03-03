@@ -1,0 +1,129 @@
+{% extends "_layouts/admin.html" %}
+{% block title %}审计日志{% endblock %}
+{% block page_title %}审计日志{% endblock %}
+
+{% block content %}
+<!-- 筛选栏 -->
+<div class="flex flex-wrap items-center gap-3 mb-5">
+  <input id="filter-user" type="text" placeholder="用户 ID 或手机号"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-white w-44">
+  <select id="filter-action" onchange="load()"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-white">
+    <option value="">全部操作</option>
+    <option value="USER_REGISTER">注册</option>
+    <option value="USER_LOGIN">登录</option>
+    <option value="USER_LOGOUT">退出</option>
+    <option value="CONSENT_RECORD">授权同意</option>
+    <option value="PROFILE_UPDATE">档案更新</option>
+    <option value="INDICATOR_CREATE">指标录入</option>
+    <option value="CONSTITUTION_SUBMIT">体质提交</option>
+    <option value="FOLLOWUP_START">随访启动</option>
+    <option value="CHECKIN_RECORD">打卡记录</option>
+    <option value="ALERT_ACK">预警确认</option>
+    <option value="ALERT_CLOSE">预警关闭</option>
+    <option value="CONTENT_PUBLISH">内容发布</option>
+    <option value="CONTENT_OFFLINE">内容下线</option>
+  </select>
+  <input id="filter-from" type="date"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-white">
+  <input id="filter-to" type="date"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-white">
+  <button onclick="load()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">查询</button>
+  <span id="total-count" class="ml-auto text-sm text-gray-500"></span>
+</div>
+
+<!-- 日志表格 -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 border-b border-gray-200">
+      <tr>
+        <th class="text-left px-4 py-3 text-gray-600 font-medium">时间</th>
+        <th class="text-left px-4 py-3 text-gray-600 font-medium">操作</th>
+        <th class="text-left px-4 py-3 text-gray-600 font-medium">资源类型</th>
+        <th class="text-left px-4 py-3 text-gray-600 font-medium">用户</th>
+        <th class="text-left px-4 py-3 text-gray-600 font-medium">IP</th>
+        <th class="text-left px-4 py-3 text-gray-600 font-medium">变更摘要</th>
+      </tr>
+    </thead>
+    <tbody id="audit-tbody">
+      <tr><td colspan="6" class="text-center py-10 text-gray-400">加载中...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 分页 -->
+<div class="flex justify-center space-x-2 mt-4" id="pagination"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let currentPage = 1;
+const PAGE_SIZE = 30;
+
+async function load(page = 1) {
+  currentPage = page;
+  const userId = document.getElementById('filter-user').value.trim();
+  const action = document.getElementById('filter-action').value;
+  const from = document.getElementById('filter-from').value;
+  const to = document.getElementById('filter-to').value;
+
+  const params = new URLSearchParams({page, page_size: PAGE_SIZE});
+  if (userId) params.set('user_id', userId);
+  if (action) params.set('action', action);
+  if (from) params.set('from_date', from);
+  if (to) params.set('to_date', to);
+
+  const resp = await fetch('/tools/audit?' + params.toString());
+  const data = await resp.json();
+  const tbody = document.getElementById('audit-tbody');
+
+  if (!data.success) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10 text-gray-400">加载失败</td></tr>';
+    return;
+  }
+
+  const logs = data.data.items || data.data;
+  const total = data.data.total || logs.length;
+  document.getElementById('total-count').textContent = `共 ${total} 条`;
+
+  if (logs.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-10 text-gray-400">暂无日志</td></tr>';
+    renderPagination(0, total);
+    return;
+  }
+
+  tbody.innerHTML = logs.map(log => {
+    const newVals = log.new_values ? JSON.stringify(log.new_values).slice(0, 60) + (JSON.stringify(log.new_values).length > 60 ? '...' : '') : '-';
+    return `
+    <tr class="border-b border-gray-100 hover:bg-gray-50">
+      <td class="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">${log.created_at ? log.created_at.slice(0,16).replace('T',' ') : '-'}</td>
+      <td class="px-4 py-3">
+        <span class="bg-blue-50 text-blue-600 text-xs px-2 py-0.5 rounded font-mono">${log.action || '-'}</span>
+      </td>
+      <td class="px-4 py-3 text-gray-500 text-xs">${log.resource_type || '-'}</td>
+      <td class="px-4 py-3 text-gray-700">${log.user_phone || (log.user_id ? log.user_id.slice(0,8) + '...' : '系统')}</td>
+      <td class="px-4 py-3 text-gray-400 text-xs">${log.ip_address || '-'}</td>
+      <td class="px-4 py-3 text-gray-500 text-xs font-mono max-w-xs truncate" title="${newVals}">${newVals}</td>
+    </tr>`;
+  }).join('');
+
+  renderPagination(page, total);
+}
+
+function renderPagination(page, total) {
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const el = document.getElementById('pagination');
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+  let html = '';
+  if (page > 1) html += `<button onclick="load(${page-1})" class="px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">上一页</button>`;
+  html += `<span class="px-3 py-1.5 text-sm text-gray-500">${page} / ${totalPages}</span>`;
+  if (page < totalPages) html += `<button onclick="load(${page+1})" class="px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">下一页</button>`;
+  el.innerHTML = html;
+}
+
+// 支持回车搜索
+document.getElementById('filter-user').addEventListener('keydown', e => { if (e.key === 'Enter') load(); });
+
+load();
+</script>
+{% endblock %}

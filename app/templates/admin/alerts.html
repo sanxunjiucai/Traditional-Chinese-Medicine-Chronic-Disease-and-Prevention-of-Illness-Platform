@@ -1,0 +1,107 @@
+{% extends "_layouts/admin.html" %}
+{% block title %}预警处置{% endblock %}
+{% block page_title %}预警处置台{% endblock %}
+
+{% block content %}
+<!-- 筛选栏 -->
+<div class="flex items-center space-x-3 mb-5">
+  <select id="filter-status" onchange="load()"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-white">
+    <option value="">全部状态</option>
+    <option value="OPEN">待处理</option>
+    <option value="ACKED">已确认</option>
+    <option value="CLOSED">已关闭</option>
+  </select>
+  <select id="filter-severity" onchange="load()"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-white">
+    <option value="">全部严重度</option>
+    <option value="HIGH">高风险</option>
+    <option value="MEDIUM">中风险</option>
+    <option value="LOW">低风险</option>
+  </select>
+  <button onclick="load()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">刷新</button>
+  <span id="total-count" class="ml-auto text-sm text-gray-500"></span>
+</div>
+
+<!-- 预警列表 -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 border-b border-gray-200">
+      <tr>
+        <th class="text-left px-4 py-3 text-gray-600 font-medium">严重度</th>
+        <th class="text-left px-4 py-3 text-gray-600 font-medium">患者</th>
+        <th class="text-left px-4 py-3 text-gray-600 font-medium">预警规则</th>
+        <th class="text-left px-4 py-3 text-gray-600 font-medium">触发值</th>
+        <th class="text-left px-4 py-3 text-gray-600 font-medium">状态</th>
+        <th class="text-left px-4 py-3 text-gray-600 font-medium">时间</th>
+        <th class="text-left px-4 py-3 text-gray-600 font-medium">操作</th>
+      </tr>
+    </thead>
+    <tbody id="alert-tbody">
+      <tr><td colspan="7" class="text-center py-10 text-gray-400">加载中...</td></tr>
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const SEV_BADGE = {
+  HIGH: 'bg-red-100 text-red-700',
+  MEDIUM: 'bg-orange-100 text-orange-700',
+  LOW: 'bg-yellow-100 text-yellow-700',
+};
+const SEV_LABELS = {HIGH: '高风险', MEDIUM: '中风险', LOW: '低风险'};
+const STATUS_BADGE = {
+  OPEN: 'bg-red-50 text-red-600',
+  ACKED: 'bg-blue-50 text-blue-600',
+  CLOSED: 'bg-gray-100 text-gray-500',
+};
+const STATUS_LABELS = {OPEN: '待处理', ACKED: '已确认', CLOSED: '已关闭'};
+
+async function load() {
+  const status = document.getElementById('filter-status').value;
+  const severity = document.getElementById('filter-severity').value;
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (severity) params.set('severity', severity);
+
+  const resp = await fetch('/tools/alerts/admin?' + params.toString());
+  const data = await resp.json();
+  const tbody = document.getElementById('alert-tbody');
+
+  if (!data.success || data.data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-10 text-gray-400">暂无预警记录</td></tr>';
+    document.getElementById('total-count').textContent = '';
+    return;
+  }
+
+  document.getElementById('total-count').textContent = `共 ${data.data.length} 条`;
+  tbody.innerHTML = data.data.map(a => {
+    const triggerStr = a.trigger_value ? JSON.stringify(a.trigger_value) : '-';
+    return `
+    <tr class="border-b border-gray-100 hover:bg-gray-50">
+      <td class="px-4 py-3">
+        <span class="px-2 py-0.5 rounded-full text-xs font-medium ${SEV_BADGE[a.severity] || 'bg-gray-100 text-gray-600'}">
+          ${SEV_LABELS[a.severity] || a.severity}
+        </span>
+      </td>
+      <td class="px-4 py-3 text-gray-700">${a.user_phone || a.user_id?.slice(0,8) || '-'}</td>
+      <td class="px-4 py-3 text-gray-700">${a.rule_name || '-'}</td>
+      <td class="px-4 py-3 text-gray-500 font-mono text-xs">${triggerStr}</td>
+      <td class="px-4 py-3">
+        <span class="px-2 py-0.5 rounded-full text-xs ${STATUS_BADGE[a.status] || ''}">
+          ${STATUS_LABELS[a.status] || a.status}
+        </span>
+      </td>
+      <td class="px-4 py-3 text-gray-400 text-xs">${a.created_at ? a.created_at.slice(0,16).replace('T',' ') : '-'}</td>
+      <td class="px-4 py-3">
+        <a href="/gui/admin/alerts/${a.id}" class="text-green-600 hover:underline text-sm">处置</a>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+load();
+</script>
+{% endblock %}

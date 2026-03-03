@@ -1,0 +1,202 @@
+{% extends "_layouts/patient.html" %}
+{% block title %}录入指标{% endblock %}
+{% block page_title %}录入健康指标{% endblock %}
+
+{% block header_left %}
+<button onclick="history.back()" class="w-8 h-8 flex items-center justify-center text-gray-500">
+  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+  </svg>
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="px-4 pt-4 space-y-4">
+
+  <!-- 指标类型选择 -->
+  <div class="bg-white rounded-2xl p-4">
+    <label class="block text-sm font-medium text-gray-700 mb-3">指标类型</label>
+    <div class="grid grid-cols-2 gap-2">
+      <button onclick="selectType('BLOOD_PRESSURE')" id="type-BLOOD_PRESSURE"
+        class="type-card border-2 border-green-500 bg-green-50 rounded-xl p-3 text-center">
+        <p class="text-2xl mb-1">🩺</p>
+        <p class="text-sm font-medium text-green-700">血压</p>
+      </button>
+      <button onclick="selectType('BLOOD_GLUCOSE')" id="type-BLOOD_GLUCOSE"
+        class="type-card border-2 border-gray-200 rounded-xl p-3 text-center">
+        <p class="text-2xl mb-1">💉</p>
+        <p class="text-sm font-medium text-gray-600">血糖</p>
+      </button>
+      <button onclick="selectType('WEIGHT')" id="type-WEIGHT"
+        class="type-card border-2 border-gray-200 rounded-xl p-3 text-center">
+        <p class="text-2xl mb-1">⚖️</p>
+        <p class="text-sm font-medium text-gray-600">体重</p>
+      </button>
+      <button onclick="selectType('WAIST_CIRCUMFERENCE')" id="type-WAIST_CIRCUMFERENCE"
+        class="type-card border-2 border-gray-200 rounded-xl p-3 text-center">
+        <p class="text-2xl mb-1">📏</p>
+        <p class="text-sm font-medium text-gray-600">腰围</p>
+      </button>
+    </div>
+  </div>
+
+  <!-- 动态表单区域 -->
+  <div class="bg-white rounded-2xl p-4">
+    <!-- 血压 -->
+    <div id="form-BLOOD_PRESSURE" class="space-y-3">
+      <div class="flex space-x-3">
+        <div class="flex-1">
+          <label class="block text-sm text-gray-600 mb-1">收缩压 (mmHg)</label>
+          <input id="systolic" type="number" placeholder="如：120" min="60" max="300"
+            class="w-full border border-gray-200 rounded-xl px-3 py-3 text-lg text-center font-semibold focus:outline-none focus:ring-2 focus:ring-green-400">
+        </div>
+        <div class="flex items-end pb-3 text-gray-400">/</div>
+        <div class="flex-1">
+          <label class="block text-sm text-gray-600 mb-1">舒张压 (mmHg)</label>
+          <input id="diastolic" type="number" placeholder="如：80" min="40" max="200"
+            class="w-full border border-gray-200 rounded-xl px-3 py-3 text-lg text-center font-semibold focus:outline-none focus:ring-2 focus:ring-green-400">
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">测量场景</label>
+        <select id="bp-scene" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
+          <option value="morning">晨起</option>
+          <option value="evening">睡前</option>
+          <option value="other">其他</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 血糖 -->
+    <div id="form-BLOOD_GLUCOSE" class="space-y-3 hidden">
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">血糖值 (mmol/L)</label>
+        <input id="glucose-value" type="number" placeholder="如：5.6" step="0.1" min="0" max="50"
+          class="w-full border border-gray-200 rounded-xl px-3 py-3 text-lg text-center font-semibold focus:outline-none focus:ring-2 focus:ring-green-400">
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">测量时机</label>
+        <select id="glucose-scene" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
+          <option value="fasting">空腹</option>
+          <option value="postmeal_1h">餐后1小时</option>
+          <option value="postmeal_2h">餐后2小时</option>
+          <option value="random">随机</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 体重 -->
+    <div id="form-WEIGHT" class="space-y-3 hidden">
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">体重 (kg)</label>
+        <input id="weight-value" type="number" placeholder="如：65.5" step="0.1" min="20" max="300"
+          class="w-full border border-gray-200 rounded-xl px-3 py-3 text-lg text-center font-semibold focus:outline-none focus:ring-2 focus:ring-green-400">
+      </div>
+    </div>
+
+    <!-- 腰围 -->
+    <div id="form-WAIST_CIRCUMFERENCE" class="space-y-3 hidden">
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">腰围 (cm)</label>
+        <input id="waist-value" type="number" placeholder="如：85.0" step="0.5" min="50" max="200"
+          class="w-full border border-gray-200 rounded-xl px-3 py-3 text-lg text-center font-semibold focus:outline-none focus:ring-2 focus:ring-green-400">
+      </div>
+    </div>
+
+    <!-- 备注（公共） -->
+    <div class="mt-3">
+      <label class="block text-sm text-gray-600 mb-1">备注（可选）</label>
+      <input id="note" type="text" placeholder="如：用药后测量、运动后测量等"
+        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
+    </div>
+  </div>
+
+  <!-- 提交按钮 -->
+  <div id="success-msg" class="hidden bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 text-sm text-center"></div>
+  <div id="error-msg"   class="hidden bg-red-50   border border-red-200   text-red-700   rounded-xl px-4 py-3 text-sm text-center"></div>
+
+  <button onclick="submit()"
+    class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3.5 rounded-xl text-sm transition">
+    保存记录
+  </button>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<style>
+.type-card { transition: all 0.15s; cursor: pointer; }
+.type-selected { border-color: #16a34a; background-color: #f0fdf4; }
+</style>
+<script>
+let selectedType = 'BLOOD_PRESSURE';
+
+function selectType(type) {
+  selectedType = type;
+  document.querySelectorAll('.type-card').forEach(c => {
+    c.classList.remove('border-green-500', 'bg-green-50');
+    c.classList.add('border-gray-200');
+    const p = c.querySelector('p:last-child');
+    p.classList.remove('text-green-700');
+    p.classList.add('text-gray-600');
+  });
+  const card = document.getElementById('type-' + type);
+  card.classList.add('border-green-500', 'bg-green-50');
+  card.classList.remove('border-gray-200');
+  card.querySelector('p:last-child').classList.add('text-green-700');
+
+  ['BLOOD_PRESSURE','BLOOD_GLUCOSE','WEIGHT','WAIST_CIRCUMFERENCE'].forEach(t => {
+    document.getElementById('form-' + t).classList.toggle('hidden', t !== type);
+  });
+}
+
+async function submit() {
+  let values = {}, scene = null;
+  if (selectedType === 'BLOOD_PRESSURE') {
+    const s = parseFloat(document.getElementById('systolic').value);
+    const d = parseFloat(document.getElementById('diastolic').value);
+    if (!s || !d) { showError('请填写收缩压和舒张压'); return; }
+    values = {systolic: s, diastolic: d};
+    scene = document.getElementById('bp-scene').value;
+  } else if (selectedType === 'BLOOD_GLUCOSE') {
+    const v = parseFloat(document.getElementById('glucose-value').value);
+    if (!v) { showError('请填写血糖值'); return; }
+    values = {value: v};
+    scene = document.getElementById('glucose-scene').value;
+  } else if (selectedType === 'WEIGHT') {
+    const v = parseFloat(document.getElementById('weight-value').value);
+    if (!v) { showError('请填写体重'); return; }
+    values = {value: v};
+  } else {
+    const v = parseFloat(document.getElementById('waist-value').value);
+    if (!v) { showError('请填写腰围'); return; }
+    values = {value: v};
+  }
+
+  const note = document.getElementById('note').value;
+  const resp = await fetch('/tools/indicators', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({indicator_type: selectedType, values, scene, note: note || null}),
+  });
+  const data = await resp.json();
+  if (data.success) {
+    const msg = data.data.alerts_created > 0
+      ? `✅ 保存成功！检测到 ${data.data.alerts_created} 条预警，请注意查看`
+      : '✅ 保存成功！';
+    document.getElementById('success-msg').textContent = msg;
+    document.getElementById('success-msg').classList.remove('hidden');
+    document.getElementById('error-msg').classList.add('hidden');
+    setTimeout(() => window.location.href = '/h5/indicators', 1500);
+  } else {
+    showError(data.error.message);
+  }
+}
+
+function showError(msg) {
+  document.getElementById('error-msg').textContent = msg;
+  document.getElementById('error-msg').classList.remove('hidden');
+  document.getElementById('success-msg').classList.add('hidden');
+}
+</script>
+{% endblock %}

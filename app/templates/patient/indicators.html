@@ -1,0 +1,183 @@
+{% extends "_layouts/patient.html" %}
+{% block title %}健康指标{% endblock %}
+{% block page_title %}健康指标{% endblock %}
+{% set active_tab = "indicators" %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="px-4 pt-4 space-y-4">
+
+  <!-- 指标类型切换 -->
+  <div class="bg-white rounded-2xl p-1 flex">
+    <button onclick="switchType('BLOOD_PRESSURE')" id="btn-BLOOD_PRESSURE"
+      class="flex-1 py-2 rounded-xl text-sm font-medium transition type-btn active-btn">血压</button>
+    <button onclick="switchType('BLOOD_GLUCOSE')" id="btn-BLOOD_GLUCOSE"
+      class="flex-1 py-2 rounded-xl text-sm font-medium transition type-btn">血糖</button>
+    <button onclick="switchType('WEIGHT')" id="btn-WEIGHT"
+      class="flex-1 py-2 rounded-xl text-sm font-medium transition type-btn">体重</button>
+  </div>
+
+  <!-- 时间范围切换 -->
+  <div class="flex space-x-2">
+    <button onclick="switchDays(7)"  id="btn-7"  class="day-btn px-3 py-1.5 rounded-full text-xs bg-green-600 text-white">7天</button>
+    <button onclick="switchDays(30)" id="btn-30" class="day-btn px-3 py-1.5 rounded-full text-xs bg-gray-100 text-gray-500">30天</button>
+    <button onclick="switchDays(90)" id="btn-90" class="day-btn px-3 py-1.5 rounded-full text-xs bg-gray-100 text-gray-500">90天</button>
+  </div>
+
+  <!-- 趋势图 -->
+  <div class="bg-white rounded-2xl p-4">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="font-semibold text-gray-800" id="chart-title">血压趋势</h3>
+      <a href="/h5/indicators/add" class="bg-green-600 text-white text-xs px-3 py-1.5 rounded-full">+ 录入</a>
+    </div>
+    <div class="relative h-48">
+      <canvas id="trendChart"></canvas>
+      <div id="no-data" class="hidden absolute inset-0 flex items-center justify-center text-gray-400 text-sm">
+        暂无数据，点击录入开始记录
+      </div>
+    </div>
+  </div>
+
+  <!-- 统计摘要 -->
+  <div class="bg-white rounded-2xl p-4">
+    <h3 class="font-semibold text-gray-800 mb-3" id="stats-title">统计摘要</h3>
+    <div id="stats-grid" class="grid grid-cols-3 gap-3">
+      <div class="text-center">
+        <p class="text-2xl font-bold text-green-600" id="stat-avg">--</p>
+        <p class="text-xs text-gray-400 mt-0.5">平均</p>
+      </div>
+      <div class="text-center">
+        <p class="text-2xl font-bold text-blue-500" id="stat-max">--</p>
+        <p class="text-xs text-gray-400 mt-0.5">最高</p>
+      </div>
+      <div class="text-center">
+        <p class="text-2xl font-bold text-orange-400" id="stat-min">--</p>
+        <p class="text-xs text-gray-400 mt-0.5">最低</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 历史记录列表 -->
+  <div class="bg-white rounded-2xl p-4">
+    <h3 class="font-semibold text-gray-800 mb-3">历史记录</h3>
+    <div id="history-list" class="space-y-2"></div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<style>
+.type-btn { color: #6b7280; }
+.active-btn { background-color: #16a34a; color: white; }
+</style>
+<script>
+let currentType = 'BLOOD_PRESSURE';
+let currentDays = 7;
+let chart = null;
+
+const CHART_TITLES = {
+  BLOOD_PRESSURE: '血压趋势 (mmHg)',
+  BLOOD_GLUCOSE:  '血糖趋势 (mmol/L)',
+  WEIGHT:         '体重趋势 (kg)',
+  WAIST_CIRCUMFERENCE: '腰围趋势 (cm)',
+};
+
+function switchType(type) {
+  currentType = type;
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active-btn'));
+  document.getElementById('btn-' + type).classList.add('active-btn');
+  loadData();
+}
+
+function switchDays(days) {
+  currentDays = days;
+  document.querySelectorAll('.day-btn').forEach(b => {
+    b.className = 'day-btn px-3 py-1.5 rounded-full text-xs bg-gray-100 text-gray-500';
+  });
+  document.getElementById('btn-' + days).className = 'day-btn px-3 py-1.5 rounded-full text-xs bg-green-600 text-white';
+  loadData();
+}
+
+function extractValue(values, type) {
+  if (type === 'BLOOD_PRESSURE') return values.systolic;
+  if (type === 'BLOOD_GLUCOSE') return values.value;
+  return values.value;
+}
+
+function formatLabel(indicator, type) {
+  if (type === 'BLOOD_PRESSURE') return `${indicator.values.systolic}/${indicator.values.diastolic}`;
+  return String(indicator.values.value ?? '--');
+}
+
+async function loadData() {
+  document.getElementById('chart-title').textContent = CHART_TITLES[currentType] || currentType;
+  try {
+    const resp = await fetch(`/tools/indicators?indicator_type=${currentType}&days=${currentDays}`);
+    const data = await resp.json();
+    if (!data.success) return;
+
+    const indicators = data.data;
+    document.getElementById('no-data').classList.toggle('hidden', indicators.length > 0);
+
+    const labels = indicators.map(i => new Date(i.recorded_at).toLocaleDateString('zh-CN', {month: 'numeric', day: 'numeric'}));
+    const values = indicators.map(i => extractValue(i.values, currentType));
+
+    // 统计
+    if (values.length > 0) {
+      const avg = (values.reduce((a, b) => a + b, 0) / values.length).toFixed(1);
+      document.getElementById('stat-avg').textContent = avg;
+      document.getElementById('stat-max').textContent = Math.max(...values).toFixed(1);
+      document.getElementById('stat-min').textContent = Math.min(...values).toFixed(1);
+    }
+
+    // 图表
+    const ctx = document.getElementById('trendChart').getContext('2d');
+    if (chart) chart.destroy();
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: currentType === 'BLOOD_PRESSURE' ? '收缩压' : '数值',
+          data: values,
+          borderColor: '#16a34a',
+          backgroundColor: 'rgba(22,163,74,0.1)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 4,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {legend: {display: false}},
+        scales: {x: {grid: {display: false}}, y: {grid: {color: '#f3f4f6'}}},
+      },
+    });
+
+    // 历史列表
+    const list = document.getElementById('history-list');
+    list.innerHTML = '';
+    indicators.slice().reverse().forEach(ind => {
+      const div = document.createElement('div');
+      div.className = 'flex items-center justify-between py-2 border-b border-gray-50 last:border-0';
+      div.innerHTML = `
+        <div>
+          <p class="text-sm font-medium text-gray-800">${formatLabel(ind, currentType)}</p>
+          ${ind.note ? `<p class="text-xs text-gray-400">${ind.note}</p>` : ''}
+        </div>
+        <p class="text-xs text-gray-400">${new Date(ind.recorded_at).toLocaleString('zh-CN')}</p>
+      `;
+      list.appendChild(div);
+    });
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+loadData();
+</script>
+{% endblock %}

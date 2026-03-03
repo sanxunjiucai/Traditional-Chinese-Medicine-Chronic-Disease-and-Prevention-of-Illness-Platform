@@ -1,0 +1,109 @@
+{% extends "_layouts/patient.html" %}
+{% block title %}体质辨识{% endblock %}
+{% block page_title %}体质辨识{% endblock %}
+{% set active_tab = "constitution" %}
+
+{% block content %}
+<div class="px-4 pt-4 space-y-4" id="loading-state">
+  <div class="animate-pulse space-y-3">
+    <div class="h-40 bg-gray-100 rounded-2xl"></div>
+    <div class="h-20 bg-gray-100 rounded-2xl"></div>
+  </div>
+</div>
+
+<!-- 无评估：引导开始 -->
+<div id="no-assessment" class="px-4 pt-4 space-y-4 hidden">
+  <div class="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 text-white text-center">
+    <div class="text-5xl mb-3">🌿</div>
+    <h2 class="text-xl font-bold mb-2">了解您的体质</h2>
+    <p class="text-green-100 text-sm">中医九种体质辨识，精准匹配调护方案</p>
+  </div>
+  <div class="bg-white rounded-2xl p-4 space-y-3">
+    <h3 class="font-semibold text-gray-800">九种体质包括</h3>
+    <div class="grid grid-cols-3 gap-2 text-center text-xs text-gray-600">
+      <div class="bg-green-50 rounded-xl py-2">平和质</div>
+      <div class="bg-blue-50 rounded-xl py-2">气虚质</div>
+      <div class="bg-orange-50 rounded-xl py-2">阳虚质</div>
+      <div class="bg-red-50 rounded-xl py-2">阴虚质</div>
+      <div class="bg-yellow-50 rounded-xl py-2">痰湿质</div>
+      <div class="bg-amber-50 rounded-xl py-2">湿热质</div>
+      <div class="bg-purple-50 rounded-xl py-2">血瘀质</div>
+      <div class="bg-indigo-50 rounded-xl py-2">气郁质</div>
+      <div class="bg-pink-50 rounded-xl py-2">特禀质</div>
+    </div>
+  </div>
+  <a href="/h5/constitution/assess"
+    class="block w-full bg-green-600 text-white text-center font-medium py-3.5 rounded-xl text-sm">
+    开始体质评估（约10分钟）
+  </a>
+</div>
+
+<!-- 已有评估结果 -->
+<div id="has-assessment" class="px-4 pt-4 space-y-4 hidden">
+  <div id="result-card" class="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-5 text-white">
+    <p class="text-green-100 text-xs mb-1">我的主导体质</p>
+    <h2 class="text-2xl font-bold" id="main-type-name">-</h2>
+    <p class="text-sm text-green-100 mt-2" id="scored-at">-</p>
+  </div>
+
+  <div class="bg-white rounded-2xl p-4">
+    <h3 class="font-semibold text-gray-800 mb-3">体质说明</h3>
+    <p id="main-type-desc" class="text-sm text-gray-600 leading-relaxed">-</p>
+  </div>
+
+  <div id="secondary-types-section" class="bg-white rounded-2xl p-4 hidden">
+    <h3 class="font-semibold text-gray-800 mb-2">兼夹体质</h3>
+    <div id="secondary-types" class="flex flex-wrap gap-2"></div>
+  </div>
+
+  <div class="flex space-x-3">
+    <a href="/h5/recommendation" class="flex-1 bg-green-600 text-white text-center font-medium py-3 rounded-xl text-sm">查看调护建议</a>
+    <a href="/h5/constitution/assess" class="flex-1 border border-green-600 text-green-600 text-center font-medium py-3 rounded-xl text-sm">重新评估</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const TYPE_NAMES = {
+  BALANCED: '平和质', QI_DEFICIENCY: '气虚质', YANG_DEFICIENCY: '阳虚质',
+  YIN_DEFICIENCY: '阴虚质', PHLEGM_DAMPNESS: '痰湿质', DAMP_HEAT: '湿热质',
+  BLOOD_STASIS: '血瘀质', QI_STAGNATION: '气郁质', SPECIAL_DIATHESIS: '特禀质',
+};
+
+async function load() {
+  const resp = await fetch('/tools/constitution/latest');
+  const data = await resp.json();
+  document.getElementById('loading-state').style.display = 'none';
+
+  if (!data.success || !data.data) {
+    document.getElementById('no-assessment').classList.remove('hidden');
+    return;
+  }
+
+  const a = data.data;
+  document.getElementById('has-assessment').classList.remove('hidden');
+  document.getElementById('main-type-name').textContent = TYPE_NAMES[a.main_type] || a.main_type;
+  document.getElementById('scored-at').textContent = '评估时间：' + new Date(a.scored_at).toLocaleDateString('zh-CN');
+
+  // 从 result 中获取描述
+  const scoreData = a.result?.[a.main_type];
+  if (scoreData) {
+    document.getElementById('main-type-desc').textContent = `转换分：${scoreData.converted_score}分（${scoreData.level === 'yes' ? '明显' : '倾向'}）`;
+  }
+
+  if (a.secondary_types && a.secondary_types.length > 0) {
+    document.getElementById('secondary-types-section').classList.remove('hidden');
+    const container = document.getElementById('secondary-types');
+    a.secondary_types.forEach(bt => {
+      const span = document.createElement('span');
+      span.className = 'bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs';
+      span.textContent = TYPE_NAMES[bt] || bt;
+      container.appendChild(span);
+    });
+  }
+}
+
+load();
+</script>
+{% endblock %}

@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(\"D:/software/Python/python.exe\":*)",
+      "Bash(docker compose:*)",
+      "Bash(wc:*)",
+      "Bash(cat:*)",
+      "Bash(python3:*)",
+      "Bash(cmd:*)",
+      "Bash(powershell:*)",
+      "Bash(/c/Users/Lenovo/AppData/Local/Programs/Python/Launcher/py.exe:*)",
+      "Bash($PY:*)",
+      "Bash(\"$PYEXE\":*)",
+      "Bash(curl:*)",
+      "Bash(grep:*)"
+    ]
+  }
+}

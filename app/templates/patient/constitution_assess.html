@@ -1,0 +1,191 @@
+{% extends "_layouts/patient.html" %}
+{% block title %}体质问卷{% endblock %}
+{% block page_title %}体质评估问卷{% endblock %}
+
+{% block header_left %}
+<button onclick="history.back()" class="w-8 h-8 flex items-center justify-center text-gray-500">
+  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+  </svg>
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="px-4 pt-4 pb-24 space-y-4">
+
+  <!-- 进度条 -->
+  <div class="bg-white rounded-2xl p-4">
+    <div class="flex justify-between text-xs text-gray-500 mb-2">
+      <span>第 <span id="current-page">1</span> 页 / 共 <span id="total-pages">?</span> 页</span>
+      <span><span id="answered-count">0</span> / <span id="total-count">0</span> 题已回答</span>
+    </div>
+    <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+      <div id="progress-bar" class="h-full bg-green-500 rounded-full transition-all duration-300" style="width:0%"></div>
+    </div>
+  </div>
+
+  <!-- 题目区域 -->
+  <div id="questions-container" class="space-y-4"></div>
+
+  <!-- 提交提示 -->
+  <div id="submit-confirm" class="hidden bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
+    <p class="text-green-700 font-medium">所有问题已回答完毕</p>
+    <p class="text-green-600 text-sm mt-1">点击"提交"查看您的体质评估结果</p>
+  </div>
+  <div id="error-msg" class="hidden bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700"></div>
+
+</div>
+
+<!-- 底部操作栏（覆盖默认 nav） -->
+<div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-3 z-20">
+  <div class="flex space-x-3">
+    <button onclick="prevPage()" id="prev-btn"
+      class="flex-1 border border-gray-200 text-gray-600 font-medium py-3 rounded-xl text-sm disabled:opacity-40" disabled>
+      上一页
+    </button>
+    <button onclick="nextPage()" id="next-btn"
+      class="flex-1 bg-green-600 text-white font-medium py-3 rounded-xl text-sm">
+      下一页
+    </button>
+    <button onclick="submitAssessment()" id="submit-btn"
+      class="flex-1 bg-green-600 text-white font-medium py-3 rounded-xl text-sm hidden">
+      提交评估
+    </button>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const PAGE_SIZE = 10;
+let allQuestions = [];
+let answers = {};
+let assessmentId = null;
+let currentPage = 0;
+
+const OPTIONS = ['没有', '很少', '有时', '经常', '总是'];
+
+async function init() {
+  // 开始评估
+  const startResp = await fetch('/tools/constitution/start', {method: 'POST'});
+  const startData = await startResp.json();
+  if (!startData.success) { showError(startData.error.message); return; }
+  assessmentId = startData.data.assessment_id;
+
+  // 加载题目
+  const qResp = await fetch('/tools/constitution/questions');
+  const qData = await qResp.json();
+  if (!qData.success) { showError('加载题目失败'); return; }
+  allQuestions = qData.data;
+
+  const totalPages = Math.ceil(allQuestions.length / PAGE_SIZE);
+  document.getElementById('total-pages').textContent = totalPages;
+  document.getElementById('total-count').textContent = allQuestions.length;
+
+  renderPage(0);
+}
+
+function renderPage(page) {
+  currentPage = page;
+  const totalPages = Math.ceil(allQuestions.length / PAGE_SIZE);
+  const start = page * PAGE_SIZE;
+  const pageQs = allQuestions.slice(start, start + PAGE_SIZE);
+
+  document.getElementById('current-page').textContent = page + 1;
+  document.getElementById('answered-count').textContent = Object.keys(answers).length;
+  document.getElementById('progress-bar').style.width = (Object.keys(answers).length / allQuestions.length * 100) + '%';
+
+  const container = document.getElementById('questions-container');
+  container.innerHTML = '';
+
+  pageQs.forEach((q, i) => {
+    const qNum = start + i + 1;
+    const answered = answers[q.id];
+    const div = document.createElement('div');
+    div.className = 'bg-white rounded-2xl p-4';
+    div.innerHTML = `
+      <p class="text-sm font-medium text-gray-800 mb-3">${qNum}. ${q.content}</p>
+      <div class="flex justify-between gap-1" id="opts-${q.id}">
+        ${OPTIONS.map((opt, val) => `
+          <button onclick="selectAnswer('${q.id}', ${val + 1})" id="opt-${q.id}-${val + 1}"
+            class="flex-1 py-2 rounded-xl text-xs border transition ${answered === val + 1 ? 'bg-green-500 text-white border-green-500' : 'border-gray-200 text-gray-600 hover:border-green-300'}">
+            ${opt}
+          </button>
+        `).join('')}
+      </div>
+    `;
+    container.appendChild(div);
+  });
+
+  document.getElementById('prev-btn').disabled = page === 0;
+  const isLastPage = page >= totalPages - 1;
+  const allAnswered = allQuestions.every(q => answers[q.id]);
+
+  document.getElementById('next-btn').classList.toggle('hidden', isLastPage);
+  document.getElementById('submit-btn').classList.toggle('hidden', !isLastPage);
+  document.getElementById('submit-confirm').classList.toggle('hidden', !isLastPage || !allAnswered);
+}
+
+function selectAnswer(questionId, value) {
+  answers[questionId] = value;
+  // 更新按钮样式
+  for (let v = 1; v <= 5; v++) {
+    const btn = document.getElementById(`opt-${questionId}-${v}`);
+    if (btn) {
+      btn.className = `flex-1 py-2 rounded-xl text-xs border transition ${v === value ? 'bg-green-500 text-white border-green-500' : 'border-gray-200 text-gray-600 hover:border-green-300'}`;
+    }
+  }
+  document.getElementById('answered-count').textContent = Object.keys(answers).length;
+  document.getElementById('progress-bar').style.width = (Object.keys(answers).length / allQuestions.length * 100) + '%';
+  const totalPages = Math.ceil(allQuestions.length / PAGE_SIZE);
+  const isLastPage = currentPage >= totalPages - 1;
+  const allAnswered = allQuestions.every(q => answers[q.id]);
+  document.getElementById('submit-confirm').classList.toggle('hidden', !isLastPage || !allAnswered);
+}
+
+function nextPage() {
+  const totalPages = Math.ceil(allQuestions.length / PAGE_SIZE);
+  if (currentPage < totalPages - 1) renderPage(currentPage + 1);
+}
+
+function prevPage() {
+  if (currentPage > 0) renderPage(currentPage - 1);
+}
+
+async function submitAssessment() {
+  const unanswered = allQuestions.filter(q => !answers[q.id]);
+  if (unanswered.length > 0) {
+    showError(`还有 ${unanswered.length} 题未回答，请完成所有题目后提交`);
+    return;
+  }
+
+  // 先保存所有答案
+  const answerList = Object.entries(answers).map(([qId, val]) => ({question_id: qId, answer_value: val}));
+  await fetch('/tools/constitution/answer', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({assessment_id: assessmentId, answers: answerList}),
+  });
+
+  // 提交评分
+  const resp = await fetch('/tools/constitution/submit', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({assessment_id: assessmentId}),
+  });
+  const data = await resp.json();
+  if (data.success) {
+    window.location.href = `/h5/constitution/result/${assessmentId}`;
+  } else {
+    showError(data.error.message);
+  }
+}
+
+function showError(msg) {
+  document.getElementById('error-msg').textContent = msg;
+  document.getElementById('error-msg').classList.remove('hidden');
+}
+
+init();
+</script>
+{% endblock %}

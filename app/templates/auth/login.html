@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 - 治未病平台</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }</style>
+</head>
+<body class="bg-gradient-to-br from-green-50 to-emerald-100 min-h-screen flex items-center justify-center px-4">
+
+<div class="w-full max-w-sm">
+  <!-- Logo -->
+  <div class="text-center mb-8">
+    <div class="inline-flex items-center justify-center w-16 h-16 bg-green-600 rounded-2xl mb-4 shadow-lg">
+      <span class="text-white text-3xl">🌿</span>
+    </div>
+    <h1 class="text-2xl font-bold text-gray-800">治未病平台</h1>
+    <p class="text-gray-500 text-sm mt-1">中医慢病管理与健康调护</p>
+  </div>
+
+  <!-- 登录表单 -->
+  <div class="bg-white rounded-2xl shadow-md p-6">
+    <div id="error-msg" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm"></div>
+
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">手机号 / 账号</label>
+        <input id="phone" type="text" placeholder="请输入手机号"
+          class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">密码</label>
+        <input id="password" type="password" placeholder="请输入密码"
+          class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition">
+      </div>
+      <button onclick="doLogin()"
+        class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 rounded-xl transition text-sm">
+        登录
+      </button>
+    </div>
+
+    <div class="mt-4 text-center">
+      <span class="text-gray-500 text-sm">还没有账号？</span>
+      <a href="/register" class="text-green-600 text-sm font-medium ml-1">立即注册</a>
+    </div>
+  </div>
+
+  <!-- 演示账号提示 -->
+  <div class="mt-4 bg-white/60 rounded-xl px-4 py-3 text-xs text-gray-500">
+    <p class="font-medium mb-1 text-gray-600">演示账号（密码：Demo@123456）</p>
+    <p>患者端：patient@tcm</p>
+    <p>管理端：admin@tcm</p>
+  </div>
+</div>
+
+<script>
+async function doLogin() {
+  const phone = document.getElementById('phone').value.trim();
+  const password = document.getElementById('password').value;
+  const errEl = document.getElementById('error-msg');
+
+  if (!phone || !password) {
+    errEl.textContent = '请填写手机号和密码';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  try {
+    const resp = await fetch('/tools/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({phone, password}),
+    });
+    const data = await resp.json();
+
+    if (data.success) {
+      const role = data.data.role;
+      if (role === 'ADMIN' || role === 'PROFESSIONAL') {
+        window.location.href = '/gui/admin/alerts';
+      } else {
+        window.location.href = '/h5/home';
+      }
+    } else {
+      errEl.textContent = data.error.message;
+      errEl.classList.remove('hidden');
+    }
+  } catch (e) {
+    errEl.textContent = '网络错误，请重试';
+    errEl.classList.remove('hidden');
+  }
+}
+
+// Enter 键提交
+document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+</script>
+</body>
+</html>

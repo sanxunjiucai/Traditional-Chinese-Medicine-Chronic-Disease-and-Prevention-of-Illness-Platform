@@ -1,0 +1,83 @@
+{% extends "_layouts/patient.html" %}
+{% block title %}文章详情{% endblock %}
+{% block page_title %}健康知识{% endblock %}
+
+{% block header_left %}
+<button onclick="history.back()" class="w-8 h-8 flex items-center justify-center text-gray-500">
+  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+  </svg>
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="px-4 pt-4 pb-8">
+
+  <!-- 骨架屏 -->
+  <div id="skeleton" class="animate-pulse space-y-3">
+    <div class="h-6 bg-gray-100 rounded w-3/4"></div>
+    <div class="h-4 bg-gray-100 rounded w-1/3"></div>
+    <div class="space-y-2 mt-4">
+      <div class="h-4 bg-gray-100 rounded"></div>
+      <div class="h-4 bg-gray-100 rounded"></div>
+      <div class="h-4 bg-gray-100 rounded w-5/6"></div>
+    </div>
+  </div>
+
+  <!-- 文章内容 -->
+  <div id="article-content" class="hidden space-y-4">
+    <div class="space-y-2">
+      <h1 id="article-title" class="text-xl font-bold text-gray-900 leading-snug"></h1>
+      <div class="flex items-center space-x-2">
+        <div id="article-tags" class="flex flex-wrap gap-1.5"></div>
+        <span id="article-date" class="text-xs text-gray-400 ml-auto"></span>
+      </div>
+    </div>
+    <hr class="border-gray-100">
+    <div id="article-body" class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap"></div>
+  </div>
+
+  <!-- 错误 -->
+  <div id="error-view" class="hidden text-center py-16">
+    <p class="text-gray-400 text-sm">文章不存在或已下线</p>
+    <a href="/h5/content" class="inline-block mt-4 text-green-600 text-sm">返回列表</a>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const CONTENT_ID = "{{ content_id }}";
+
+async function load() {
+  const resp = await fetch(`/tools/content/${CONTENT_ID}`);
+  const data = await resp.json();
+  document.getElementById('skeleton').classList.add('hidden');
+
+  if (!data.success) {
+    document.getElementById('error-view').classList.remove('hidden');
+    return;
+  }
+
+  const a = data.data;
+  document.getElementById('article-title').textContent = a.title;
+  document.getElementById('article-body').textContent = a.body || '';
+  document.getElementById('article-date').textContent = a.published_at ? a.published_at.slice(0,10) : '';
+
+  const tagsEl = document.getElementById('article-tags');
+  (a.tags || []).forEach(t => {
+    const span = document.createElement('span');
+    span.className = 'text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full';
+    span.textContent = t;
+    tagsEl.appendChild(span);
+  });
+
+  // Update page title
+  document.title = a.title + ' — 健康知识';
+  document.getElementById('article-content').classList.remove('hidden');
+}
+
+load();
+</script>
+{% endblock %}

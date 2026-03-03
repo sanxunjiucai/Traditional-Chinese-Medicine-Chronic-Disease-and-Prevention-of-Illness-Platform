@@ -1,0 +1,161 @@
+{% extends "_layouts/admin.html" %}
+{% block title %}预警详情{% endblock %}
+{% block page_title %}预警详情{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl space-y-5">
+
+  <!-- 返回 -->
+  <a href="/gui/admin/alerts" class="inline-flex items-center text-sm text-gray-500 hover:text-green-600">
+    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+    返回列表
+  </a>
+
+  <!-- 预警信息卡 -->
+  <div class="bg-white rounded-xl shadow-sm p-5 space-y-4">
+    <div class="flex items-start justify-between">
+      <h3 class="font-semibold text-gray-800 text-base">预警信息</h3>
+      <span id="status-badge" class="px-3 py-1 rounded-full text-xs font-medium">-</span>
+    </div>
+    <dl class="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+      <div>
+        <dt class="text-gray-400">患者</dt>
+        <dd id="det-user" class="text-gray-800 mt-0.5">-</dd>
+      </div>
+      <div>
+        <dt class="text-gray-400">严重度</dt>
+        <dd id="det-severity" class="mt-0.5">-</dd>
+      </div>
+      <div>
+        <dt class="text-gray-400">预警规则</dt>
+        <dd id="det-rule" class="text-gray-800 mt-0.5">-</dd>
+      </div>
+      <div>
+        <dt class="text-gray-400">触发时间</dt>
+        <dd id="det-time" class="text-gray-800 mt-0.5">-</dd>
+      </div>
+      <div class="col-span-2">
+        <dt class="text-gray-400">触发值</dt>
+        <dd id="det-value" class="text-gray-800 mt-0.5 font-mono text-xs bg-gray-50 rounded p-2">-</dd>
+      </div>
+      <div id="handler-row" class="col-span-2 hidden">
+        <dt class="text-gray-400">处置人</dt>
+        <dd id="det-handler" class="text-gray-800 mt-0.5">-</dd>
+      </div>
+      <div id="note-row" class="col-span-2 hidden">
+        <dt class="text-gray-400">处置备注</dt>
+        <dd id="det-note" class="text-gray-800 mt-0.5 bg-blue-50 rounded p-2">-</dd>
+      </div>
+    </dl>
+  </div>
+
+  <!-- 操作区 -->
+  <div id="action-panel" class="bg-white rounded-xl shadow-sm p-5 space-y-4">
+    <h3 class="font-semibold text-gray-800 text-base">处置操作</h3>
+    <div>
+      <label class="text-sm text-gray-600">处置备注</label>
+      <textarea id="handler-note" rows="3" placeholder="记录处置情况、联系患者情况等..."
+        class="w-full mt-1 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"></textarea>
+    </div>
+    <div class="flex space-x-3">
+      <button id="btn-ack" onclick="ackAlert()"
+        class="flex-1 border border-blue-300 text-blue-600 font-medium py-2.5 rounded-lg text-sm hover:bg-blue-50">
+        确认预警（ACKED）
+      </button>
+      <button id="btn-close" onclick="closeAlert()"
+        class="flex-1 bg-green-600 text-white font-medium py-2.5 rounded-lg text-sm hover:bg-green-700">
+        关闭预警（CLOSED）
+      </button>
+    </div>
+    <p id="action-msg" class="text-sm text-center hidden"></p>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const ALERT_ID = "{{ event_id }}";
+const SEV_BADGE = {HIGH: 'bg-red-100 text-red-700', MEDIUM: 'bg-orange-100 text-orange-700', LOW: 'bg-yellow-100 text-yellow-700'};
+const SEV_LABELS = {HIGH: '高风险', MEDIUM: '中风险', LOW: '低风险'};
+const STATUS_BADGE = {OPEN: 'bg-red-50 text-red-600', ACKED: 'bg-blue-50 text-blue-600', CLOSED: 'bg-gray-100 text-gray-500'};
+const STATUS_LABELS = {OPEN: '待处理', ACKED: '已确认', CLOSED: '已关闭'};
+
+let currentStatus = '';
+
+async function load() {
+  const resp = await fetch(`/tools/alerts/${ALERT_ID}`);
+  const data = await resp.json();
+  if (!data.success) { showMsg('加载失败：' + data.error.message, 'red'); return; }
+  const a = data.data;
+  currentStatus = a.status;
+
+  document.getElementById('status-badge').textContent = STATUS_LABELS[a.status] || a.status;
+  document.getElementById('status-badge').className = `px-3 py-1 rounded-full text-xs font-medium ${STATUS_BADGE[a.status] || ''}`;
+  document.getElementById('det-user').textContent = a.user_phone || a.user_id?.slice(0,8) || '-';
+  document.getElementById('det-severity').innerHTML = `<span class="px-2 py-0.5 rounded-full text-xs font-medium ${SEV_BADGE[a.severity] || ''}">${SEV_LABELS[a.severity] || a.severity}</span>`;
+  document.getElementById('det-rule').textContent = a.rule_name || '-';
+  document.getElementById('det-time').textContent = a.created_at ? a.created_at.slice(0,16).replace('T',' ') : '-';
+  document.getElementById('det-value').textContent = a.trigger_value ? JSON.stringify(a.trigger_value, null, 2) : '-';
+
+  if (a.handled_by_id) {
+    document.getElementById('handler-row').classList.remove('hidden');
+    document.getElementById('det-handler').textContent = a.handler_phone || a.handled_by_id.slice(0,8);
+  }
+  if (a.handler_note) {
+    document.getElementById('note-row').classList.remove('hidden');
+    document.getElementById('det-note').textContent = a.handler_note;
+  }
+
+  // 更新操作按钮可用性
+  const btnAck = document.getElementById('btn-ack');
+  const btnClose = document.getElementById('btn-close');
+  if (a.status === 'OPEN') {
+    btnAck.disabled = false;
+    btnClose.disabled = false;
+  } else if (a.status === 'ACKED') {
+    btnAck.disabled = true;
+    btnAck.className = btnAck.className.replace('text-blue-600', 'text-gray-400').replace('border-blue-300', 'border-gray-200');
+    btnClose.disabled = false;
+  } else {
+    document.getElementById('action-panel').innerHTML = '<p class="text-center text-gray-400 py-4 text-sm">该预警已关闭</p>';
+  }
+}
+
+async function ackAlert() {
+  const note = document.getElementById('handler-note').value;
+  const resp = await fetch(`/tools/alerts/${ALERT_ID}/ack`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({handler_note: note || null}),
+  });
+  const data = await resp.json();
+  if (data.success) { showMsg('已确认', 'green'); load(); }
+  else showMsg('操作失败：' + data.error.message, 'red');
+}
+
+async function closeAlert() {
+  const note = document.getElementById('handler-note').value;
+  const resp = await fetch(`/tools/alerts/${ALERT_ID}/close`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({handler_note: note || null}),
+  });
+  const data = await resp.json();
+  if (data.success) { showMsg('已关闭', 'green'); load(); }
+  else showMsg('操作失败：' + data.error.message, 'red');
+}
+
+function showMsg(msg, color) {
+  const el = document.getElementById('action-msg');
+  el.textContent = msg;
+  el.className = `text-sm text-center ${color === 'green' ? 'text-green-600' : 'text-red-600'}`;
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 3000);
+}
+
+load();
+</script>
+{% endblock %}

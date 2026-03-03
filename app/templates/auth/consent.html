@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>隐私授权 - 治未病平台</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }</style>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col px-4 py-8">
+
+<div class="max-w-sm mx-auto w-full flex flex-col flex-1">
+  <div class="text-center mb-6">
+    <div class="text-4xl mb-3">📋</div>
+    <h1 class="text-xl font-bold text-gray-800">隐私授权协议</h1>
+    <p class="text-gray-500 text-sm mt-1">请阅读并同意以下授权协议</p>
+  </div>
+
+  <div class="bg-white rounded-2xl shadow-sm p-5 mb-6 flex-1 overflow-y-auto max-h-96 text-sm text-gray-600 leading-relaxed">
+    <h2 class="font-semibold text-gray-800 mb-2">一、信息收集范围</h2>
+    <p class="mb-3">本平台将收集您的健康档案信息、指标数据、体质评估数据及随访记录，用于提供个性化的健康管理服务。</p>
+
+    <h2 class="font-semibold text-gray-800 mb-2">二、信息使用目的</h2>
+    <p class="mb-3">您的健康数据仅用于：为您提供体质辨识、调护建议和随访管理服务；在出现健康预警时及时通知您和您的随访医生。</p>
+
+    <h2 class="font-semibold text-gray-800 mb-2">三、信息保护措施</h2>
+    <p class="mb-3">我们采用加密存储和传输，严格限制数据访问权限，所有操作均有审计日志记录，保障您的数据安全。</p>
+
+    <h2 class="font-semibold text-gray-800 mb-2">四、您的权利</h2>
+    <p class="mb-3">您有权随时查看、导出或申请删除您的个人数据。如需行使上述权利，请联系您的随访医生或平台管理员。</p>
+
+    <h2 class="font-semibold text-gray-800 mb-2">五、同意声明</h2>
+    <p>点击"同意并继续"表示您已阅读并同意本协议的全部条款（版本 v1.0）。您可随时在账号设置中撤回授权。</p>
+  </div>
+
+  <button onclick="doConsent()"
+    class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3.5 rounded-xl transition text-sm">
+    同意并继续
+  </button>
+  <button onclick="window.location.href='/login'"
+    class="w-full mt-2 text-gray-500 py-2 text-sm">
+    暂不同意，返回登录
+  </button>
+</div>
+
+<script>
+async function doConsent() {
+  const resp = await fetch('/tools/auth/consent', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({version: '1.0'}),
+  });
+  const data = await resp.json();
+  if (data.success) {
+    window.location.href = '/h5/home';
+  } else {
+    alert('操作失败：' + data.error.message);
+  }
+}
+</script>
+</body>
+</html>
