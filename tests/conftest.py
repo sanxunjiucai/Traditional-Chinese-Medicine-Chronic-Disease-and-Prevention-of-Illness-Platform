@@ -43,7 +43,14 @@ async def setup_test_db():
 
 @pytest_asyncio.fixture()
 async def db_session() -> AsyncGenerator[AsyncSession, None]:
-    """每个测试函数使用独立 session，测试后回滚。"""
+    """每个测试函数前清空数据并使用独立 session。"""
+    async with TEST_ENGINE.begin() as conn:
+        # SQLite 下禁用外键约束后按依赖逆序清表，避免跨用例数据污染
+        await conn.execute(text("PRAGMA foreign_keys=OFF"))
+        for table in reversed(Base.metadata.sorted_tables):
+            await conn.execute(table.delete())
+        await conn.execute(text("PRAGMA foreign_keys=ON"))
+
     async with TestSession() as session:
         yield session
         await session.rollback()
