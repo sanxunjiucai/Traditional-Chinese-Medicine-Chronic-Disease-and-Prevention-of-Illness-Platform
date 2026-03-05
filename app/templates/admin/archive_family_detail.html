@@ -1,0 +1,528 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "archive_families" %}
+{% block title %}家庭档案详情 - 治未病平台{% endblock %}
+{% block page_title %}家庭档案详情{% endblock %}
+
+{% block content %}
+<!-- 面包屑 -->
+<nav class="flex items-center gap-1.5 text-sm mb-4">
+  <a href="/gui/admin/archives" class="text-gray-500 hover:text-emerald-600">档案管理</a>
+  <svg class="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+  </svg>
+  <a href="/gui/admin/archives/families" class="text-gray-500 hover:text-emerald-600">家庭档案</a>
+  <svg class="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+  </svg>
+  <span class="text-gray-700 font-medium">李氏家庭</span>
+</nav>
+
+<div class="flex gap-6">
+
+  <!-- ══════════ 左侧主内容区（2/3） ══════════ -->
+  <div class="flex-1 min-w-0 space-y-5">
+
+    <!-- 卡片1：家庭基本信息 -->
+    <div class="bg-white rounded-xl shadow-sm p-6">
+      <div class="flex items-start justify-between mb-5">
+        <div>
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center">
+              <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-xl font-bold text-gray-800">李氏家庭</h2>
+              <p class="text-sm text-gray-400 mt-0.5">家庭编号：F2024-00087</p>
+            </div>
+          </div>
+        </div>
+        <div class="text-right">
+          <span class="inline-flex items-center px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium border border-emerald-200">
+            活跃家庭
+          </span>
+          <p class="text-xs text-gray-400 mt-1">family_id: {{ family_id }}</p>
+        </div>
+      </div>
+
+      <!-- 2×3 信息格 -->
+      <div class="grid grid-cols-3 gap-4 mb-5">
+        <div class="bg-gray-50 rounded-lg p-3">
+          <p class="text-xs text-gray-400 mb-1">户主</p>
+          <p class="text-sm font-semibold text-gray-800">李建国</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3">
+          <p class="text-xs text-gray-400 mb-1">家庭人数</p>
+          <p class="text-sm font-semibold text-gray-800">5 人</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3">
+          <p class="text-xs text-gray-400 mb-1">家庭地址</p>
+          <p class="text-sm font-semibold text-gray-800 truncate" title="河东区幸福里12号楼3单元502">河东区幸福里12号楼3单元502</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3">
+          <p class="text-xs text-gray-400 mb-1">责任医生</p>
+          <p class="text-sm font-semibold text-gray-800">王医生</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3">
+          <p class="text-xs text-gray-400 mb-1">建档日期</p>
+          <p class="text-sm font-semibold text-gray-800">2024-03-15</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3">
+          <p class="text-xs text-gray-400 mb-1">家庭标签</p>
+          <div class="flex flex-wrap gap-1 mt-0.5">
+            <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-xs">慢病家庭</span>
+            <span class="px-1.5 py-0.5 rounded text-xs" style="background:#EBF2ED;color:#4E7A61;">三代同堂</span>
+          </div>
+        </div>
+      </div>
+
+      <button onclick="showToast('编辑家庭信息')"
+        class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 transition-colors">
+        编辑家庭信息
+      </button>
+    </div>
+
+    <!-- 卡片2：家庭成员列表 -->
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="font-semibold text-gray-700">家庭成员列表</h3>
+        <span class="text-xs text-gray-400">共 5 名成员</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+            <tr>
+              <th class="px-5 py-3 text-left">成员</th>
+              <th class="px-5 py-3 text-left">与户主关系</th>
+              <th class="px-5 py-3 text-left">性别</th>
+              <th class="px-5 py-3 text-left">年龄</th>
+              <th class="px-5 py-3 text-left">档案号</th>
+              <th class="px-5 py-3 text-left">体质类型</th>
+              <th class="px-5 py-3 text-left">健康状态</th>
+              <th class="px-5 py-3 text-left">操作</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            <!-- 成员1：户主 -->
+            <tr class="hover:bg-gray-50">
+              <td class="px-5 py-3">
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-sm flex-shrink-0">李</div>
+                  <div>
+                    <a href="/gui/admin/archives/A10023" class="font-medium text-gray-800 hover:text-emerald-600 hover:underline">李建国</a>
+                    <span class="ml-1 px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-xs" title="户主">户</span>
+                  </div>
+                </div>
+              </td>
+              <td class="px-5 py-3 text-gray-600">户主</td>
+              <td class="px-5 py-3 text-gray-600">男</td>
+              <td class="px-5 py-3 text-gray-600">58岁</td>
+              <td class="px-5 py-3 text-gray-400 font-mono text-xs">A10023</td>
+              <td class="px-5 py-3">
+                <span class="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs">气虚质</span>
+              </td>
+              <td class="px-5 py-3">
+                <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">良好</span>
+              </td>
+              <td class="px-5 py-3">
+                <a href="/gui/admin/archives/A10023?from=families" class="text-emerald-600 hover:underline text-xs">查看档案</a>
+              </td>
+            </tr>
+            <!-- 成员2 -->
+            <tr class="hover:bg-gray-50">
+              <td class="px-5 py-3">
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center text-pink-700 font-bold text-sm flex-shrink-0">李</div>
+                  <a href="/gui/admin/archives/A10024" class="font-medium text-gray-800 hover:text-emerald-600 hover:underline">李淑华</a>
+                </div>
+              </td>
+              <td class="px-5 py-3 text-gray-600">配偶</td>
+              <td class="px-5 py-3 text-gray-600">女</td>
+              <td class="px-5 py-3 text-gray-600">55岁</td>
+              <td class="px-5 py-3 text-gray-400 font-mono text-xs">A10024</td>
+              <td class="px-5 py-3">
+                <span class="px-2 py-0.5 rounded-full text-xs" style="background:#EDE8E2;color:#5070A8;">阳虚质</span>
+              </td>
+              <td class="px-5 py-3">
+                <span class="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs">一般</span>
+              </td>
+              <td class="px-5 py-3">
+                <a href="/gui/admin/archives/A10024?from=families" class="text-emerald-600 hover:underline text-xs">查看档案</a>
+              </td>
+            </tr>
+            <!-- 成员3 -->
+            <tr class="hover:bg-gray-50">
+              <td class="px-5 py-3">
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0" style="background:#EBF2ED;color:#4E7A61;">李</div>
+                  <a href="/gui/admin/archives/A10089" class="font-medium text-gray-800 hover:text-emerald-600 hover:underline">李明</a>
+                </div>
+              </td>
+              <td class="px-5 py-3 text-gray-600">子女</td>
+              <td class="px-5 py-3 text-gray-600">男</td>
+              <td class="px-5 py-3 text-gray-600">30岁</td>
+              <td class="px-5 py-3 text-gray-400 font-mono text-xs">A10089</td>
+              <td class="px-5 py-3">
+                <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs">平和质</span>
+              </td>
+              <td class="px-5 py-3">
+                <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">良好</span>
+              </td>
+              <td class="px-5 py-3">
+                <a href="/gui/admin/archives/A10089?from=families" class="text-emerald-600 hover:underline text-xs">查看档案</a>
+              </td>
+            </tr>
+            <!-- 成员4 -->
+            <tr class="hover:bg-gray-50">
+              <td class="px-5 py-3">
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-rose-700 font-bold text-sm flex-shrink-0">王</div>
+                  <div>
+                    <a href="/gui/admin/archives/A10091" class="font-medium text-gray-800 hover:text-emerald-600 hover:underline">王晓燕</a>
+                    <span class="ml-1 text-xs text-gray-400">（儿媳）</span>
+                  </div>
+                </div>
+              </td>
+              <td class="px-5 py-3 text-gray-600">其他</td>
+              <td class="px-5 py-3 text-gray-600">女</td>
+              <td class="px-5 py-3 text-gray-600">28岁</td>
+              <td class="px-5 py-3 text-gray-400 font-mono text-xs">A10091</td>
+              <td class="px-5 py-3">
+                <span class="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs">湿热质</span>
+              </td>
+              <td class="px-5 py-3">
+                <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">良好</span>
+              </td>
+              <td class="px-5 py-3">
+                <a href="/gui/admin/archives/A10091?from=families" class="text-emerald-600 hover:underline text-xs">查看档案</a>
+              </td>
+            </tr>
+            <!-- 成员5 -->
+            <tr class="hover:bg-gray-50">
+              <td class="px-5 py-3">
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0" style="background:#EDE8E2;color:#5070A8;">李</div>
+                  <div>
+                    <a href="/gui/admin/archives/A10103" class="font-medium text-gray-800 hover:text-emerald-600 hover:underline">李小宝</a>
+                    <span class="ml-1 text-xs text-gray-400">（孙子）</span>
+                  </div>
+                </div>
+              </td>
+              <td class="px-5 py-3 text-gray-600">子女</td>
+              <td class="px-5 py-3 text-gray-600">男</td>
+              <td class="px-5 py-3 text-gray-600">3岁</td>
+              <td class="px-5 py-3 text-gray-400 font-mono text-xs">A10103</td>
+              <td class="px-5 py-3">
+                <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs">平和质</span>
+              </td>
+              <td class="px-5 py-3">
+                <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">良好</span>
+              </td>
+              <td class="px-5 py-3">
+                <a href="/gui/admin/archives/A10103?from=families" class="text-emerald-600 hover:underline text-xs">查看档案</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 卡片3：家庭健康概览 -->
+    <div class="bg-white rounded-xl shadow-sm p-6">
+      <h3 class="font-semibold text-gray-700 mb-5">家庭健康概览</h3>
+
+      <!-- 4 个 KPI -->
+      <div class="grid grid-cols-4 gap-4 mb-6">
+        <div class="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
+          <p class="text-xs text-emerald-600 mb-1">体质评估完成率</p>
+          <p class="text-2xl font-bold text-emerald-700">80%</p>
+          <p class="text-xs text-emerald-500 mt-1">4/5 人已完成</p>
+        </div>
+        <div class="rounded-xl p-4" style="background:#EBF2ED;border:1px solid #B8D4C2;">
+          <p class="text-xs mb-1" style="color:#4E7A61;">随访完成率</p>
+          <p class="text-2xl font-bold" style="color:#3F6A52;">75%</p>
+          <p class="text-xs mt-1" style="color:#5C9272;">本年度</p>
+        </div>
+        <div class="bg-amber-50 rounded-xl p-4 border border-amber-100">
+          <p class="text-xs text-amber-600 mb-1">本月预警数</p>
+          <p class="text-2xl font-bold text-amber-700">2</p>
+          <p class="text-xs text-amber-500 mt-1">需关注</p>
+        </div>
+        <div class="rounded-xl p-4" style="background:#F5EDE3;border:1px solid #D4B8A0;">
+          <p class="text-xs mb-1" style="color:#B8885E;">慢病管理率</p>
+          <p class="text-2xl font-bold" style="color:#9A6A40;">60%</p>
+          <p class="text-xs mt-1" style="color:#C4976B;">3/5 人纳入</p>
+        </div>
+      </div>
+
+      <!-- 成员体质分布横向条形图（纯CSS） -->
+      <div>
+        <p class="text-sm font-medium text-gray-600 mb-3">成员体质分布</p>
+        <div class="space-y-3">
+          <div class="flex items-center gap-3">
+            <span class="w-16 text-xs text-right text-gray-500 flex-shrink-0">平和质</span>
+            <div class="flex-1 bg-gray-100 rounded-full h-5 relative overflow-hidden">
+              <div class="bg-emerald-400 h-full rounded-full" style="width:40%"></div>
+            </div>
+            <span class="w-12 text-xs text-gray-500">2人（40%）</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="w-16 text-xs text-right text-gray-500 flex-shrink-0">气虚质</span>
+            <div class="flex-1 bg-gray-100 rounded-full h-5 relative overflow-hidden">
+              <div class="bg-yellow-400 h-full rounded-full" style="width:20%"></div>
+            </div>
+            <span class="w-12 text-xs text-gray-500">1人（20%）</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="w-16 text-xs text-right text-gray-500 flex-shrink-0">阳虚质</span>
+            <div class="flex-1 bg-gray-100 rounded-full h-5 relative overflow-hidden">
+              <div class="h-full rounded-full" style="width:20%;background:#5070A8;"></div>
+            </div>
+            <span class="w-12 text-xs text-gray-500">1人（20%）</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="w-16 text-xs text-right text-gray-500 flex-shrink-0">湿热质</span>
+            <div class="flex-1 bg-gray-100 rounded-full h-5 relative overflow-hidden">
+              <div class="bg-orange-400 h-full rounded-full" style="width:20%"></div>
+            </div>
+            <span class="w-12 text-xs text-gray-500">1人（20%）</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <!-- ══════════ 右侧信息栏（1/3） ══════════ -->
+  <div class="w-72 flex-shrink-0 space-y-5">
+
+    <!-- 右侧卡片1：快速操作 -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-4">快速操作</h3>
+      <div class="space-y-2.5">
+        <button onclick="document.getElementById('addMemberModal').classList.remove('hidden')"
+          class="w-full flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          新增成员
+        </button>
+        <button onclick="showToast('批量随访功能：已为该家庭 5 名成员生成随访任务')"
+          class="w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm transition-colors" style="background:#EBF2ED;color:#4E7A61;border:1px solid #B8D4C2;" onmouseover="this.style.background='#D8EAE0'" onmouseout="this.style.background='#EBF2ED'">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+          </svg>
+          批量随访
+        </button>
+        <button onclick="showToast('家庭健康报告：PDF 已生成，共 12 页')"
+          class="w-full flex items-center gap-2 px-4 py-2.5 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-sm hover:bg-gray-100 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          导出家庭报告
+        </button>
+      </div>
+    </div>
+
+    <!-- 右侧卡片2：最近活动时间轴 -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-4">最近活动</h3>
+      <div class="space-y-0">
+        <div class="flex gap-3">
+          <div class="flex flex-col items-center flex-shrink-0">
+            <div class="w-2 h-2 rounded-full bg-emerald-400 mt-1"></div>
+            <div class="w-px flex-1 bg-gray-200 mt-1 min-h-4"></div>
+          </div>
+          <div class="pb-4 flex-1 min-w-0">
+            <p class="text-xs text-gray-400">2026-03-01</p>
+            <p class="text-sm text-gray-700 mt-0.5">李建国完成第7次随访</p>
+          </div>
+        </div>
+        <div class="flex gap-3">
+          <div class="flex flex-col items-center flex-shrink-0">
+            <div class="w-2 h-2 rounded-full mt-1" style="background:#5070A8;"></div>
+            <div class="w-px flex-1 bg-gray-200 mt-1 min-h-4"></div>
+          </div>
+          <div class="pb-4 flex-1 min-w-0">
+            <p class="text-xs text-gray-400">2026-02-25</p>
+            <p class="text-sm text-gray-700 mt-0.5">李淑华完成体质评估</p>
+          </div>
+        </div>
+        <div class="flex gap-3">
+          <div class="flex flex-col items-center flex-shrink-0">
+            <div class="w-2 h-2 rounded-full mt-1" style="background:#B8885E;"></div>
+            <div class="w-px flex-1 bg-gray-200 mt-1 min-h-4"></div>
+          </div>
+          <div class="pb-4 flex-1 min-w-0">
+            <p class="text-xs text-gray-400">2026-02-18</p>
+            <p class="text-sm text-gray-700 mt-0.5">李小宝建立健康档案</p>
+          </div>
+        </div>
+        <div class="flex gap-3">
+          <div class="flex flex-col items-center flex-shrink-0">
+            <div class="w-2 h-2 rounded-full bg-amber-400 mt-1"></div>
+            <div class="w-px flex-1 bg-gray-200 mt-1 min-h-4"></div>
+          </div>
+          <div class="pb-4 flex-1 min-w-0">
+            <p class="text-xs text-gray-400">2026-02-10</p>
+            <p class="text-sm text-gray-700 mt-0.5">李明健康评估得分 88分</p>
+          </div>
+        </div>
+        <div class="flex gap-3">
+          <div class="flex flex-col items-center flex-shrink-0">
+            <div class="w-2 h-2 rounded-full bg-rose-400 mt-1"></div>
+            <div class="w-px flex-1 bg-gray-200 mt-1 min-h-4"></div>
+          </div>
+          <div class="pb-4 flex-1 min-w-0">
+            <p class="text-xs text-gray-400">2026-01-28</p>
+            <p class="text-sm text-gray-700 mt-0.5">王晓燕湿热质干预计划启动</p>
+          </div>
+        </div>
+        <div class="flex gap-3">
+          <div class="flex flex-col items-center flex-shrink-0">
+            <div class="w-2 h-2 rounded-full bg-gray-300 mt-1"></div>
+          </div>
+          <div class="pb-0 flex-1 min-w-0">
+            <p class="text-xs text-gray-400">2026-01-15</p>
+            <p class="text-sm text-gray-700 mt-0.5">李建国血压预警触发</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右侧卡片3：家庭标签 -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold text-gray-700">家庭标签</h3>
+        <button onclick="showToast('添加标签')"
+          class="text-xs text-emerald-600 hover:underline">+ 添加</button>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <span class="px-2.5 py-1 bg-amber-100 text-amber-700 rounded-lg text-xs font-medium">慢病家庭</span>
+        <span class="px-2.5 py-1 rounded-lg text-xs font-medium" style="background:#EBF2ED;color:#4E7A61;">三代同堂</span>
+        <span class="px-2.5 py-1 rounded-lg text-xs font-medium" style="background:#F5EDE3;color:#B8885E;">重点关注</span>
+        <span class="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-medium">高血压史</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════ 新增成员弹窗 ══════════ -->
+<div id="addMemberModal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="font-semibold text-gray-800 text-lg">新增家庭成员</h3>
+      <button onclick="document.getElementById('addMemberModal').classList.add('hidden')"
+        class="text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- 搜索现有档案 -->
+    <div class="mb-4">
+      <label class="block text-xs text-gray-500 mb-1.5">搜索现有档案</label>
+      <div class="flex gap-2">
+        <input id="member-search" type="text" placeholder="输入姓名或档案号..."
+          class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
+        <button onclick="searchMember()"
+          class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700">搜索</button>
+      </div>
+      <!-- 搜索结果列表 -->
+      <div id="member-search-results" class="mt-2 border border-gray-100 rounded-lg overflow-hidden hidden">
+        <div class="divide-y divide-gray-100">
+          <div onclick="selectMember('A10201', '张伟')"
+            class="px-3 py-2.5 hover:bg-emerald-50 cursor-pointer flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-700">张伟</p>
+              <p class="text-xs text-gray-400">A10201 · 男 · 45岁</p>
+            </div>
+            <span class="text-xs text-emerald-600">选择</span>
+          </div>
+          <div onclick="selectMember('A10205', '刘芳')"
+            class="px-3 py-2.5 hover:bg-emerald-50 cursor-pointer flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-gray-700">刘芳</p>
+              <p class="text-xs text-gray-400">A10205 · 女 · 42岁</p>
+            </div>
+            <span class="text-xs text-emerald-600">选择</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 已选成员显示 -->
+      <div id="selected-member" class="hidden mt-2 flex items-center gap-2 px-3 py-2 bg-emerald-50 rounded-lg border border-emerald-200">
+        <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+        <span id="selected-member-name" class="text-sm text-emerald-700 font-medium"></span>
+        <button onclick="clearSelectedMember()" class="ml-auto text-xs text-gray-400 hover:text-red-500">取消</button>
+      </div>
+    </div>
+
+    <!-- 与户主关系 -->
+    <div class="mb-5">
+      <label class="block text-xs text-gray-500 mb-1.5">与户主关系 <span class="text-red-500">*</span></label>
+      <select id="member-relation"
+        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300 bg-white">
+        <option value="">请选择关系</option>
+        <option value="spouse">配偶</option>
+        <option value="child">子女</option>
+        <option value="parent">父母</option>
+        <option value="other">其他</option>
+      </select>
+    </div>
+
+    <div class="flex gap-3 justify-end">
+      <button onclick="document.getElementById('addMemberModal').classList.add('hidden')"
+        class="px-5 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">取消</button>
+      <button onclick="confirmAddMember()"
+        class="px-5 py-2 rounded-lg bg-emerald-600 text-white text-sm hover:bg-emerald-700">确认添加</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let selectedMemberId = null;
+let selectedMemberName = null;
+
+function searchMember() {
+  const q = document.getElementById('member-search').value.trim();
+  if (!q) { showToast('请输入姓名或档案号'); return; }
+  // 演示：显示预设搜索结果
+  document.getElementById('member-search-results').classList.remove('hidden');
+}
+
+function selectMember(id, name) {
+  selectedMemberId = id;
+  selectedMemberName = name;
+  document.getElementById('member-search-results').classList.add('hidden');
+  document.getElementById('selected-member-name').textContent = name + ' (' + id + ')';
+  document.getElementById('selected-member').classList.remove('hidden');
+}
+
+function clearSelectedMember() {
+  selectedMemberId = null;
+  selectedMemberName = null;
+  document.getElementById('selected-member').classList.add('hidden');
+  document.getElementById('member-search').value = '';
+}
+
+function confirmAddMember() {
+  if (!selectedMemberId) { showToast('请先搜索并选择一名成员'); return; }
+  const relation = document.getElementById('member-relation').value;
+  if (!relation) { showToast('请选择与户主的关系'); return; }
+  showToast('已成功将 ' + selectedMemberName + ' 添加至家庭\n关系：' + document.getElementById('member-relation').options[document.getElementById('member-relation').selectedIndex].text);
+  document.getElementById('addMemberModal').classList.add('hidden');
+  clearSelectedMember();
+  document.getElementById('member-relation').value = '';
+}
+</script>
+{% endblock %}

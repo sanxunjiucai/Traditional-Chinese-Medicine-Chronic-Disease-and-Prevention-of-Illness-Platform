@@ -3,7 +3,7 @@
 主路径：/gui/admin/*
 别名：/admin/* → 301 重定向到 /gui/admin/*
 """
-from fastapi import APIRouter, Cookie, Request
+from fastapi import APIRouter, Cookie, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -43,7 +43,7 @@ async def admin_redirect(path: str):
 
 @router.get("/admin", response_class=RedirectResponse)
 async def admin_root_redirect():
-    return RedirectResponse(url="/gui/admin/alerts", status_code=301)
+    return RedirectResponse(url="/gui/admin/workbench", status_code=301)
 
 
 # ── 管理端 PC 页面 ──
@@ -54,6 +54,22 @@ async def admin_alerts(request: Request, access_token: str | None = Cookie(defau
     if not ctx:
         return RedirectResponse(url="/login")
     return templates.TemplateResponse("admin/alerts.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/alerts/contacts", response_class=HTMLResponse)
+async def admin_alert_contacts(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/alert_contacts.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/alerts/batch", response_class=HTMLResponse)
+async def admin_alert_batch(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/alert_batch.html", {"request": request, "user_ctx": ctx})
 
 
 @router.get("/gui/admin/alerts/{event_id}", response_class=HTMLResponse)
@@ -130,6 +146,932 @@ async def admin_stats(request: Request, access_token: str | None = Cookie(defaul
     if not ctx:
         return RedirectResponse(url="/login")
     return templates.TemplateResponse("admin/stats.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/workbench", response_class=HTMLResponse)
+async def admin_workbench(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/workbench.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/assessments", response_class=HTMLResponse)
+async def admin_assessments(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/assessments.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/guidance", response_class=HTMLResponse)
+async def admin_guidance(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/guidance.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/scales", response_class=HTMLResponse)
+async def admin_scales(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/scales.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/mgmt/settings", response_class=HTMLResponse)
+async def admin_mgmt_settings(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/mgmt_settings.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/mgmt/orgs", response_class=HTMLResponse)
+async def admin_mgmt_orgs(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/mgmt_orgs.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/mgmt/roles", response_class=HTMLResponse)
+async def admin_mgmt_roles(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/mgmt_roles.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/mgmt/tasks", response_class=HTMLResponse)
+async def admin_mgmt_tasks(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/mgmt_tasks.html", {"request": request, "user_ctx": ctx})
+
+
+# ── 档案管理 ──────────────────────────────────────────────────────────
+
+@router.get("/gui/admin/archives", response_class=HTMLResponse)
+async def admin_archives(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/archive_list.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/archives/families", response_class=HTMLResponse)
+async def admin_archive_families(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/archive_families.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/archives/families/{family_id}", response_class=HTMLResponse)
+async def admin_archive_family_detail(
+    family_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/archive_family_detail.html",
+        {"request": request, "family_id": family_id, "user_ctx": ctx},
+    )
+
+
+@router.get("/gui/admin/archives/recycle", response_class=HTMLResponse)
+async def admin_archive_recycle(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/archive_recycle.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/archives/children", response_class=HTMLResponse)
+async def admin_archive_children(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/archive_children.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/archives/women", response_class=HTMLResponse)
+async def admin_archive_women(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/archive_women.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/archives/elderly", response_class=HTMLResponse)
+async def admin_archive_elderly(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/archive_elderly.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/archives/key-focus", response_class=HTMLResponse)
+async def admin_archive_key_focus(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/archive_key_focus.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/archives/audit", response_class=HTMLResponse)
+async def admin_archive_audit(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/archive_audit_list.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/archives/audit/{audit_id}", response_class=HTMLResponse)
+async def admin_archive_audit_detail(
+    audit_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/archive_audit_detail.html",
+        {"request": request, "audit_id": audit_id, "user_ctx": ctx},
+    )
+
+
+@router.get("/gui/admin/archives/my", response_class=HTMLResponse)
+async def admin_my_archives(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/my_archives.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/archives/transfer-log", response_class=HTMLResponse)
+async def admin_archive_transfer_log(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/archive_transfer_log.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/archives/{archive_id}", response_class=HTMLResponse)
+async def admin_archive_detail(
+    archive_id: str,
+    request: Request,
+    from_page: str | None = Query(default=None, alias="from"),
+    access_token: str | None = Cookie(default=None),
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+
+    # 根据来源模块决定侧边栏高亮和面包屑
+    _FROM_MAP = {
+        "archives":  ("archives",         "档案查询",       "/gui/admin/archives"),
+        "my":        ("my_archives",      "我的居民档案",   "/gui/admin/archives/my"),
+        "families":  ("archive_families", "家庭档案",       "/gui/admin/archives/families"),
+        "elderly":   ("archive_elderly",  "老年人档案",     "/gui/admin/archives/elderly"),
+        "women":     ("archive_women",    "女性档案",       "/gui/admin/archives/women"),
+        "children":  ("archive_children", "0-6岁儿童档案", "/gui/admin/archives/children"),
+        "key-focus": ("archive_key_focus","重点关注人群",   "/gui/admin/archives/key-focus"),
+    }
+    active_nav, from_label, from_url = _FROM_MAP.get(
+        from_page, ("archives", "档案管理", "/gui/admin/archives")
+    )
+    return templates.TemplateResponse(
+        "admin/archive_detail.html",
+        {
+            "request": request,
+            "archive_id": archive_id,
+            "user_ctx": ctx,
+            "active_nav": active_nav,
+            "from_label": from_label,
+            "from_url": from_url,
+        },
+    )
+
+
+@router.get("/gui/admin/archives/new", response_class=HTMLResponse)
+async def admin_archive_new(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/archive_edit.html",
+        {"request": request, "archive_id": None, "user_ctx": ctx},
+    )
+
+
+@router.get("/gui/admin/archives/{archive_id}/edit", response_class=HTMLResponse)
+async def admin_archive_edit(
+    archive_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/archive_edit.html",
+        {"request": request, "archive_id": archive_id, "user_ctx": ctx},
+    )
+
+
+
+
+# ── 综合就诊台 + 就诊数据 ─────────────────────────────────────────────
+
+@router.get("/gui/admin/visit-station", response_class=HTMLResponse)
+async def admin_visit_station(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/visit_station.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/clinical", response_class=HTMLResponse)
+async def admin_clinical(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/clinical_list.html", {"request": request, "user_ctx": ctx})
+
+
+# ── 统计分析扩展 ──────────────────────────────────────────────────────
+
+# ── AI 风险诊断 & 在线咨询 ────────────────────────────────────────────
+
+@router.get("/gui/admin/risk/plan", response_class=HTMLResponse)
+async def admin_risk_plan(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/risk_plan.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/consultations", response_class=HTMLResponse)
+async def admin_consultations(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/consultation_list.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/consultations/{consult_id}", response_class=HTMLResponse)
+async def admin_consultation_detail(
+    consult_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/consultation_detail.html",
+        {"request": request, "consult_id": consult_id, "user_ctx": ctx},
+    )
+
+
+@router.get("/gui/admin/stats/disease", response_class=HTMLResponse)
+async def admin_stats_disease(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/stats_disease.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/stats/workload", response_class=HTMLResponse)
+async def admin_stats_workload(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/stats_workload.html", {"request": request, "user_ctx": ctx})
+
+
+# ── 管理中心扩展 ──────────────────────────────────────────────────────
+
+@router.get("/gui/admin/mgmt/dict", response_class=HTMLResponse)
+async def admin_mgmt_dict(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/mgmt_dict.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/mgmt/version", response_class=HTMLResponse)
+async def admin_mgmt_version(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/mgmt_version.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/mgmt/logs", response_class=HTMLResponse)
+async def admin_mgmt_logs(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/mgmt_logs.html", {"request": request, "user_ctx": ctx})
+
+
+# ── 体质评估详细页 ────────────────────────────────────────────────────
+
+@router.get("/gui/admin/assessments/new", response_class=HTMLResponse)
+async def admin_assess_new(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/assess_constitution_new.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/assessments/{assess_id}/answer", response_class=HTMLResponse)
+async def admin_assess_answer(
+    assess_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/assess_constitution_answer.html",
+        {"request": request, "assess_id": assess_id, "user_ctx": ctx},
+    )
+
+
+@router.get("/gui/admin/assessments/{assess_id}/report", response_class=HTMLResponse)
+async def admin_assess_report(
+    assess_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/assess_constitution_report.html",
+        {"request": request, "assess_id": assess_id, "user_ctx": ctx},
+    )
+
+
+@router.get("/gui/admin/assessments/{assess_id}", response_class=HTMLResponse)
+async def admin_assess_detail(
+    assess_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/assess_constitution_detail.html",
+        {"request": request, "assess_id": assess_id, "user_ctx": ctx},
+    )
+
+
+# ── 健康评估 ──────────────────────────────────────────────────────────
+
+@router.get("/gui/admin/health-assess", response_class=HTMLResponse)
+async def admin_health_assess(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/assess_health_list.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/health-assess/new", response_class=HTMLResponse)
+async def admin_health_assess_new(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/assess_health_new.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/health-assess/{assess_id}", response_class=HTMLResponse)
+async def admin_health_assess_detail(
+    assess_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/assess_health_detail.html",
+        {"request": request, "assess_id": assess_id, "user_ctx": ctx},
+    )
+
+
+@router.get("/gui/admin/health-assess/{assess_id}/report-edit", response_class=HTMLResponse)
+async def admin_health_assess_report_edit(
+    assess_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/assess_health_report_edit.html",
+        {"request": request, "assess_id": assess_id, "user_ctx": ctx},
+    )
+
+
+@router.get("/gui/admin/health-assess/{assess_id}/report-detail", response_class=HTMLResponse)
+async def admin_health_assess_report_detail(
+    assess_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/assess_health_report_detail.html",
+        {"request": request, "assess_id": assess_id, "user_ctx": ctx},
+    )
+
+
+# ── 量表评估 ──────────────────────────────────────────────────────────
+
+@router.get("/gui/admin/scale-library", response_class=HTMLResponse)
+async def admin_scale_library(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/scale_library.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/scale-library/{scale_id}/preview", response_class=HTMLResponse)
+async def admin_scale_library_preview(
+    scale_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/scale_preview.html",
+        {"request": request, "scale_id": scale_id, "user_ctx": ctx},
+    )
+
+
+@router.get("/gui/admin/scale-records", response_class=HTMLResponse)
+async def admin_scale_records(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/scale_records.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/scale-answer/{scale_id}", response_class=HTMLResponse)
+async def admin_scale_answer(
+    scale_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/scale_answer.html",
+        {"request": request, "scale_id": scale_id, "user_ctx": ctx},
+    )
+
+
+@router.get("/gui/admin/scale-result/{record_id}", response_class=HTMLResponse)
+async def admin_scale_result(
+    record_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/scale_result.html",
+        {"request": request, "record_id": record_id, "user_ctx": ctx},
+    )
+
+
+# ── 量表配置 ──────────────────────────────────────────────────────────
+
+@router.get("/gui/admin/scale-config", response_class=HTMLResponse)
+async def admin_scale_config(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/scale_config_list.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/scale-config/new", response_class=HTMLResponse)
+async def admin_scale_config_new(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/scale_config_edit.html", {"request": request, "scale_id": None, "user_ctx": ctx}
+    )
+
+
+@router.get("/gui/admin/scale-config/{scale_id}/edit", response_class=HTMLResponse)
+async def admin_scale_config_edit(
+    scale_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/scale_config_edit.html",
+        {"request": request, "scale_id": scale_id, "user_ctx": ctx},
+    )
+
+
+# ── 随访管理详细页 ────────────────────────────────────────────────────
+
+@router.get("/gui/admin/followup/tasks", response_class=HTMLResponse)
+async def admin_followup_tasks(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/followup_task_list.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/followup/new", response_class=HTMLResponse)
+async def admin_followup_new(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/followup_new.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/followup/rules", response_class=HTMLResponse)
+async def admin_followup_rules(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/followup_rules.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/followup/rule/new", response_class=HTMLResponse)
+async def admin_followup_rule_new(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/followup_rule_edit.html", {"request": request, "rule_id": None, "user_ctx": ctx}
+    )
+
+
+@router.get("/gui/admin/followup/rule/{rule_id}/edit", response_class=HTMLResponse)
+async def admin_followup_rule_edit(
+    rule_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/followup_rule_edit.html",
+        {"request": request, "rule_id": rule_id, "user_ctx": ctx},
+    )
+
+
+@router.get("/gui/admin/followup/plan/new", response_class=HTMLResponse)
+async def admin_followup_plan_new(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/followup_plan_new.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/followup/auto-log", response_class=HTMLResponse)
+async def admin_followup_auto_log(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/followup_auto_log.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/followup/{task_id}/process", response_class=HTMLResponse)
+async def admin_followup_process(
+    task_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/followup_process.html",
+        {"request": request, "task_id": task_id, "user_ctx": ctx},
+    )
+
+
+@router.get("/gui/admin/followup/{task_id}", response_class=HTMLResponse)
+async def admin_followup_detail(
+    task_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/followup_task_detail.html",
+        {"request": request, "task_id": task_id, "user_ctx": ctx},
+    )
+
+
+# ── 危急值规则管理 ────────────────────────────────────────────────────
+
+@router.get("/gui/admin/alert-rules", response_class=HTMLResponse)
+async def admin_alert_rules(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/alert_rules.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/alert-rules/new", response_class=HTMLResponse)
+async def admin_alert_rules_new(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/alert_rules_edit.html", {"request": request, "rule_id": None, "user_ctx": ctx}
+    )
+
+
+@router.get("/gui/admin/alert-rules/{rule_id}/edit", response_class=HTMLResponse)
+async def admin_alert_rules_edit(
+    rule_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/alert_rules_edit.html",
+        {"request": request, "rule_id": rule_id, "user_ctx": ctx},
+    )
+
+
+# ── 统计分析扩展 ──────────────────────────────────────────────────────
+
+@router.get("/gui/admin/stats/archive", response_class=HTMLResponse)
+async def admin_stats_archive(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/stats_archive.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/stats/constitution", response_class=HTMLResponse)
+async def admin_stats_constitution(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/stats_constitution.html", {"request": request, "user_ctx": ctx})
+
+
+# ── 中医干预 ──────────────────────────────────────────────────────────
+
+@router.get("/gui/admin/intervention", response_class=HTMLResponse)
+async def admin_intervention(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/intervention_list.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/intervention/new", response_class=HTMLResponse)
+async def admin_intervention_new(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/intervention_new.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/intervention/templates", response_class=HTMLResponse)
+async def admin_intervention_templates(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/intervention_templates.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/intervention/templates/new", response_class=HTMLResponse)
+async def admin_intervention_template_new(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/intervention_template_edit.html", {"request": request, "tpl_id": None, "user_ctx": ctx}
+    )
+
+
+@router.get("/gui/admin/intervention/templates/{tpl_id}/edit", response_class=HTMLResponse)
+async def admin_intervention_template_edit(
+    tpl_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/intervention_template_edit.html",
+        {"request": request, "tpl_id": tpl_id, "user_ctx": ctx},
+    )
+
+
+@router.get("/gui/admin/intervention/{record_id}/execute", response_class=HTMLResponse)
+async def admin_intervention_execute(
+    record_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/intervention_plan_execute.html",
+        {"request": request, "intervention_id": record_id, "user_ctx": ctx},
+    )
+
+
+@router.get("/gui/admin/intervention/{record_id}", response_class=HTMLResponse)
+async def admin_intervention_detail(
+    record_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/intervention_detail.html",
+        {"request": request, "record_id": record_id, "user_ctx": ctx},
+    )
+
+
+# ── 中医宣教 ──────────────────────────────────────────────────────────
+
+@router.get("/gui/admin/health-education", response_class=HTMLResponse)
+async def admin_health_education(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/education_list.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/health-education/new", response_class=HTMLResponse)
+async def admin_health_education_new(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/education_new.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/health-education/templates", response_class=HTMLResponse)
+async def admin_education_templates(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/education_templates.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/health-education/templates/new", response_class=HTMLResponse)
+async def admin_education_template_new(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/education_template_edit.html", {"request": request, "tpl_id": None, "user_ctx": ctx}
+    )
+
+
+@router.get("/gui/admin/health-education/templates/{tpl_id}/edit", response_class=HTMLResponse)
+async def admin_education_template_edit(
+    tpl_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/education_template_edit.html",
+        {"request": request, "tpl_id": tpl_id, "user_ctx": ctx},
+    )
+
+
+@router.get("/gui/admin/health-education/{record_id}/execute", response_class=HTMLResponse)
+async def admin_education_execute(
+    record_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/education_plan_execute.html",
+        {"request": request, "record_id": record_id, "user_ctx": ctx},
+    )
+
+
+@router.get("/gui/admin/health-education/{record_id}", response_class=HTMLResponse)
+async def admin_health_education_detail(
+    record_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/education_detail.html",
+        {"request": request, "record_id": record_id, "user_ctx": ctx},
+    )
+
+
+# ── 指导计划 & 模板库 ─────────────────────────────────────────────────
+
+@router.get("/gui/admin/guidance/plans", response_class=HTMLResponse)
+async def admin_guidance_plans(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/guidance_plans.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/guidance/templates", response_class=HTMLResponse)
+async def admin_guidance_templates(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/guidance_templates.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/guidance/templates/new", response_class=HTMLResponse)
+async def admin_guidance_template_new(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/guidance_template_edit.html", {"request": request, "tpl_id": None, "user_ctx": ctx}
+    )
+
+
+@router.get("/gui/admin/guidance/templates/{tpl_id}/edit", response_class=HTMLResponse)
+async def admin_guidance_template_edit(
+    tpl_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/guidance_template_edit.html",
+        {"request": request, "tpl_id": tpl_id, "user_ctx": ctx},
+    )
+
+
+# ── 管理中心扩展（参数配置、服务接口） ───────────────────────────────
+
+@router.get("/gui/admin/mgmt/params", response_class=HTMLResponse)
+async def admin_mgmt_params(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/mgmt_params.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/mgmt/services", response_class=HTMLResponse)
+async def admin_mgmt_services(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/mgmt_services.html", {"request": request, "user_ctx": ctx})
+
+
+# ── 授权管理 ──────────────────────────────────────────────────────────
+
+@router.get("/gui/admin/mgmt/licenses", response_class=HTMLResponse)
+async def admin_mgmt_licenses(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/mgmt_licenses.html", {"request": request, "user_ctx": ctx})
+
+
+# ── 权限栏目管理 ──────────────────────────────────────────────────────
+
+@router.get("/gui/admin/mgmt/menus", response_class=HTMLResponse)
+async def admin_mgmt_menus(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/mgmt_menus.html", {"request": request, "user_ctx": ctx})
+
+
+# ── 标签管理 ──────────────────────────────────────────────────────────
+
+@router.get("/gui/admin/labels", response_class=HTMLResponse)
+async def admin_label_list(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/label_list.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/labels/stats", response_class=HTMLResponse)
+async def admin_label_stats(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/label_stats.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/labels/{patient_id}", response_class=HTMLResponse)
+async def admin_label_patient(
+    patient_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/label_patient.html",
+        {"request": request, "patient_id": patient_id, "user_ctx": ctx},
+    )
 
 
 @router.get("/gui/admin/tools", response_class=HTMLResponse)
@@ -580,3 +1522,251 @@ def _build_tools_registry() -> list[dict]:
             ],
         },
     ]
+
+
+# ── 活动档案 ──────────────────────────────────────────────────────────
+
+@router.get("/gui/admin/activity-archives", response_class=HTMLResponse)
+async def admin_activity_archives(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/activity_archive_list.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/activity-archives/rules", response_class=HTMLResponse)
+async def admin_activity_rules(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/activity_rule_list.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/activity-archives/rules/new", response_class=HTMLResponse)
+async def admin_activity_rule_new(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/activity_rule_edit.html", {"request": request, "rule_id": None, "user_ctx": ctx}
+    )
+
+
+@router.get("/gui/admin/activity-archives/generate-log", response_class=HTMLResponse)
+async def admin_activity_generate_log(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/activity_generate_log.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/activity-archives/rules/{rule_id}/edit", response_class=HTMLResponse)
+async def admin_activity_rule_edit(
+    rule_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/activity_rule_edit.html",
+        {"request": request, "rule_id": rule_id, "user_ctx": ctx},
+    )
+
+
+@router.get("/gui/admin/activity-archives/{activity_id}", response_class=HTMLResponse)
+async def admin_activity_archive_detail(
+    activity_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/activity_archive_detail.html",
+        {"request": request, "activity_id": activity_id, "user_ctx": ctx},
+    )
+
+
+# ── 量表分类 / 组合 / 版本 ────────────────────────────────────────────
+
+@router.get("/gui/admin/scales/categories", response_class=HTMLResponse)
+async def admin_scale_categories(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/scale_category.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/scales/combos", response_class=HTMLResponse)
+async def admin_scale_combos(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/scale_combo_list.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/scales/combos/new", response_class=HTMLResponse)
+async def admin_scale_combo_new(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/scale_combo_edit.html", {"request": request, "combo_id": None, "user_ctx": ctx}
+    )
+
+
+@router.get("/gui/admin/scales/combos/{combo_id}/edit", response_class=HTMLResponse)
+async def admin_scale_combo_edit(
+    combo_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/scale_combo_edit.html",
+        {"request": request, "combo_id": combo_id, "user_ctx": ctx},
+    )
+
+
+@router.get("/gui/admin/scales/{scale_id}/versions", response_class=HTMLResponse)
+async def admin_scale_versions(
+    scale_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/scale_version.html",
+        {"request": request, "scale_id": scale_id, "user_ctx": ctx},
+    )
+
+
+# ── 健康评估审核 ──────────────────────────────────────────────────────
+
+@router.get("/gui/admin/health-assess/{assess_id}/review", response_class=HTMLResponse)
+async def admin_health_assess_review(
+    assess_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/assess_health_review.html",
+        {"request": request, "assess_id": assess_id, "user_ctx": ctx},
+    )
+
+
+# ── 危急值通知模板 ────────────────────────────────────────────────────
+
+@router.get("/gui/admin/alert-rules/notification-tpl", response_class=HTMLResponse)
+async def admin_alert_notification_tpl(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/alert_notification_tpl.html", {"request": request, "user_ctx": ctx})
+
+
+# ── 区域分布统计 ──────────────────────────────────────────────────────
+
+@router.get("/gui/admin/stats/region", response_class=HTMLResponse)
+async def admin_stats_region(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/stats_region.html", {"request": request, "user_ctx": ctx})
+
+
+# ── 业务运营统计 ──────────────────────────────────────────────────────
+
+@router.get("/gui/admin/stats/business", response_class=HTMLResponse)
+async def admin_stats_business(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/stats_business.html", {"request": request, "user_ctx": ctx})
+
+
+# ── 系统用户管理 ──────────────────────────────────────────────────────
+
+@router.get("/gui/admin/mgmt/users", response_class=HTMLResponse)
+async def admin_mgmt_users(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/mgmt_user_list.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/mgmt/users/new", response_class=HTMLResponse)
+async def admin_mgmt_user_new(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/mgmt_user_edit.html", {"request": request, "user_id": None, "user_ctx": ctx}
+    )
+
+
+@router.get("/gui/admin/mgmt/users/{user_id}/edit", response_class=HTMLResponse)
+async def admin_mgmt_user_edit(
+    user_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/mgmt_user_edit.html",
+        {"request": request, "user_id": user_id, "user_ctx": ctx},
+    )
+
+
+# ── 个人报表 ──────────────────────────────────────────────────────────
+
+@router.get("/gui/admin/personal/workload", response_class=HTMLResponse)
+async def admin_personal_workload(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/personal_workload.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/personal/archive-stats", response_class=HTMLResponse)
+async def admin_personal_archive_stats(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/personal_archive_stats.html", {"request": request, "user_ctx": ctx})
+
+
+@router.get("/gui/admin/personal/settings", response_class=HTMLResponse)
+async def admin_personal_settings(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("admin/personal_settings.html", {"request": request, "user_ctx": ctx})
+
+
+# ── 健康评估综合报告 ────────────────────────────────────────────────────
+
+@router.get("/gui/admin/health-assess/comprehensive/new", response_class=HTMLResponse)
+async def admin_health_assess_comprehensive_new(
+    request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/assess_health_comprehensive.html",
+        {"request": request, "user_ctx": ctx},
+    )
+
+
+@router.get("/gui/admin/health-assess/comprehensive/{report_id}", response_class=HTMLResponse)
+async def admin_health_assess_comp_detail(
+    report_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/assess_health_comp_detail.html",
+        {"request": request, "report_id": report_id, "user_ctx": ctx},
+    )
