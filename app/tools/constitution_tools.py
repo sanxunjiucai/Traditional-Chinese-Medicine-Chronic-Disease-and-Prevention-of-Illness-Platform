@@ -12,6 +12,7 @@ from app.models.constitution import ConstitutionAnswer, ConstitutionAssessment, 
 from app.models.enums import AssessmentStatus, DiseaseType, PlanStatus
 from app.models.health import ChronicDiseaseRecord
 from app.models.recommendation import RecommendationPlan
+from app.models.user import User
 from app.services.audit_service import log_action
 from app.services.constitution_scorer import score_assessment
 from app.services.recommendation_engine import generate_plan
@@ -22,14 +23,36 @@ router = APIRouter(prefix="/constitution", tags=["constitution-tools"])
 
 @router.post("/start")
 async def start_assessment(
-    db: Annotated[AsyncSession, Depends(get_db)],
+    body: dict = {},
+    db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    import uuid as _uuid
+    from app.models.archive import PatientArchive
+
+    # 管理端代患者创建：传入 archive_id 时，解析出对应患者的 user_id
+    target_user_id = current_user.id
+    archive_id_raw = body.get("archive_id")
+    if archive_id_raw:
+        try:
+            arc_uuid = _uuid.UUID(str(archive_id_raw))
+        except ValueError:
+            return fail("VALIDATION_ERROR", "archive_id 格式错误", status_code=400)
+        arc_r = await db.execute(
+            select(PatientArchive).where(PatientArchive.id == arc_uuid)
+        )
+        arc = arc_r.scalar_one_or_none()
+        if arc is None:
+            return fail("NOT_FOUND", "患者档案不存在", status_code=404)
+        if arc.user_id is None:
+            return fail("VALIDATION_ERROR", "该患者档案尚未关联系统账号，无法创建评估", status_code=400)
+        target_user_id = arc.user_id
+
     # 如果已有 ANSWERING 状态的评估，直接返回
     existing_result = await db.execute(
         select(ConstitutionAssessment).where(
             and_(
-                ConstitutionAssessment.user_id == current_user.id,
+                ConstitutionAssessment.user_id == target_user_id,
                 ConstitutionAssessment.status == AssessmentStatus.ANSWERING,
             )
         ).limit(1)
@@ -39,7 +62,7 @@ async def start_assessment(
         return ok({"assessment_id": str(existing.id), "resumed": True})
 
     assessment = ConstitutionAssessment(
-        user_id=current_user.id,
+        user_id=target_user_id,
         status=AssessmentStatus.ANSWERING,
     )
     db.add(assessment)
@@ -69,13 +92,13 @@ async def save_answers(
     current_user=Depends(get_current_user),
 ):
     import uuid
+    from app.models.enums import UserRole
+    is_proxy = current_user.role in (UserRole.ADMIN, UserRole.PROFESSIONAL)
+    filters = [ConstitutionAssessment.id == uuid.UUID(body.assessment_id)]
+    if not is_proxy:
+        filters.append(ConstitutionAssessment.user_id == current_user.id)
     assessment_result = await db.execute(
-        select(ConstitutionAssessment).where(
-            and_(
-                ConstitutionAssessment.id == uuid.UUID(body.assessment_id),
-                ConstitutionAssessment.user_id == current_user.id,
-            )
-        )
+        select(ConstitutionAssessment).where(and_(*filters))
     )
     assessment = assessment_result.scalar_one_or_none()
     if assessment is None:
@@ -116,14 +139,14 @@ async def submit_assessment(
     current_user=Depends(get_current_user),
 ):
     import uuid
+    from app.models.enums import UserRole
     assessment_id = uuid.UUID(body.get("assessment_id", ""))
+    is_proxy = current_user.role in (UserRole.ADMIN, UserRole.PROFESSIONAL)
+    filters = [ConstitutionAssessment.id == assessment_id]
+    if not is_proxy:
+        filters.append(ConstitutionAssessment.user_id == current_user.id)
     assessment_result = await db.execute(
-        select(ConstitutionAssessment).where(
-            and_(
-                ConstitutionAssessment.id == assessment_id,
-                ConstitutionAssessment.user_id == current_user.id,
-            )
-        )
+        select(ConstitutionAssessment).where(and_(*filters))
     )
     assessment = assessment_result.scalar_one_or_none()
     if assessment is None:
@@ -292,3 +315,112 @@ async def get_recommendation(
         "note": plan.note,
         "created_at": plan.created_at.isoformat(),
     })
+
+
+# ══════════════════════════════════════════════
+# 体质评估详情 & 报告（管理端）
+# ══════════════════════════════════════════════
+
+@router.get("/assessments/{assess_id}")
+async def get_assessment_detail(
+    assess_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user=Depends(get_current_user),
+):
+    """体质评估详情（管理端/患者端共用）。"""
+    import uuid as _uuid
+    try:
+        aid = _uuid.UUID(assess_id)
+    except ValueError:
+        return fail("VALIDATION_ERROR", "assess_id 格式错误", status_code=400)
+
+    a_result = await db.execute(
+        select(ConstitutionAssessment).where(ConstitutionAssessment.id == aid)
+    )
+    assessment = a_result.scalar_one_or_none()
+    if assessment is None:
+        return fail("NOT_FOUND", "评估记录不存在", status_code=404)
+
+    user_r = await db.execute(select(User).where(User.id == assessment.user_id))
+    user = user_r.scalar_one_or_none()
+    patient_name = user.name if user else "未知患者"
+
+    result_data = assessment.result or {}
+    scores = {
+        bt: v.get("converted_score", 0)
+        for bt, v in result_data.items()
+        if isinstance(v, dict) and not bt.startswith("_")
+    }
+    report = result_data.get("_report")
+
+    plan_r = await db.execute(
+        select(RecommendationPlan)
+        .where(
+            and_(
+                RecommendationPlan.user_id == assessment.user_id,
+                RecommendationPlan.assessment_id == assessment.id,
+            )
+        )
+        .limit(1)
+    )
+    plan = plan_r.scalar_one_or_none()
+    recommendations = []
+    if plan:
+        recommendations = [
+            {"content": item.get("content", item.get("title", ""))}
+            for item in (plan.items or [])[:5]
+        ]
+
+    return ok({
+        "id": str(assessment.id),
+        "patient_name": patient_name,
+        "status": assessment.status.value,
+        "primary_body_type": assessment.main_type.value if assessment.main_type else None,
+        "secondary_body_types": assessment.secondary_types or [],
+        "scores": scores,
+        "recommendations": recommendations,
+        "report": report,
+        "created_at": assessment.created_at.isoformat(),
+        "scored_at": assessment.scored_at.isoformat() if assessment.scored_at else None,
+    })
+
+
+@router.patch("/assessments/{assess_id}/report")
+async def update_assessment_report(
+    assess_id: str,
+    body: dict,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user=Depends(get_current_user),
+):
+    """保存体质评估报告内容（存储在 result['_report']）。"""
+    import uuid as _uuid
+    try:
+        aid = _uuid.UUID(assess_id)
+    except ValueError:
+        return fail("VALIDATION_ERROR", "assess_id 格式错误", status_code=400)
+
+    a_result = await db.execute(
+        select(ConstitutionAssessment).where(ConstitutionAssessment.id == aid)
+    )
+    assessment = a_result.scalar_one_or_none()
+    if assessment is None:
+        return fail("NOT_FOUND", "评估记录不存在", status_code=404)
+
+    result_data = dict(assessment.result or {})
+    result_data["_report"] = {
+        "conclusion": body.get("conclusion", ""),
+        "recommendations": body.get("recommendations", {}),
+        "audit_status": body.get("audit_status", ""),
+        "audit_comment": body.get("audit_comment", ""),
+        "report_status": body.get("report_status", "DRAFT"),
+    }
+    assessment.result = result_data
+
+    report_status = body.get("report_status")
+    if report_status == "APPROVED":
+        assessment.status = AssessmentStatus.REPORTED
+    elif report_status == "PENDING_REVIEW":
+        assessment.status = AssessmentStatus.SUBMITTED
+
+    await db.commit()
+    return ok({"id": str(assessment.id)})
