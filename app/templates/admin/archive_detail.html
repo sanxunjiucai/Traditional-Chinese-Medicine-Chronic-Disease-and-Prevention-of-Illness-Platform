@@ -1,0 +1,191 @@
+{% extends "_layouts/admin.html" %}
+{% block title %}档案详情 - 治未病平台{% endblock %}
+{% block page_title %}居民档案详情{% endblock %}
+
+{% block content %}
+<!-- 面包屑（来源模块由路由传入） -->
+<nav class="flex items-center gap-1.5 text-sm mb-4">
+  <a href="{{ from_url | default('/gui/admin/archives') }}" class="text-gray-500 hover:text-green-700">
+    {{ from_label | default('档案管理') }}
+  </a>
+  <svg class="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+  </svg>
+  <span id="breadcrumb-name" class="text-gray-700 font-medium">档案详情</span>
+</nav>
+
+<div id="archive-loading" class="text-center text-gray-400 py-20">加载中...</div>
+<div id="archive-content" class="hidden space-y-4">
+
+  <!-- 头部：基本信息 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <div class="flex items-start justify-between">
+      <div class="flex items-center gap-4">
+        <div id="avatar" class="w-14 h-14 rounded-full flex items-center justify-center text-2xl font-bold" style="background:#EBF2ED;color:#4E7A61;"></div>
+        <div>
+          <h2 id="info-name" class="text-xl font-bold text-gray-800"></h2>
+          <div id="info-badges" class="flex gap-2 mt-1"></div>
+          <p id="info-sub" class="text-sm text-gray-500 mt-1"></p>
+        </div>
+      </div>
+      <div class="flex gap-2 items-center">
+        <a href="/gui/admin/archives" class="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-500 hover:bg-gray-50 flex items-center gap-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+          返回列表
+        </a>
+        <a id="edit-link" href="#" class="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50">编辑档案</a>
+        <button onclick="deleteArchive()" class="px-4 py-2 rounded-lg border border-red-200 text-sm text-red-600 hover:bg-red-50">移入回收站</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 基础信息卡 -->
+  <div class="grid grid-cols-2 gap-4">
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-3 text-sm">基本信息</h3>
+      <dl class="space-y-2 text-sm">
+        <div class="flex"><dt class="w-24 text-gray-400 flex-shrink-0">性别</dt><dd id="d-gender" class="text-gray-700"></dd></div>
+        <div class="flex"><dt class="w-24 text-gray-400 flex-shrink-0">出生日期</dt><dd id="d-birth" class="text-gray-700"></dd></div>
+        <div class="flex"><dt class="w-24 text-gray-400 flex-shrink-0">民族</dt><dd id="d-ethnicity" class="text-gray-700"></dd></div>
+        <div class="flex"><dt class="w-24 text-gray-400 flex-shrink-0">职业</dt><dd id="d-occupation" class="text-gray-700"></dd></div>
+        <div class="flex"><dt class="w-24 text-gray-400 flex-shrink-0">证件类型</dt><dd id="d-id-type" class="text-gray-700"></dd></div>
+        <div class="flex"><dt class="w-24 text-gray-400 flex-shrink-0">证件号码</dt><dd id="d-id-num" class="font-mono text-gray-700"></dd></div>
+      </dl>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-3 text-sm">联系方式</h3>
+      <dl class="space-y-2 text-sm">
+        <div class="flex"><dt class="w-24 text-gray-400 flex-shrink-0">手机号</dt><dd id="d-phone" class="text-gray-700"></dd></div>
+        <div class="flex"><dt class="w-24 text-gray-400 flex-shrink-0">备用电话</dt><dd id="d-phone2" class="text-gray-700"></dd></div>
+        <div class="flex"><dt class="w-24 text-gray-400 flex-shrink-0">电子邮件</dt><dd id="d-email" class="text-gray-700"></dd></div>
+        <div class="flex"><dt class="w-24 text-gray-400 flex-shrink-0">居住地址</dt><dd id="d-address" class="text-gray-700"></dd></div>
+        <div class="flex"><dt class="w-24 text-gray-400 flex-shrink-0">紧急联系人</dt><dd id="d-ec" class="text-gray-700"></dd></div>
+      </dl>
+    </div>
+  </div>
+
+  <!-- 标签 -->
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <h3 class="font-semibold text-gray-700 mb-3 text-sm">档案标签</h3>
+    <div id="d-tags" class="flex flex-wrap gap-2"></div>
+  </div>
+
+  <!-- 历史/既往史 -->
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <h3 class="font-semibold text-gray-700 mb-3 text-sm">既往史 / 家族史 / 过敏史</h3>
+    <div class="grid grid-cols-3 gap-4">
+      <div>
+        <p class="text-xs text-gray-400 mb-2">既往史</p>
+        <div id="d-past" class="text-sm text-gray-700"></div>
+      </div>
+      <div>
+        <p class="text-xs text-gray-400 mb-2">家族史</p>
+        <div id="d-family" class="text-sm text-gray-700"></div>
+      </div>
+      <div>
+        <p class="text-xs text-gray-400 mb-2">过敏史</p>
+        <div id="d-allergy" class="text-sm text-gray-700"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 备注 -->
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <h3 class="font-semibold text-gray-700 mb-2 text-sm">备注信息</h3>
+    <p id="d-notes" class="text-sm text-gray-600"></p>
+  </div>
+</div>
+
+<div id="archive-err" class="hidden text-center text-red-400 py-20">档案不存在或已删除</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const archiveId = '{{ archive_id }}';
+const ARCHIVE_TYPE_LABELS = {
+  NORMAL: '普通居民', CHILD: '儿童', FEMALE: '女性', ELDERLY: '老年人', KEY_FOCUS: '重点关注'
+};
+const ID_TYPE_LABELS = {
+  ID_CARD: '居民身份证', PASSPORT: '护照', MILITARY: '军官证',
+  BIRTH_CERT: '出生医学证明', OTHER: '其他'
+};
+
+const DEMO_ARCHIVES = {
+  'A10023': {name:'李建国', gender:'male', birth_date:'1968-03-12', ethnicity:'汉族', occupation:'退休', id_type:'ID_CARD', id_number:'350101196803120031', phone:'13800138001', phone2:'', email:'', province:'福建省', city:'福州市', district:'鼓楼区', address:'五四路168号幸福里12栋3单元502', emergency_contact_name:'李淑华', emergency_contact_relation:'配偶', emergency_contact_phone:'13800138002', archive_type:'NORMAL', tags:['高血压','气虚质','重点关注'], past_history:'高血压病史10年，颈椎病5年', family_history:'父亲有高血压病史', allergy_history:'青霉素过敏', notes:'定期随访患者，依从性较好', created_at:'2024-03-15T08:00:00', updated_at:'2026-03-01T09:30:00'},
+  'A10024': {name:'李淑华', gender:'female', birth_date:'1971-07-08', ethnicity:'汉族', occupation:'退休', id_type:'ID_CARD', id_number:'350101197107080042', phone:'13800138002', phone2:'', email:'', province:'福建省', city:'福州市', district:'鼓楼区', address:'五四路168号幸福里12栋3单元502', emergency_contact_name:'李建国', emergency_contact_relation:'配偶', emergency_contact_phone:'13800138001', archive_type:'FEMALE', tags:['阳虚质'], past_history:'甲状腺结节', family_history:'无', allergy_history:'无', notes:'', created_at:'2024-03-15T08:10:00', updated_at:'2026-02-25T14:00:00'},
+  'A10045': {name:'张淑芬', gender:'female', birth_date:'1960-11-20', ethnicity:'汉族', occupation:'退休', id_type:'ID_CARD', id_number:'350102196011200028', phone:'13900139002', phone2:'', email:'', province:'福建省', city:'福州市', district:'台江区', address:'台江路88号阳光小区1号楼', emergency_contact_name:'张明', emergency_contact_relation:'子女', emergency_contact_phone:'13900139003', archive_type:'ELDERLY', tags:['糖尿病','气虚质'], past_history:'2型糖尿病8年，高血脂', family_history:'母亲有糖尿病史', allergy_history:'无', notes:'血糖控制一般，需加强随访', created_at:'2024-06-01T09:00:00', updated_at:'2026-02-20T11:00:00'},
+  'A10067': {name:'赵明', gender:'male', birth_date:'1994-05-16', ethnicity:'汉族', occupation:'软件工程师', id_type:'ID_CARD', id_number:'350103199405160015', phone:'13700137001', phone2:'', email:'zhaoming@example.com', province:'福建省', city:'福州市', district:'晋安区', address:'福飞路99号科技园B座1201', emergency_contact_name:'赵父', emergency_contact_relation:'父母', emergency_contact_phone:'13700137002', archive_type:'NORMAL', tags:['痰湿质'], past_history:'无', family_history:'父亲有高血压', allergy_history:'海鲜过敏', notes:'体重偏重，建议控制饮食', created_at:'2025-01-10T10:00:00', updated_at:'2026-01-15T16:00:00'},
+  'A10089': {name:'李明', gender:'male', birth_date:'1996-08-22', ethnicity:'汉族', occupation:'教师', id_type:'ID_CARD', id_number:'350101199608220033', phone:'13600136001', phone2:'', email:'', province:'福建省', city:'福州市', district:'鼓楼区', address:'五四路168号幸福里12栋3单元502', emergency_contact_name:'李建国', emergency_contact_relation:'父母', emergency_contact_phone:'13800138001', archive_type:'NORMAL', tags:['平和质'], past_history:'无', family_history:'父亲有高血压', allergy_history:'无', notes:'', created_at:'2024-03-15T08:20:00', updated_at:'2026-02-10T10:00:00'},
+  'A10091': {name:'王晓燕', gender:'female', birth_date:'1998-02-14', ethnicity:'汉族', occupation:'会计', id_type:'ID_CARD', id_number:'350101199802140025', phone:'13600136002', phone2:'', email:'', province:'福建省', city:'福州市', district:'鼓楼区', address:'五四路168号幸福里12栋3单元502', emergency_contact_name:'李明', emergency_contact_relation:'配偶', emergency_contact_phone:'13600136001', archive_type:'FEMALE', tags:['湿热质'], past_history:'无', family_history:'无', allergy_history:'无', notes:'', created_at:'2024-03-15T08:25:00', updated_at:'2026-01-28T09:00:00'},
+  'A10103': {name:'李小宝', gender:'male', birth_date:'2023-06-01', ethnicity:'汉族', occupation:'-', id_type:'BIRTH_CERT', id_number:'闽2023-0601-001', phone:'', phone2:'', email:'', province:'福建省', city:'福州市', district:'鼓楼区', address:'五四路168号幸福里12栋3单元502', emergency_contact_name:'李明', emergency_contact_relation:'父母', emergency_contact_phone:'13600136001', archive_type:'CHILD', tags:['平和质'], past_history:'无', family_history:'祖父有高血压', allergy_history:'无', notes:'儿童档案，随父母建档', created_at:'2026-02-18T09:00:00', updated_at:'2026-02-18T09:00:00'},
+  'A10112': {name:'王志远', gender:'male', birth_date:'1975-09-03', ethnicity:'汉族', occupation:'司机', id_type:'ID_CARD', id_number:'350104197509030047', phone:'13500135001', phone2:'', email:'', province:'福建省', city:'福州市', district:'仓山区', address:'仓山路56号新世纪花园3栋702', emergency_contact_name:'王妻', emergency_contact_relation:'配偶', emergency_contact_phone:'13500135002', archive_type:'NORMAL', tags:['腰椎间盘突出','阳虚质'], past_history:'腰椎间盘突出症2年', family_history:'无', allergy_history:'无', notes:'', created_at:'2025-08-01T11:00:00', updated_at:'2026-01-08T08:00:00'},
+};
+const DEFAULT_DEMO = {name:'演示患者', gender:'male', birth_date:'1970-01-01', ethnicity:'汉族', occupation:'未知', id_type:'ID_CARD', id_number:'', phone:'', phone2:'', email:'', province:'', city:'', district:'', address:'', emergency_contact_name:'', emergency_contact_relation:'', emergency_contact_phone:'', archive_type:'NORMAL', tags:['演示数据'], past_history:'演示数据', family_history:'演示数据', allergy_history:'无', notes:'此为演示数据，实际环境中将显示真实档案信息', created_at:new Date().toISOString(), updated_at:new Date().toISOString()};
+
+async function loadArchive() {
+  let a = null;
+  try {
+    const r = await fetch(`/tools/archive/archives/${archiveId}`);
+    const j = await r.json();
+    if (j.success) a = j.data;
+  } catch (e) {}
+  document.getElementById('archive-loading').classList.add('hidden');
+  if (!a) {
+    // Demo fallback
+    a = DEMO_ARCHIVES[archiveId] || DEFAULT_DEMO;
+  }
+  document.getElementById('archive-content').classList.remove('hidden');
+  document.getElementById('breadcrumb-name').textContent = a.name || '档案详情';
+
+  document.getElementById('avatar').textContent = a.name[0] || '?';
+  document.getElementById('info-name').textContent = a.name;
+  document.getElementById('edit-link').href = `/gui/admin/archives/${archiveId}/edit`;
+  document.getElementById('info-sub').textContent =
+    `建档时间：${a.created_at?.substring(0,10) || '-'}  |  最近更新：${a.updated_at?.substring(0,10) || '-'}`;
+
+  const badges = document.getElementById('info-badges');
+  badges.innerHTML = `
+    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" style="background:#EBF2ED;color:#4E7A61;">
+      ${ARCHIVE_TYPE_LABELS[a.archive_type] || a.archive_type}
+    </span>
+    ${a.tags?.map(t => `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">${t}</span>`).join('') || ''}
+  `;
+
+  document.getElementById('d-gender').textContent = a.gender === 'male' ? '男' : a.gender === 'female' ? '女' : '-';
+  document.getElementById('d-birth').textContent = a.birth_date || '-';
+  document.getElementById('d-ethnicity').textContent = a.ethnicity || '-';
+  document.getElementById('d-occupation').textContent = a.occupation || '-';
+  document.getElementById('d-id-type').textContent = ID_TYPE_LABELS[a.id_type] || a.id_type;
+  document.getElementById('d-id-num').textContent = a.id_number || '-';
+  document.getElementById('d-phone').textContent = a.phone || '-';
+  document.getElementById('d-phone2').textContent = a.phone2 || '-';
+  document.getElementById('d-email').textContent = a.email || '-';
+  document.getElementById('d-address').textContent =
+    [a.province, a.city, a.district, a.address].filter(Boolean).join(' ') || '-';
+  document.getElementById('d-ec').textContent =
+    a.emergency_contact_name ? `${a.emergency_contact_name}（${a.emergency_contact_relation || ''}）${a.emergency_contact_phone || ''}` : '-';
+  document.getElementById('d-tags').innerHTML =
+    (a.tags || []).length ? a.tags.map(t => `<span class="px-2.5 py-1 rounded-full text-xs" style="background:#EBF2ED;color:#4E7A61;">${t}</span>`).join('') : '<span class="text-gray-400 text-sm">暂无标签</span>';
+
+  document.getElementById('d-past').textContent = JSON.stringify(a.past_history) !== 'null' && a.past_history ? JSON.stringify(a.past_history) : '无';
+  document.getElementById('d-family').textContent = JSON.stringify(a.family_history) !== 'null' && a.family_history ? JSON.stringify(a.family_history) : '无';
+  document.getElementById('d-allergy').textContent = JSON.stringify(a.allergy_history) !== 'null' && a.allergy_history ? JSON.stringify(a.allergy_history) : '无';
+  document.getElementById('d-notes').textContent = a.notes || '无';
+}
+
+async function deleteArchive() {
+  if (!confirm('确认将该档案移入回收站？')) return;
+  const r = await fetch(`/tools/archive/archives/${archiveId}`, {method: 'DELETE'});
+  const j = await r.json();
+  if (j.success) {
+    window.location.href = '/gui/admin/archives';
+  } else {
+    showToast(j.error?.message || '操作失败');
+  }
+}
+
+loadArchive();
+</script>
+{% endblock %}
