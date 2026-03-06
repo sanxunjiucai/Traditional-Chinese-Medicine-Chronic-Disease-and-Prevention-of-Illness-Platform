@@ -1,0 +1,159 @@
+{% extends "_layouts/patient.html" %}
+
+{% block title %}咨询详情 - 治未病平台{% endblock %}
+{% block page_title %}咨询详情{% endblock %}
+{% set active_tab = "home" %}
+
+{% block extra_head %}
+<style>
+  #messages-area { scroll-behavior: smooth; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col" style="height: calc(100vh - 130px);">
+
+  <!-- 顶部咨询信息条 -->
+  <div class="px-4 pt-3 pb-2 bg-white border-b border-gray-100 flex-shrink-0">
+    <div id="consult-header" class="flex items-center justify-between">
+      <div>
+        <p id="consult-title" class="font-medium text-gray-800 text-sm truncate max-w-xs">加载中...</p>
+        <div class="flex items-center gap-2 mt-0.5">
+          <span id="consult-status" class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">-</span>
+        </div>
+      </div>
+      <a href="/h5/home" class="text-sm text-green-600">返回</a>
+    </div>
+  </div>
+
+  <!-- 消息区域 -->
+  <div id="messages-area" class="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-gray-50">
+    <div class="text-center text-gray-400 text-sm py-8">加载中...</div>
+  </div>
+
+  <!-- 输入区域（咨询关闭时隐藏） -->
+  <div id="reply-area" class="flex-shrink-0 bg-white border-t border-gray-100 px-4 py-3">
+    <div class="flex gap-2">
+      <textarea id="reply-input"
+        class="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-green-400"
+        rows="2" placeholder="输入您的问题或补充描述..."></textarea>
+      <button onclick="sendMessage()"
+        class="px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 self-end flex-shrink-0">
+        发送
+      </button>
+    </div>
+  </div>
+
+  <!-- 已关闭提示 -->
+  <div id="closed-notice" class="hidden flex-shrink-0 bg-gray-50 border-t border-gray-100 px-4 py-3 text-center text-sm text-gray-400">
+    咨询已关闭，如有新问题请重新发起咨询
+    <a href="/h5/consultation/new" class="text-green-600 ml-1 font-medium">新建咨询</a>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const CONSULT_ID = '{{ consult_id }}';
+
+const STATUS_LABELS = { OPEN: '待回复', REPLIED: '已回复', CLOSED: '已关闭' };
+const STATUS_STYLES = {
+  OPEN:    'bg-amber-100 text-amber-700',
+  REPLIED: 'bg-green-100 text-green-700',
+  CLOSED:  'bg-gray-100 text-gray-500',
+};
+
+async function loadConsultation() {
+  try {
+    const r = await fetch(`/tools/consultations/${CONSULT_ID}`);
+    const j = await r.json();
+    if (!j.success) { showError(); return; }
+
+    const c = j.data;
+    document.getElementById('consult-title').textContent = c.title;
+
+    const statusEl = document.getElementById('consult-status');
+    statusEl.textContent = STATUS_LABELS[c.status] || c.status;
+    statusEl.className = `text-xs px-2 py-0.5 rounded-full ${STATUS_STYLES[c.status] || 'bg-gray-100 text-gray-500'}`;
+
+    renderMessages(c.messages || []);
+
+    if (c.status === 'CLOSED') {
+      document.getElementById('reply-area').classList.add('hidden');
+      document.getElementById('closed-notice').classList.remove('hidden');
+    }
+  } catch(e) {
+    showError();
+  }
+}
+
+function renderMessages(messages) {
+  const area = document.getElementById('messages-area');
+  if (!messages.length) {
+    area.innerHTML = `<div class="text-center py-8 text-gray-400 text-sm">暂无消息</div>`;
+    return;
+  }
+  area.innerHTML = messages.map(m => {
+    const isPatient = m.sender_type === 'PATIENT';
+    const time = m.created_at?.substring(0, 16).replace('T', ' ') || '';
+    return `
+      <div class="flex ${isPatient ? 'flex-row-reverse' : 'flex-row'} items-end gap-2">
+        <div class="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold
+          ${isPatient ? 'bg-green-600 text-white' : 'bg-blue-100 text-blue-700'}">
+          ${isPatient ? '我' : '医'}
+        </div>
+        <div class="max-w-xs">
+          <div class="px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap
+            ${isPatient ? 'bg-green-600 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none shadow-sm'}">
+            ${escHtml(m.content)}
+          </div>
+          <p class="text-xs text-gray-400 mt-1 ${isPatient ? 'text-right' : ''}">${time}</p>
+        </div>
+      </div>`;
+  }).join('');
+  area.scrollTop = area.scrollHeight;
+}
+
+function showError() {
+  document.getElementById('messages-area').innerHTML =
+    `<div class="text-center py-8 text-gray-400 text-sm">加载失败，请刷新重试</div>`;
+}
+
+async function sendMessage() {
+  const input = document.getElementById('reply-input');
+  const content = input.value.trim();
+  if (!content) return;
+
+  input.disabled = true;
+  try {
+    const r = await fetch(`/tools/consultations/${CONSULT_ID}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+    });
+    const j = await r.json();
+    if (j.success) {
+      input.value = '';
+      loadConsultation();
+    } else {
+      alert('发送失败：' + (j.error?.message || '请稍后重试'));
+    }
+  } catch(e) {
+    alert('网络错误，请检查连接');
+  } finally {
+    input.disabled = false;
+  }
+}
+
+function escHtml(str) {
+  return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.getElementById('reply-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+
+loadConsultation();
+</script>
+{% endblock %}

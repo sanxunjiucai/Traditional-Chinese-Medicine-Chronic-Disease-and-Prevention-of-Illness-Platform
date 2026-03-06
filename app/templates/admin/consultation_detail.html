@@ -1,0 +1,275 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "consultations" %}
+{% block title %}咨询详情 - 治未病平台{% endblock %}
+{% block page_title %}咨询详情{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-12 gap-4">
+
+  <!-- 左：咨询基本信息 -->
+  <div class="col-span-4 space-y-4">
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-gray-700">咨询信息</h3>
+        <a href="/gui/admin/consultations" class="text-sm hover:underline" style="color:#4E7A61;">← 返回列表</a>
+      </div>
+      <div id="consult-info" class="space-y-3 text-sm">
+        <div class="animate-pulse space-y-2">
+          <div class="h-4 bg-gray-100 rounded w-3/4"></div>
+          <div class="h-4 bg-gray-100 rounded w-1/2"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 操作按钮 -->
+    <div class="bg-white rounded-xl shadow-sm p-4 space-y-2">
+      <button onclick="markUrgent()"
+        class="w-full px-4 py-2 rounded-lg border border-red-200 text-red-600 text-sm hover:bg-red-50 flex items-center justify-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+        标记为紧急
+      </button>
+      <button id="btn-close" onclick="closeConsultation()"
+        class="w-full px-4 py-2 rounded-lg border border-gray-200 text-gray-600 text-sm hover:bg-gray-50 flex items-center justify-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+        关闭咨询
+      </button>
+    </div>
+
+    <!-- 患者档案快捷链接 -->
+    <div id="patient-quick-link" class="rounded-xl p-4 hidden" style="background:#EBF2ED;">
+      <p class="text-xs font-medium mb-2" style="color:#4E7A61;">相关操作</p>
+      <a id="link-risk-plan" href="#"
+        class="block px-3 py-2 bg-white rounded-lg text-sm mb-2 flex items-center gap-2" style="color:#3F6A52;" onmouseover="this.style.background='#D8EAE0'" onmouseout="this.style.background='white'">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.346a.5.5 0 01-.73-.649 3 3 0 10-4.25 0 .5.5 0 01-.731.649l-.346-.346z"/>
+        </svg>
+        AI 风险分析 & 方案生成
+      </a>
+      <a id="link-visit" href="/gui/admin/visit-station"
+        class="block px-3 py-2 bg-white rounded-lg text-sm flex items-center gap-2" style="color:#3F6A52;" onmouseover="this.style.background='#D8EAE0'" onmouseout="this.style.background='white'">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        进入就诊台
+      </a>
+    </div>
+  </div>
+
+  <!-- 右：对话区域 -->
+  <div class="col-span-8 flex flex-col" style="height: calc(100vh - 200px);">
+    <div class="bg-white rounded-xl shadow-sm flex flex-col h-full overflow-hidden">
+      <!-- 消息列表 -->
+      <div id="messages-area" class="flex-1 overflow-y-auto p-5 space-y-4">
+        <div class="text-center text-gray-400 text-sm">加载中...</div>
+      </div>
+
+      <!-- 输入区 -->
+      <div id="reply-area" class="border-t border-gray-100 p-4">
+        <div class="flex gap-3">
+          <textarea id="reply-input"
+            class="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-green-300"
+            rows="3" placeholder="输入回复内容（Ctrl+Enter 发送）..."></textarea>
+          <div class="flex flex-col gap-2">
+            <button onclick="sendReply()"
+              class="px-5 py-2 bg-green-600 text-white rounded-xl text-sm hover:bg-green-700 font-medium flex-shrink-0">
+              发送回复
+            </button>
+            <button onclick="insertTemplate()"
+              class="px-5 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm hover:bg-gray-50 flex-shrink-0">
+              常用语
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 已关闭提示 -->
+      <div id="closed-notice" class="hidden border-t border-gray-100 p-4 bg-gray-50 text-center text-sm text-gray-400">
+        咨询已关闭
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 常用语 Modal -->
+<div id="template-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-xl w-96 p-5">
+    <h3 class="font-semibold text-gray-700 mb-3">常用回复语</h3>
+    <div class="space-y-2 max-h-60 overflow-y-auto" id="template-list"></div>
+    <button onclick="closeTemplateModal()" class="mt-4 w-full py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50">取消</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const CONSULT_ID = '{{ consult_id }}';
+const TEMPLATES = [
+  '您好，感谢您的咨询，我已仔细查看您的问题。',
+  '建议您按时服药，保持规律作息，如有不适请及时就医。',
+  '您的指标已有所改善，继续保持良好的生活习惯。',
+  '建议您尽快来院复诊，进行进一步检查。',
+  '您的调理方案已更新，请在患者端查看最新内容。',
+  '如有紧急情况，请立即拨打120或前往急诊。',
+];
+
+const STATUS_LABELS = { OPEN: '待回复', REPLIED: '已回复', CLOSED: '已关闭' };
+const PRIORITY_LABELS = { URGENT: '紧急', NORMAL: '普通' };
+
+let consultData = null;
+
+async function loadConsultation() {
+  const r = await fetch(`/tools/consultations/${CONSULT_ID}`);
+  const j = await r.json();
+  if (!j.success) {
+    document.getElementById('consult-info').innerHTML = '<p class="text-gray-400">加载失败</p>';
+    return;
+  }
+
+  consultData = j.data;
+  renderInfo(j.data);
+  renderMessages(j.data.messages || []);
+
+  // 已关闭则隐藏输入区
+  if (j.data.status === 'CLOSED') {
+    document.getElementById('reply-area').classList.add('hidden');
+    document.getElementById('closed-notice').classList.remove('hidden');
+    document.getElementById('btn-close').disabled = true;
+  }
+
+  // 显示患者快捷链接
+  if (j.data.archive_id) {
+    document.getElementById('patient-quick-link').classList.remove('hidden');
+    document.getElementById('link-risk-plan').href = `/gui/admin/visit-station`;
+  }
+}
+
+function renderInfo(c) {
+  const created = c.created_at?.substring(0, 16).replace('T', ' ') || '-';
+  const updated = c.updated_at?.substring(0, 16).replace('T', ' ') || '-';
+  const ss = { OPEN: 'text-red-600 bg-red-50', REPLIED: 'text-amber-600 bg-amber-50', CLOSED: 'text-gray-500 bg-gray-100' };
+  const ps = { URGENT: 'text-red-600', NORMAL: 'text-gray-500' };
+  document.getElementById('consult-info').innerHTML = `
+    <div class="flex items-center gap-2 mb-2">
+      <div class="w-9 h-9 rounded-full text-sm font-bold flex items-center justify-center" style="background:#EBF2ED;color:#4E7A61;">
+        ${(c.patient_name || '?')[0]}
+      </div>
+      <div>
+        <p class="font-medium text-gray-800">${c.patient_name || '-'}</p>
+        <p class="text-xs text-gray-400">患者</p>
+      </div>
+    </div>
+    <div class="border-t border-gray-100 pt-3 space-y-2 text-sm">
+      <div class="flex items-start gap-2">
+        <span class="text-gray-400 w-14 flex-shrink-0">标题</span>
+        <span class="text-gray-800 font-medium leading-snug">${c.title}</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-gray-400 w-14">状态</span>
+        <span class="px-2 py-0.5 rounded-full text-xs ${ss[c.status] || ''}">${STATUS_LABELS[c.status] || c.status}</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-gray-400 w-14">优先级</span>
+        <span class="text-sm ${ps[c.priority] || ''}">${PRIORITY_LABELS[c.priority] || c.priority}</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-gray-400 w-14">发起时间</span>
+        <span class="text-gray-600 text-xs">${created}</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-gray-400 w-14">最后更新</span>
+        <span class="text-gray-600 text-xs">${updated}</span>
+      </div>
+    </div>`;
+}
+
+function renderMessages(messages) {
+  const area = document.getElementById('messages-area');
+  if (!messages.length) {
+    area.innerHTML = '<div class="text-center text-gray-400 text-sm py-8">暂无消息</div>';
+    return;
+  }
+  area.innerHTML = messages.map(m => {
+    const isDoctor = m.sender_type === 'DOCTOR';
+    const time = m.created_at?.substring(0, 16).replace('T', ' ') || '';
+    return `
+      <div class="flex ${isDoctor ? 'flex-row-reverse' : 'flex-row'} items-end gap-2">
+        <div class="w-8 h-8 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0" style="${isDoctor ? 'background:#4E7A61;color:#fff;' : 'background:#E4DDD4;color:#6A6258;'}">
+          ${isDoctor ? '医' : '患'}
+        </div>
+        <div class="max-w-sm">
+          <div class="px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap
+            ${isDoctor ? 'rounded-br-none' : 'bg-gray-100 text-gray-800 rounded-bl-none'}" style="${isDoctor ? 'background:#4E7A61;color:#fff;' : ''}">
+            ${escHtml(m.content)}
+          </div>
+          <p class="text-xs text-gray-400 mt-1 ${isDoctor ? 'text-right' : ''}">${time}</p>
+        </div>
+      </div>`;
+  }).join('');
+  // 滚到底部
+  area.scrollTop = area.scrollHeight;
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function sendReply() {
+  const content = document.getElementById('reply-input').value.trim();
+  if (!content) return;
+
+  const r = await fetch(`/tools/consultations/${CONSULT_ID}/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content }),
+  });
+  const j = await r.json();
+  if (!j.success) { showToast('发送失败：' + (j.error?.message || '未知错误')); return; }
+  document.getElementById('reply-input').value = '';
+  loadConsultation();
+}
+
+async function closeConsultation() {
+  if (!confirm('确定关闭此咨询？关闭后无法继续回复')) return;
+  const r = await fetch(`/tools/consultations/${CONSULT_ID}/close`, { method: 'PATCH' });
+  const j = await r.json();
+  if (j.success) loadConsultation();
+  else showToast('操作失败：' + (j.error?.message || ''));
+}
+
+function markUrgent() {
+  showToast('紧急标记功能开发中');
+}
+
+function insertTemplate() {
+  const list = document.getElementById('template-list');
+  list.innerHTML = TEMPLATES.map(t => `
+    <button onclick="useTemplate('${t.replace(/'/g,'\\\'')}')"
+      class="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 border border-gray-100" onmouseover="this.style.background='#EBF2ED'" onmouseout="this.style.background=''">
+      ${t}
+    </button>`).join('');
+  document.getElementById('template-modal').classList.remove('hidden');
+}
+
+function useTemplate(text) {
+  document.getElementById('reply-input').value = text;
+  closeTemplateModal();
+}
+
+function closeTemplateModal() {
+  document.getElementById('template-modal').classList.add('hidden');
+}
+
+document.getElementById('reply-input').addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 'Enter') sendReply();
+});
+
+loadConsultation();
+</script>
+{% endblock %}

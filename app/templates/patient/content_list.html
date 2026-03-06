@@ -1,39 +1,51 @@
 {% extends "_layouts/patient.html" %}
 {% block title %}健康知识{% endblock %}
 {% block page_title %}健康知识{% endblock %}
+{% set active_tab = "content" %}
 
 {% block content %}
-<div class="px-4 pt-4 pb-6 space-y-3">
+<div style="padding: 16px; display: flex; flex-direction: column; gap: 12px; padding-bottom: 24px;">
 
   <!-- 搜索栏 -->
-  <div class="relative">
-    <input id="search-input" type="text" placeholder="搜索文章..."
-      class="w-full bg-white border border-gray-200 rounded-2xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
-    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
+  <div style="position:relative;">
+    <svg width="16" height="16" fill="none" stroke="#9A9188" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+      style="position:absolute;left:14px;top:50%;transform:translateY(-50%);pointer-events:none;">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
     </svg>
+    <input id="search-input" type="text" placeholder="搜索文章…" style="
+      width:100%;padding:12px 16px 12px 40px;
+      background:#fff;border:1.5px solid #E4DDD4;border-radius:14px;
+      font-size:14px;color:#28231E;outline:none;
+      transition:border-color 0.2s,box-shadow 0.2s;
+      font-family:inherit;box-sizing:border-box;
+    ">
   </div>
 
   <!-- 标签筛选 -->
-  <div id="tag-filters" class="flex space-x-2 overflow-x-auto pb-1">
-    <button onclick="filterTag('')" data-tag=""
-      class="tag-btn flex-shrink-0 bg-green-600 text-white text-xs px-3 py-1.5 rounded-full">全部</button>
+  <div id="tag-filters" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;">
+    <button onclick="filterTag('')" data-tag="" style="
+      flex-shrink:0;background:#4E7A61;color:#fff;
+      font-size:13px;font-weight:500;padding:7px 16px;
+      border-radius:99px;border:none;cursor:pointer;font-family:inherit;
+      white-space:nowrap;
+    " class="tag-btn">全部</button>
   </div>
 
   <!-- 文章列表 -->
-  <div id="article-list" class="space-y-3">
-    <!-- 骨架屏 -->
-    <div class="animate-pulse space-y-3">
-      <div class="h-24 bg-gray-100 rounded-2xl"></div>
-      <div class="h-24 bg-gray-100 rounded-2xl"></div>
-      <div class="h-24 bg-gray-100 rounded-2xl"></div>
-    </div>
+  <div id="article-list" style="display:flex;flex-direction:column;gap:10px;">
+    <div class="skeleton" style="height:88px;border-radius:16px;"></div>
+    <div class="skeleton" style="height:88px;border-radius:16px;"></div>
+    <div class="skeleton" style="height:88px;border-radius:16px;width:90%;"></div>
   </div>
 
 </div>
 {% endblock %}
 
 {% block extra_scripts %}
+<style>
+  #tag-filters::-webkit-scrollbar { display: none; }
+  #search-input:focus { border-color: #4E7A61; box-shadow: 0 0 0 3px rgba(78,122,97,0.12); }
+</style>
 <script>
 let allArticles = [];
 let activeTag = '';
@@ -53,9 +65,10 @@ function buildTagFilters() {
   const container = document.getElementById('tag-filters');
   tagSet.forEach(tag => {
     const btn = document.createElement('button');
-    btn.className = 'tag-btn flex-shrink-0 bg-white border border-gray-200 text-gray-600 text-xs px-3 py-1.5 rounded-full';
+    btn.style.cssText = 'flex-shrink:0;background:#F0EBE4;color:#6A6258;font-size:13px;font-weight:500;padding:7px 16px;border-radius:99px;border:none;cursor:pointer;font-family:inherit;white-space:nowrap;';
     btn.textContent = tag;
     btn.dataset.tag = tag;
+    btn.classList.add('tag-btn');
     btn.onclick = () => filterTag(tag);
     container.appendChild(btn);
   });
@@ -65,7 +78,8 @@ function filterTag(tag) {
   activeTag = tag;
   document.querySelectorAll('.tag-btn').forEach(btn => {
     const isActive = btn.dataset.tag === tag;
-    btn.className = `tag-btn flex-shrink-0 text-xs px-3 py-1.5 rounded-full ${isActive ? 'bg-green-600 text-white' : 'bg-white border border-gray-200 text-gray-600'}`;
+    btn.style.background = isActive ? '#4E7A61' : '#F0EBE4';
+    btn.style.color = isActive ? '#fff' : '#6A6258';
   });
   render();
 }
@@ -74,35 +88,44 @@ function render() {
   const query = document.getElementById('search-input').value.trim().toLowerCase();
   let list = allArticles;
   if (activeTag) list = list.filter(a => (a.tags || []).includes(activeTag));
-  if (query) list = list.filter(a => a.title.toLowerCase().includes(query) || (a.body || '').toLowerCase().includes(query));
+  if (query) list = list.filter(a =>
+    a.title.toLowerCase().includes(query) || (a.body || '').toLowerCase().includes(query));
 
   const container = document.getElementById('article-list');
   if (list.length === 0) {
-    container.innerHTML = '<p class="text-center text-gray-400 text-sm py-10">暂无相关文章</p>';
+    container.innerHTML = '<p style="text-align:center;color:#9A9188;font-size:14px;padding:40px 0;margin:0;">暂无相关文章</p>';
     return;
   }
 
   container.innerHTML = list.map(a => {
-    const excerpt = a.body ? a.body.slice(0, 60).replace(/\n/g, ' ') + (a.body.length > 60 ? '...' : '') : '';
-    const tagsHtml = (a.tags || []).slice(0,3).map(t => `<span class="text-xs bg-green-50 text-green-600 px-1.5 py-0.5 rounded">${t}</span>`).join(' ');
+    const excerpt = a.body ? a.body.slice(0, 72).replace(/\n/g, ' ') + (a.body.length > 72 ? '…' : '') : '';
+    const tagsHtml = (a.tags || []).slice(0, 3).map(t =>
+      `<span style="font-size:11px;background:#EBF2ED;color:#4E7A61;padding:3px 8px;border-radius:99px;">${t}</span>`
+    ).join('');
     return `
-    <a href="/h5/content/${a.id}" class="block bg-white rounded-2xl p-4 space-y-2">
-      <h3 class="font-semibold text-gray-800 text-sm leading-snug">${a.title}</h3>
-      ${excerpt ? `<p class="text-xs text-gray-400 leading-relaxed">${excerpt}</p>` : ''}
-      <div class="flex items-center justify-between">
-        <div class="flex space-x-1">${tagsHtml}</div>
-        <span class="text-xs text-gray-300">${a.published_at ? a.published_at.slice(0,10) : ''}</span>
-      </div>
-    </a>`;
+      <a href="/h5/content/${a.id}" style="
+        display:block;background:#fff;border-radius:18px;padding:16px;
+        text-decoration:none;cursor:pointer;
+        box-shadow:0 1px 12px rgba(68,60,48,0.07);
+        transition:transform 0.15s,box-shadow 0.15s;
+      " onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 20px rgba(68,60,48,0.11)'"
+         onmouseout="this.style.transform='';this.style.boxShadow='0 1px 12px rgba(68,60,48,0.07)'">
+        <h3 style="font-size:14px;font-weight:600;color:#28231E;margin:0 0 6px;line-height:1.5;">${a.title}</h3>
+        ${excerpt ? `<p style="font-size:13px;color:#9A9188;margin:0 0 10px;line-height:1.6;">${excerpt}</p>` : ''}
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">${tagsHtml}</div>
+          <span style="font-size:11px;color:#C0B9B0;">${a.published_at ? a.published_at.slice(0, 10) : ''}</span>
+        </div>
+      </a>`;
   }).join('');
 }
 
 function renderEmpty() {
-  document.getElementById('article-list').innerHTML = '<p class="text-center text-gray-400 text-sm py-10">暂无文章</p>';
+  document.getElementById('article-list').innerHTML =
+    '<p style="text-align:center;color:#9A9188;font-size:14px;padding:40px 0;margin:0;">暂无文章</p>';
 }
 
 document.getElementById('search-input').addEventListener('input', render);
-
 load();
 </script>
 {% endblock %}

@@ -1,0 +1,127 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "scales" %}
+{% block title %}量表结果 - 治未病平台{% endblock %}
+{% block page_title %}量表结果{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-4">
+  <!-- 结果卡片 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <div class="text-center mb-6">
+      <div class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-3" style="background:#D4E5D9;">
+        <span class="text-3xl font-bold text-indigo-600" id="r-score">-</span>
+      </div>
+      <h2 class="text-xl font-bold text-gray-800" id="r-scale">量表结果</h2>
+      <p class="text-sm text-gray-400 mt-1" id="r-time"></p>
+    </div>
+
+    <!-- 结果分层 -->
+    <div class="grid grid-cols-3 gap-3 mb-6">
+      <div class="text-center p-3 rounded-xl" id="r-level-card">
+        <p class="text-xs text-gray-400 mb-1">评估分层</p>
+        <p class="font-bold text-lg" id="r-level">-</p>
+      </div>
+      <div class="text-center p-3 bg-blue-50 rounded-xl">
+        <p class="text-xs text-gray-400 mb-1">参考范围</p>
+        <p class="font-bold text-blue-600 text-lg" id="r-ref">-</p>
+      </div>
+      <div class="text-center p-3 bg-amber-50 rounded-xl">
+        <p class="text-xs text-gray-400 mb-1">风险提示</p>
+        <p class="font-bold text-amber-600 text-lg" id="r-risk">-</p>
+      </div>
+    </div>
+
+    <!-- 进度条 -->
+    <div class="mb-6">
+      <div class="flex justify-between text-xs text-gray-400 mb-1">
+        <span>0分（正常）</span>
+        <span id="r-max">最高分</span>
+      </div>
+      <div class="w-full rounded-full h-3" style="background:#EDE8E2;">
+        <div id="r-progress" class="h-3 rounded-full transition-all" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- 建议 -->
+    <div class="bg-indigo-50 rounded-xl p-5">
+      <h3 class="font-semibold text-indigo-700 mb-3">评估建议</h3>
+      <div id="r-suggestions" class="space-y-2 text-sm text-gray-700"></div>
+    </div>
+  </div>
+
+  <!-- 各题明细 -->
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <h3 class="font-semibold text-gray-700 mb-4">答题明细</h3>
+    <div id="r-details" class="space-y-3 text-sm"></div>
+  </div>
+
+  <!-- 操作按钮 -->
+  <div class="flex gap-3 justify-between">
+    <a href="/gui/admin/scale-records"
+      class="px-5 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">返回记录列表</a>
+    <div class="flex gap-2">
+      <button onclick="window.print()" class="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">打印报告</button>
+      <a href="/gui/admin/scale-library"
+        class="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-indigo-700">返回量表库</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const RECORD_ID = '{{ record_id }}';
+
+// 演示：PHQ-9 结果
+const demo = {
+  scale: 'PHQ-9 抑郁症筛查量表',
+  score: 12, max: 27,
+  level: '中度抑郁', levelColor: 'bg-orange-100 text-orange-700',
+  ref: '0-4分正常', risk: '需关注',
+  progress: 12/27*100, progressColor: 'bg-orange-400',
+  time: new Date().toLocaleString('zh-CN'),
+  suggestions: [
+    '您的评估结果提示存在中度抑郁症状，建议您尽快就医，向专业医生或心理咨询师寻求帮助。',
+    '建议保持规律作息，保证充足睡眠，适当进行有氧运动（如散步、太极拳）。',
+    '建议2周后进行复评，追踪症状变化。',
+    '如有自伤或轻生念头，请立即联系医生或拨打心理援助热线。'
+  ],
+  answers: [
+    {q:'做事时提不起劲或没有兴趣', a:'超过一周', score:2},
+    {q:'感到心情低落、沮丧或绝望', a:'几乎每天', score:3},
+    {q:'入睡困难、睡不安稳或睡眠过多', a:'超过一周', score:2},
+    {q:'感觉疲倦或没有活力', a:'几乎每天', score:3},
+    {q:'食欲不振或吃太多', a:'有几天', score:1},
+    {q:'觉得自己很糟糕', a:'有几天', score:1},
+    {q:'很难专注某些事', a:'完全没有', score:0},
+    {q:'动作或说话速度变慢', a:'完全没有', score:0},
+    {q:'有不如死掉的念头', a:'完全没有', score:0}
+  ]
+};
+
+document.getElementById('r-score').textContent = demo.score;
+document.getElementById('r-scale').textContent = demo.scale;
+document.getElementById('r-time').textContent = demo.time;
+document.getElementById('r-level').textContent = demo.level;
+document.getElementById('r-level-card').className = `text-center p-3 rounded-xl ${demo.levelColor}`;
+document.getElementById('r-ref').textContent = demo.ref;
+document.getElementById('r-risk').textContent = demo.risk;
+document.getElementById('r-max').textContent = `${demo.max}分（重度）`;
+document.getElementById('r-progress').style.width = demo.progress + '%';
+document.getElementById('r-progress').className = `h-3 rounded-full transition-all ${demo.progressColor}`;
+document.getElementById('r-suggestions').innerHTML = demo.suggestions.map(s =>
+  `<div class="flex gap-2"><span class="text-indigo-500 mt-0.5 flex-shrink-0">•</span><span>${s}</span></div>`).join('');
+document.getElementById('r-details').innerHTML = demo.answers.map((a, i) => `
+  <div class="flex items-start gap-3">
+    <span class="text-xs text-indigo-400 font-bold w-5 mt-0.5">${i+1}</span>
+    <div class="flex-1">
+      <p class="text-gray-700">${a.q}</p>
+      <div class="flex items-center gap-2 mt-1">
+        <span class="text-xs text-gray-400">选择：</span>
+        <span class="text-xs font-medium text-gray-600">${a.a}</span>
+        <span class="ml-auto text-xs font-bold ${a.score>=2?'text-orange-500':'text-green-500'}">${a.score}分</span>
+      </div>
+    </div>
+  </div>`).join('');
+</script>
+{% endblock %}

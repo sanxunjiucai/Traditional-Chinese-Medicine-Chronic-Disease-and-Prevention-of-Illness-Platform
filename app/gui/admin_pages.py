@@ -320,6 +320,18 @@ async def admin_archive_transfer_log(request: Request, access_token: str | None 
     return templates.TemplateResponse("admin/archive_transfer_log.html", {"request": request, "user_ctx": ctx})
 
 
+# /new 必须在 /{archive_id} 之前注册，否则 "new" 会被当作 archive_id 捕获
+@router.get("/gui/admin/archives/new", response_class=HTMLResponse)
+async def admin_archive_new(request: Request, access_token: str | None = Cookie(default=None)):
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "admin/archive_edit.html",
+        {"request": request, "archive_id": None, "user_ctx": ctx},
+    )
+
+
 @router.get("/gui/admin/archives/{archive_id}", response_class=HTMLResponse)
 async def admin_archive_detail(
     archive_id: str,
@@ -354,17 +366,6 @@ async def admin_archive_detail(
             "from_label": from_label,
             "from_url": from_url,
         },
-    )
-
-
-@router.get("/gui/admin/archives/new", response_class=HTMLResponse)
-async def admin_archive_new(request: Request, access_token: str | None = Cookie(default=None)):
-    ctx = _get_user_ctx(access_token)
-    if not ctx:
-        return RedirectResponse(url="/login")
-    return templates.TemplateResponse(
-        "admin/archive_edit.html",
-        {"request": request, "archive_id": None, "user_ctx": ctx},
     )
 
 

@@ -1,0 +1,362 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "risk_plan" %}
+{% block title %}AI 风险诊断与方案生成 - 治未病平台{% endblock %}
+{% block page_title %}AI 风险诊断与方案生成{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-12 gap-6">
+
+  <!-- 左：配置面板 -->
+  <div class="col-span-4 space-y-4">
+
+    <!-- 步骤1：选择患者 -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="w-6 h-6 rounded-full text-white text-xs font-bold flex items-center justify-center flex-shrink-0" style="background:#4E7A61">1</span>
+        <h3 class="font-semibold text-gray-700 text-sm">选择患者</h3>
+      </div>
+      <div class="flex gap-2 mb-2">
+        <input id="patient-search" type="text" placeholder="点击展开 / 姓名·手机号搜索"
+          onfocus="preloadAndShowPatients()" oninput="debouncePatients()" autocomplete="off"
+          class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300">
+        <button onclick="searchPatients()" class="text-white px-3 py-2 rounded-lg text-sm" style="background:#4E7A61">搜索</button>
+      </div>
+      <div id="search-results" class="space-y-1 max-h-40 overflow-y-auto"></div>
+
+      <!-- 已选患者 -->
+      <div id="selected-patient" class="hidden mt-3 flex items-center gap-3 p-3 rounded-xl" style="background:#EBF2ED">
+        <div id="sp-avatar"
+          class="w-9 h-9 rounded-full text-white text-sm font-bold flex items-center justify-center flex-shrink-0" style="background:#4E7A61"></div>
+        <div class="flex-1 min-w-0">
+          <p id="sp-name" class="font-medium text-gray-800 truncate text-sm"></p>
+          <p id="sp-info" class="text-xs text-gray-500 truncate"></p>
+        </div>
+        <button onclick="clearPatient()" class="text-gray-400 hover:text-gray-600">✕</button>
+      </div>
+    </div>
+
+    <!-- 步骤2：分析维度 -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="w-6 h-6 rounded-full text-white text-xs font-bold flex items-center justify-center flex-shrink-0" style="background:#5070A8">2</span>
+        <h3 class="font-semibold text-gray-700 text-sm">分析维度</h3>
+      </div>
+      <div class="space-y-2">
+        <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+          <input type="checkbox" checked class="rounded accent-jade"> 检验报告（HIS/LIS）
+        </label>
+        <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+          <input type="checkbox" checked class="rounded accent-jade"> 体质辨识结果
+        </label>
+        <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+          <input type="checkbox" checked class="rounded accent-jade"> 慢病病史
+        </label>
+        <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+          <input type="checkbox" class="rounded accent-jade"> 用药记录
+        </label>
+      </div>
+      <div class="mt-3">
+        <label class="text-xs text-gray-500 block mb-1">补充说明（可选）</label>
+        <textarea id="extra-context" rows="2"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-jade-300"
+          placeholder="如：患者近期有出行史、饮食改变等..."></textarea>
+      </div>
+    </div>
+
+    <!-- 步骤3：执行按钮 -->
+    <div class="bg-white rounded-xl shadow-sm p-5 space-y-3">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">3</span>
+        <h3 class="font-semibold text-gray-700 text-sm">执行</h3>
+      </div>
+      <button id="btn-analyze" onclick="triggerAnalysis()" disabled
+        class="w-full py-2.5 rounded-xl text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2" style="background:#4E7A61">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.346a.5.5 0 01-.73-.649 3 3 0 10-4.25 0 .5.5 0 01-.731.649l-.346-.346z"/>
+        </svg>
+        <span id="btn-analyze-text">AI 风险分析</span>
+      </button>
+      <button id="btn-gen-plan" onclick="generatePlan()" disabled
+        class="w-full py-2.5 rounded-xl border border-emerald-600 text-emerald-700 text-sm font-medium hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed">
+        生成调理方案
+      </button>
+    </div>
+
+    <!-- 风险分析结果卡 -->
+    <div id="risk-card" class="bg-white rounded-xl shadow-sm p-5 hidden">
+      <h3 class="font-semibold text-gray-700 text-sm mb-3">风险评估结果</h3>
+      <div id="risk-level-badge" class="px-3 py-2 rounded-lg mb-3">
+        <span id="risk-level-text" class="font-semibold text-sm"></span>
+      </div>
+      <p id="risk-summary" class="text-xs text-gray-600 leading-relaxed mb-3"></p>
+      <div>
+        <p class="text-xs font-medium text-gray-500 mb-1.5">风险因素</p>
+        <ul id="risk-factors" class="space-y-1"></ul>
+      </div>
+      <div class="text-xs text-gray-400 space-y-0.5 border-t border-gray-100 pt-2 mt-3">
+        <p id="risk-constitution"></p>
+        <p id="risk-diseases"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右：方案生成区 -->
+  <div class="col-span-8">
+    <div class="bg-white rounded-xl shadow-sm p-5 flex flex-col" style="min-height: 600px;">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-gray-700">调理方案</h3>
+        <div class="flex gap-2">
+          <button id="btn-issue" onclick="issuePlan()" disabled
+            class="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+            </svg>
+            下达给患者
+          </button>
+        </div>
+      </div>
+
+      <!-- 方案标题 -->
+      <input id="plan-title" type="text" value="个性化中医调理方案"
+        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+        placeholder="方案标题">
+
+      <!-- 空状态 -->
+      <div id="plan-idle" class="flex-1 flex items-center justify-center text-center text-gray-300">
+        <div>
+          <svg class="w-16 h-16 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          <p class="text-sm">完成风险分析后点击「生成调理方案」</p>
+          <p class="text-xs mt-1">AI 将根据患者体质、慢病史和检验数据生成个性化方案</p>
+        </div>
+      </div>
+
+      <!-- 加载中 -->
+      <div id="plan-loading" class="hidden flex-1 flex items-center justify-center">
+        <div class="text-center">
+          <div class="inline-block animate-spin w-10 h-10 border-4 border-emerald-200 border-t-emerald-600 rounded-full mb-4"></div>
+          <p class="text-gray-500">AI 正在生成调理方案，请稍候...</p>
+        </div>
+      </div>
+
+      <!-- 方案内容 -->
+      <textarea id="plan-content"
+        class="hidden flex-1 w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-mono leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-emerald-300"
+        style="min-height: 450px;"
+        placeholder="方案内容（可编辑）..."></textarea>
+
+      <!-- 下达成功 -->
+      <div id="issue-success" class="hidden mt-4 flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 rounded-xl px-4 py-3">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span id="issue-success-msg"></span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const RISK_LEVEL_STYLES = {
+  HIGH:   { badge: 'bg-red-100 text-red-700',    label: '⚠️ 高风险' },
+  MEDIUM: { badge: 'bg-amber-100 text-amber-700', label: '⚡ 中风险' },
+  LOW:    { badge: 'bg-green-100 text-green-700', label: '✅ 低风险' },
+};
+
+let selectedPatient = null;
+let currentRiskResult = null;
+
+let _allPatients = null;
+let _pTimer = null;
+
+async function loadAllPatients() {
+  if (_allPatients !== null) return _allPatients;
+  try {
+    const r = await fetch('/tools/archive/archives?page_size=100');
+    const j = await r.json();
+    _allPatients = (j.success && j.data?.items) ? j.data.items : [];
+  } catch { _allPatients = []; }
+  return _allPatients;
+}
+
+async function preloadAndShowPatients() {
+  const patients = await loadAllPatients();
+  const q = document.getElementById('patient-search').value.trim();
+  const filtered = q ? patients.filter(p => p.name.includes(q) || (p.phone||'').includes(q)) : patients;
+  const el = document.getElementById('search-results');
+  if (!filtered.length) {
+    el.innerHTML = '<p class="text-xs text-gray-400 text-center py-2">未找到</p>';
+    return;
+  }
+  el.innerHTML = filtered.slice(0, 30).map(a => `
+    <button onclick='selectPatient(${JSON.stringify(a).replace(/'/g,"&apos;")})'
+      class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm border border-gray-100 flex items-center gap-2">
+      <span class="w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0" style="background:#EBF2ED;color:#4E7A61">${a.name[0]}</span>
+      <span class="font-medium text-gray-800">${a.name}</span>
+      <span class="text-gray-400 text-xs">${a.phone || ''}</span>
+    </button>`).join('');
+}
+
+function debouncePatients() {
+  clearTimeout(_pTimer);
+  _pTimer = setTimeout(preloadAndShowPatients, 200);
+}
+
+async function searchPatients() {
+  await preloadAndShowPatients();
+}
+
+function selectPatient(a) {
+  selectedPatient = a;
+  document.getElementById('search-results').innerHTML = '';
+  document.getElementById('selected-patient').classList.remove('hidden');
+  document.getElementById('sp-avatar').textContent = a.name[0];
+  document.getElementById('sp-name').textContent = a.name;
+  document.getElementById('sp-info').textContent = [a.phone, a.district].filter(Boolean).join(' | ');
+  document.getElementById('btn-analyze').disabled = false;
+  document.getElementById('risk-card').classList.add('hidden');
+  resetPlanPanel();
+}
+
+function clearPatient() {
+  selectedPatient = null;
+  document.getElementById('selected-patient').classList.add('hidden');
+  document.getElementById('patient-search').value = '';
+  document.getElementById('btn-analyze').disabled = true;
+  document.getElementById('btn-gen-plan').disabled = true;
+  document.getElementById('risk-card').classList.add('hidden');
+  resetPlanPanel();
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#patient-search') && !e.target.closest('#search-results')) {
+    document.getElementById('search-results').innerHTML = '';
+  }
+});
+
+function resetPlanPanel() {
+  document.getElementById('plan-idle').classList.remove('hidden');
+  document.getElementById('plan-loading').classList.add('hidden');
+  document.getElementById('plan-content').classList.add('hidden');
+  document.getElementById('plan-content').value = '';
+  document.getElementById('issue-success').classList.add('hidden');
+  document.getElementById('btn-issue').disabled = true;
+}
+
+async function triggerAnalysis() {
+  if (!selectedPatient) return;
+  document.getElementById('btn-analyze').disabled = true;
+  document.getElementById('btn-analyze-text').textContent = '分析中...';
+  document.getElementById('risk-card').classList.add('hidden');
+
+  try {
+    const r = await fetch(`/tools/risk/analyze/${selectedPatient.id}`, { method: 'POST' });
+    const j = await r.json();
+    document.getElementById('btn-analyze').disabled = false;
+    document.getElementById('btn-analyze-text').textContent = 'AI 风险分析';
+
+    if (!j.success) { showToast('分析失败：' + (j.error?.message || '')); return; }
+
+    currentRiskResult = j.data.analysis;
+    renderRisk(j.data.analysis);
+    document.getElementById('btn-gen-plan').disabled = false;
+
+  } catch (e) {
+    document.getElementById('btn-analyze').disabled = false;
+    document.getElementById('btn-analyze-text').textContent = 'AI 风险分析';
+    showToast('请求失败');
+  }
+}
+
+function renderRisk(a) {
+  const style = RISK_LEVEL_STYLES[a.risk_level] || RISK_LEVEL_STYLES.MEDIUM;
+  const card = document.getElementById('risk-card');
+  card.classList.remove('hidden');
+
+  const badge = document.getElementById('risk-level-badge');
+  badge.className = `px-3 py-2 rounded-lg mb-3 ${style.badge}`;
+  document.getElementById('risk-level-text').textContent = style.label;
+
+  document.getElementById('risk-summary').textContent = a.raw_summary || '';
+  document.getElementById('risk-factors').innerHTML = (a.risk_factors || []).map(f =>
+    `<li class="text-xs text-gray-600 flex gap-1.5"><span class="text-red-400 flex-shrink-0">•</span>${f}</li>`
+  ).join('') || '<li class="text-xs text-gray-400">无明显异常</li>';
+
+  document.getElementById('risk-constitution').textContent = a.constitution || '';
+  document.getElementById('risk-diseases').textContent = a.diseases || '';
+}
+
+async function generatePlan() {
+  if (!selectedPatient) return;
+  const extra = document.getElementById('extra-context').value.trim();
+
+  document.getElementById('plan-idle').classList.add('hidden');
+  document.getElementById('plan-loading').classList.remove('hidden');
+  document.getElementById('plan-content').classList.add('hidden');
+  document.getElementById('btn-gen-plan').disabled = true;
+  document.getElementById('issue-success').classList.add('hidden');
+
+  try {
+    const r = await fetch('/tools/risk/plan/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archive_id: selectedPatient.id, extra_context: extra }),
+    });
+    const j = await r.json();
+
+    document.getElementById('plan-loading').classList.add('hidden');
+    document.getElementById('btn-gen-plan').disabled = false;
+
+    if (!j.success) {
+      document.getElementById('plan-idle').classList.remove('hidden');
+      showToast('生成失败：' + (j.error?.message || ''));
+      return;
+    }
+
+    document.getElementById('plan-content').value = j.data.plan_markdown;
+    document.getElementById('plan-content').classList.remove('hidden');
+    document.getElementById('btn-issue').disabled = false;
+
+  } catch(e) {
+    document.getElementById('plan-loading').classList.add('hidden');
+    document.getElementById('plan-idle').classList.remove('hidden');
+    document.getElementById('btn-gen-plan').disabled = false;
+    showToast('请求失败');
+  }
+}
+
+async function issuePlan() {
+  if (!selectedPatient) return;
+  const content = document.getElementById('plan-content').value.trim();
+  const title = document.getElementById('plan-title').value.trim() || '个性化中医调理方案';
+  if (!content) { showToast('方案内容不能为空'); return; }
+
+  document.getElementById('btn-issue').disabled = true;
+
+  const r = await fetch('/tools/risk/plan/issue', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ archive_id: selectedPatient.id, plan_content: content, title }),
+  });
+  const j = await r.json();
+  document.getElementById('btn-issue').disabled = false;
+
+  if (!j.success) { showToast('下达失败：' + (j.error?.message || '')); return; }
+
+  document.getElementById('issue-success').classList.remove('hidden');
+  document.getElementById('issue-success-msg').textContent =
+    `✅ 已成功下达给 ${j.data.patient_name}，通知已推送至患者端`;
+}
+
+document.getElementById('patient-search').addEventListener('keydown', e => {
+  if (e.key === 'Enter') searchPatients();
+});
+</script>
+{% endblock %}

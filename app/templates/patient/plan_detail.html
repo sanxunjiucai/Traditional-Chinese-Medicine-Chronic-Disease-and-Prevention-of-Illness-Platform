@@ -1,0 +1,105 @@
+{% extends "_layouts/patient.html" %}
+
+{% block title %}调理方案 - 治未病平台{% endblock %}
+{% block page_title %}调理方案{% endblock %}
+{% set active_tab = "home" %}
+
+{% block extra_head %}
+<style>
+.plan-section { border-left: 3px solid #16a34a; }
+.plan-content ul { list-style: disc; padding-left: 1.2em; }
+.plan-content ol { list-style: decimal; padding-left: 1.2em; }
+.plan-content h3 { font-size: 0.9rem; font-weight: 600; color: #374151; margin-top: 1em; }
+.plan-content p { color: #4b5563; line-height: 1.7; }
+.plan-content strong { color: #111827; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="px-4 pt-4 pb-8 space-y-4">
+
+  <!-- 方案头部 -->
+  <div id="plan-header" class="bg-gradient-to-r from-green-600 to-emerald-500 rounded-2xl p-5 text-white">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="text-2xl">📋</span>
+      <p class="text-green-100 text-sm">医生定制方案</p>
+    </div>
+    <h2 id="plan-title" class="text-lg font-bold">加载中...</h2>
+    <p id="plan-meta" class="text-green-100 text-xs mt-1"></p>
+  </div>
+
+  <!-- 方案内容 -->
+  <div class="bg-white rounded-2xl p-5">
+    <div id="plan-content" class="plan-content text-sm space-y-2">
+      <div class="animate-pulse space-y-3">
+        <div class="h-4 bg-gray-100 rounded w-3/4"></div>
+        <div class="h-4 bg-gray-100 rounded w-full"></div>
+        <div class="h-4 bg-gray-100 rounded w-5/6"></div>
+        <div class="h-4 bg-gray-100 rounded w-full"></div>
+        <div class="h-4 bg-gray-100 rounded w-2/3"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 操作按钮 -->
+  <div class="space-y-2">
+    <a href="/h5/consultation/new"
+      class="block w-full py-3.5 bg-green-600 text-white rounded-xl font-medium text-sm text-center hover:bg-green-700">
+      就方案咨询医生
+    </a>
+    <a href="/h5/home"
+      class="block w-full py-3 border border-gray-200 text-gray-600 rounded-xl text-sm text-center hover:bg-gray-50">
+      返回首页
+    </a>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const PLAN_ID = '{{ plan_id }}';
+
+async function loadPlan() {
+  try {
+    const r = await fetch(`/tools/guidance/records/${PLAN_ID}`);
+    const j = await r.json();
+    if (!j.success) { showError(); return; }
+    const p = j.data;
+
+    document.getElementById('plan-title').textContent = p.title || '中医调理方案';
+    const date = p.issued_at?.substring(0, 10) || p.created_at?.substring(0, 10) || '';
+    document.getElementById('plan-meta').textContent = `${date ? '下达日期：' + date : ''} ${p.doctor_name ? '  主治医生：' + p.doctor_name : ''}`;
+
+    // 渲染方案内容（支持简单 Markdown）
+    const raw = p.content || p.plan_content || '暂无内容';
+    document.getElementById('plan-content').innerHTML = renderMarkdown(raw);
+  } catch(e) {
+    showError();
+  }
+}
+
+function renderMarkdown(text) {
+  // 简单 Markdown 渲染：标题、加粗、列表、换行
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h3 style="font-size:1rem">$1</h3>')
+    .replace(/^# (.+)$/gm, '<h3 style="font-size:1.1rem">$1</h3>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, m => `<ul>${m}</ul>`)
+    .replace(/\n\n/g, '</p><p class="mt-2">')
+    .replace(/\n/g, '<br>');
+}
+
+function showError() {
+  document.getElementById('plan-title').textContent = '加载失败';
+  document.getElementById('plan-content').innerHTML =
+    '<p class="text-gray-400">无法加载方案内容，请刷新页面重试。</p>';
+}
+
+loadPlan();
+</script>
+{% endblock %}

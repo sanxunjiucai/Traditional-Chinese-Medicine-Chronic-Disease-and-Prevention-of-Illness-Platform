@@ -111,6 +111,28 @@ const ID_TYPE_LABELS = {
   ID_CARD: '居民身份证', PASSPORT: '护照', MILITARY: '军官证',
   BIRTH_CERT: '出生医学证明', OTHER: '其他'
 };
+let labelMap = {};
+
+async function loadLabels() {
+  try {
+    const r = await fetch('/tools/label/labels?page_size=200');
+    const j = await r.json();
+    if (j.success && j.data?.items) {
+      j.data.items.forEach(t => { labelMap[t.id] = t.name; });
+    }
+  } catch {}
+}
+
+function formatHistory(val) {
+  if (!val) return '无';
+  if (Array.isArray(val)) return val.length ? val.join('、') : '无';
+  if (typeof val === 'string') return val || '无';
+  return String(val);
+}
+
+function resolveTag(t) {
+  return labelMap[t] || t;
+}
 
 const DEMO_ARCHIVES = {
   'A10023': {name:'李建国', gender:'male', birth_date:'1968-03-12', ethnicity:'汉族', occupation:'退休', id_type:'ID_CARD', id_number:'350101196803120031', phone:'13800138001', phone2:'', email:'', province:'福建省', city:'福州市', district:'鼓楼区', address:'五四路168号幸福里12栋3单元502', emergency_contact_name:'李淑华', emergency_contact_relation:'配偶', emergency_contact_phone:'13800138002', archive_type:'NORMAL', tags:['高血压','气虚质','重点关注'], past_history:'高血压病史10年，颈椎病5年', family_history:'父亲有高血压病史', allergy_history:'青霉素过敏', notes:'定期随访患者，依从性较好', created_at:'2024-03-15T08:00:00', updated_at:'2026-03-01T09:30:00'},
@@ -150,7 +172,7 @@ async function loadArchive() {
     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" style="background:#EBF2ED;color:#4E7A61;">
       ${ARCHIVE_TYPE_LABELS[a.archive_type] || a.archive_type}
     </span>
-    ${a.tags?.map(t => `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">${t}</span>`).join('') || ''}
+    ${(a.tags || []).map(t => `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">${resolveTag(t)}</span>`).join('')}
   `;
 
   document.getElementById('d-gender').textContent = a.gender === 'male' ? '男' : a.gender === 'female' ? '女' : '-';
@@ -167,11 +189,13 @@ async function loadArchive() {
   document.getElementById('d-ec').textContent =
     a.emergency_contact_name ? `${a.emergency_contact_name}（${a.emergency_contact_relation || ''}）${a.emergency_contact_phone || ''}` : '-';
   document.getElementById('d-tags').innerHTML =
-    (a.tags || []).length ? a.tags.map(t => `<span class="px-2.5 py-1 rounded-full text-xs" style="background:#EBF2ED;color:#4E7A61;">${t}</span>`).join('') : '<span class="text-gray-400 text-sm">暂无标签</span>';
+    (a.tags || []).length
+      ? a.tags.map(t => `<span class="px-2.5 py-1 rounded-full text-xs" style="background:#EBF2ED;color:#4E7A61;">${resolveTag(t)}</span>`).join('')
+      : '<span class="text-gray-400 text-sm">暂无标签</span>';
 
-  document.getElementById('d-past').textContent = JSON.stringify(a.past_history) !== 'null' && a.past_history ? JSON.stringify(a.past_history) : '无';
-  document.getElementById('d-family').textContent = JSON.stringify(a.family_history) !== 'null' && a.family_history ? JSON.stringify(a.family_history) : '无';
-  document.getElementById('d-allergy').textContent = JSON.stringify(a.allergy_history) !== 'null' && a.allergy_history ? JSON.stringify(a.allergy_history) : '无';
+  document.getElementById('d-past').textContent = formatHistory(a.past_history);
+  document.getElementById('d-family').textContent = formatHistory(a.family_history);
+  document.getElementById('d-allergy').textContent = formatHistory(a.allergy_history);
   document.getElementById('d-notes').textContent = a.notes || '无';
 }
 
@@ -186,6 +210,6 @@ async function deleteArchive() {
   }
 }
 
-loadArchive();
+loadLabels().then(() => loadArchive());
 </script>
 {% endblock %}

@@ -1,0 +1,230 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "intervention" %}
+{% block title %}新增中医干预 - 治未病平台{% endblock %}
+{% block page_title %}新增中医干预{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-4">
+  <!-- 患者选择 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h3 class="font-semibold text-gray-700 mb-4">选择患者</h3>
+    <div class="flex gap-3 mb-3">
+      <input id="patient-search" type="text" placeholder="点击或输入姓名/手机号搜索患者"
+        onfocus="showPatientDropdown()" oninput="debouncePatientSearch()" autocomplete="off"
+        class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+    </div>
+    <div id="patient-result" class="hidden border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-40 overflow-y-auto text-sm"></div>
+    <div id="patient-selected" class="hidden bg-green-50 border border-green-200 rounded-lg p-3 flex items-center justify-between">
+      <div>
+        <span class="font-medium text-green-800" id="sel-name"></span>
+        <span class="text-xs text-green-600 ml-2" id="sel-archive"></span>
+        <span class="text-xs text-gray-500 ml-2" id="sel-age"></span>
+      </div>
+      <button onclick="clearPatient()" class="text-xs text-gray-400 hover:text-red-500">更换</button>
+    </div>
+  </div>
+
+  <!-- 干预基本信息 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h3 class="font-semibold text-gray-700 mb-4">干预信息</h3>
+    <div class="space-y-4">
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">干预类型 <span class="text-red-500">*</span></label>
+          <select id="intervention-type" onchange="updatePlanSuggestions()"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+            <option value="">请选择</option>
+            <option value="ACUPUNCTURE">针灸</option>
+            <option value="MASSAGE">推拿</option>
+            <option value="HERBAL">中药</option>
+            <option value="DIET">食疗</option>
+            <option value="EXERCISE">运动疗法</option>
+            <option value="BATH">药浴/熏蒸</option>
+            <option value="COMBINED">综合干预</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">干预目标体质</label>
+          <select id="target-constitution"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+            <option value="">不限</option>
+            <option value="BALANCED">平和质</option>
+            <option value="QI_DEF">气虚质</option>
+            <option value="YANG_DEF">阳虚质</option>
+            <option value="YIN_DEF">阴虚质</option>
+            <option value="PHLEGM_DAMP">痰湿质</option>
+            <option value="DAMP_HEAT">湿热质</option>
+            <option value="BLOOD_STASIS">血瘀质</option>
+            <option value="QI_STAG">气郁质</option>
+            <option value="SPECIAL">特禀质</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">干预方案名称 <span class="text-red-500">*</span></label>
+        <input type="text" id="plan-name" placeholder="如：气虚体质针灸调理方案"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+        <div id="plan-suggestions" class="mt-1 text-xs text-gray-400 flex flex-wrap gap-2"></div>
+      </div>
+
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">干预目标</label>
+        <textarea id="plan-goal" rows="2" placeholder="如：改善气虚症状，提升体质评分至平和质"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"></textarea>
+      </div>
+
+      <div class="grid grid-cols-3 gap-4">
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">开始日期 <span class="text-red-500">*</span></label>
+          <input type="date" id="start-date" value="2026-03-03"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">预计周期</label>
+          <div class="flex gap-2 items-center">
+            <input type="number" id="duration" value="8" class="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+            <span class="text-sm text-gray-500">周</span>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">频率</label>
+          <select id="frequency"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+            <option value="DAILY">每日</option>
+            <option value="TWICE_WEEK">每周2次</option>
+            <option value="WEEKLY" selected>每周1次</option>
+            <option value="BIWEEKLY">每两周</option>
+            <option value="MONTHLY">每月</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 干预内容 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h3 class="font-semibold text-gray-700 mb-4">干预内容详情</h3>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">主要穴位/用药/动作</label>
+        <textarea id="content-detail" rows="4" placeholder="详细描述干预内容，如穴位：足三里、三阴交、气海…"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">注意事项 / 禁忌</label>
+        <textarea id="precaution" rows="2" placeholder="如：月经期间禁针、忌生冷辛辣…"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">执行医生</label>
+        <select id="executor"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+          <option>王医生</option>
+          <option>李医生</option>
+          <option>张医生</option>
+          <option>陈医生</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- 按钮 -->
+  <div class="flex gap-3 justify-between">
+    <a href="/gui/admin/intervention"
+      class="px-5 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">取消</a>
+    <button onclick="saveIntervention()"
+      class="bg-green-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-green-700 font-medium">保存并开始</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const PLAN_SUGGESTIONS = {
+  ACUPUNCTURE: ['气虚质针灸调理方案', '颈椎病针灸治疗方案', '失眠针灸干预方案', '痛经针灸治疗方案'],
+  MASSAGE: ['颈肩腰腿痛推拿方案', '小儿推拿保健方案', '阳虚体质推拿调理'],
+  HERBAL: ['气虚质中药调理方案', '痰湿质化痰祛湿方案', '血瘀质活血化瘀方案'],
+  DIET: ['气虚体质食疗方案', '阳虚体质温阳食疗', '湿热体质清热祛湿食谱'],
+  EXERCISE: ['气功八段锦训练方案', '太极拳运动干预方案', '慢性病有氧运动方案'],
+};
+
+function updatePlanSuggestions() {
+  const type = document.getElementById('intervention-type').value;
+  const suggestions = PLAN_SUGGESTIONS[type] || [];
+  document.getElementById('plan-suggestions').innerHTML = suggestions.map(s =>
+    `<button type="button" onclick="document.getElementById('plan-name').value='${s}'"
+      class="px-2 py-0.5 bg-green-100 text-green-700 rounded border border-green-200 hover:bg-green-100">${s}</button>`
+  ).join('');
+}
+
+let selectedPatient = null;
+let _allPatients = null;
+let _searchTimer = null;
+
+async function loadAllPatients() {
+  if (_allPatients !== null) return _allPatients;
+  try {
+    const res = await fetch('/tools/archive/archives?page_size=100');
+    const data = await res.json();
+    _allPatients = (data.success && data.data?.items) ? data.data.items : [];
+  } catch { _allPatients = []; }
+  return _allPatients;
+}
+
+async function showPatientDropdown() {
+  await renderPatientList(document.getElementById('patient-search').value.trim());
+}
+
+function debouncePatientSearch() {
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(showPatientDropdown, 200);
+}
+
+async function renderPatientList(q) {
+  const patients = await loadAllPatients();
+  const filtered = q
+    ? patients.filter(p => p.name.includes(q) || (p.phone||'').includes(q))
+    : patients;
+  const el = document.getElementById('patient-result');
+  if (!filtered.length) { el.classList.add('hidden'); return; }
+  el.innerHTML = filtered.slice(0, 30).map(p => {
+    const age = p.birth_date ? Math.floor((Date.now() - new Date(p.birth_date)) / 31557600000) + '岁' : '';
+    return `<div class="px-4 py-2.5 hover:bg-gray-50 cursor-pointer" onclick='selectPatient(${JSON.stringify({id:p.id,name:p.name,archive:p.id?.substring(0,8)?.toUpperCase()||'',age,phone:p.phone||''}).replace(/'/g,"&#39;")})'>
+      <span class="font-medium">${p.name}</span>
+      <span class="text-gray-400 text-xs ml-2">${age} · ${p.phone||''}</span>
+    </div>`;
+  }).join('');
+  el.classList.remove('hidden');
+}
+
+function selectPatient(p) {
+  selectedPatient = p;
+  document.getElementById('patient-search').value = '';
+  document.getElementById('patient-result').classList.add('hidden');
+  document.getElementById('sel-name').textContent = p.name;
+  document.getElementById('sel-archive').textContent = p.archive || '';
+  document.getElementById('sel-age').textContent = p.age || '';
+  document.getElementById('patient-selected').classList.remove('hidden');
+}
+
+function clearPatient() {
+  selectedPatient = null;
+  document.getElementById('patient-selected').classList.add('hidden');
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#patient-search') && !e.target.closest('#patient-result')) {
+    document.getElementById('patient-result').classList.add('hidden');
+  }
+});
+
+function saveIntervention() {
+  if (!selectedPatient) { showToast('请先选择患者'); return; }
+  const name = document.getElementById('plan-name').value.trim();
+  if (!name) { showToast('请填写干预方案名称'); return; }
+  showToast('干预方案创建成功');
+  window.location.href = '/gui/admin/intervention';
+}
+</script>
+{% endblock %}

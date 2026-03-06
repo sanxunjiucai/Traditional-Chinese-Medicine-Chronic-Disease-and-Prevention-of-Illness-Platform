@@ -1,0 +1,318 @@
+{% extends "_layouts/patient.html" %}
+{% block title %}复诊预约{% endblock %}
+{% block page_title %}复诊预约{% endblock %}
+
+{% block extra_css %}
+.day-btn {
+  flex:1;padding:10px 4px;border-radius:12px;border:1.5px solid var(--border);
+  background:#fff;cursor:pointer;text-align:center;transition:all 0.15s;
+  font-family:inherit;
+}
+.day-btn.sel { background:var(--primary);border-color:var(--primary);color:#fff; }
+.day-btn.today { border-color:var(--primary); }
+.day-btn:disabled { opacity:0.4;cursor:not-allowed; }
+.slot-btn {
+  padding:10px 0;border-radius:12px;border:1.5px solid var(--border);
+  background:#fff;cursor:pointer;text-align:center;font-size:14px;
+  transition:all 0.15s;font-family:inherit;color:var(--text-secondary);font-weight:500;
+}
+.slot-btn.sel { background:var(--primary);border-color:var(--primary);color:#fff; }
+.slot-btn.full { background:#F5F2EC;color:#D0C9C0;cursor:not-allowed;text-decoration:line-through; }
+.doctor-card {
+  display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;
+  border:1.5px solid var(--border);background:#fff;cursor:pointer;transition:all 0.15s;
+}
+.doctor-card.sel { border-color:var(--primary);background:var(--primary-light); }
+.form-input {
+  width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--radius-input);
+  font-size:14px;font-family:inherit;color:var(--text);background:#fff;
+  outline:none;transition:border-color 0.15s;box-sizing:border-box;
+}
+.form-input:focus { border-color:var(--primary); }
+{% endblock %}
+
+{% block content %}
+<div style="padding:16px 16px 32px;display:flex;flex-direction:column;gap:16px;">
+
+  <!-- 预约步骤指示 -->
+  <div style="display:flex;align-items:center;justify-content:center;gap:0;padding:0 8px;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+      <div id="step1-dot" style="width:28px;height:28px;border-radius:50%;background:#4E7A61;color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;">1</div>
+      <span style="font-size:11px;color:#4E7A61;font-weight:500;">选科室</span>
+    </div>
+    <div style="flex:1;height:1.5px;background:var(--border);margin:0 4px;margin-bottom:16px;"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+      <div id="step2-dot" style="width:28px;height:28px;border-radius:50%;background:var(--border);color:#9A9188;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;">2</div>
+      <span style="font-size:11px;color:#9A9188;">选日期</span>
+    </div>
+    <div style="flex:1;height:1.5px;background:var(--border);margin:0 4px;margin-bottom:16px;"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+      <div id="step3-dot" style="width:28px;height:28px;border-radius:50%;background:var(--border);color:#9A9188;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;">3</div>
+      <span style="font-size:11px;color:#9A9188;">选医生</span>
+    </div>
+    <div style="flex:1;height:1.5px;background:var(--border);margin:0 4px;margin-bottom:16px;"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+      <div id="step4-dot" style="width:28px;height:28px;border-radius:50%;background:var(--border);color:#9A9188;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;">4</div>
+      <span style="font-size:11px;color:#9A9188;">确认</span>
+    </div>
+  </div>
+
+  <!-- Step 1: 科室选择 -->
+  <div id="s1" class="step-panel">
+    <h3 style="font-size:15px;font-weight:600;color:#28231E;margin:0 0 12px;">选择科室</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <button class="doctor-card" onclick="selDept('内科',this)">
+        <span style="font-size:22px;">🏥</span>
+        <div>
+          <p style="font-size:14px;font-weight:500;color:#28231E;margin:0;">内科</p>
+          <p style="font-size:12px;color:#9A9188;margin:2px 0 0;">含心内科 · 内分泌科</p>
+        </div>
+      </button>
+      <button class="doctor-card" onclick="selDept('中医科',this)">
+        <span style="font-size:22px;">🌿</span>
+        <div>
+          <p style="font-size:14px;font-weight:500;color:#28231E;margin:0;">中医科</p>
+          <p style="font-size:12px;color:#9A9188;margin:2px 0 0;">中医辨证 · 针灸推拿</p>
+        </div>
+      </button>
+      <button class="doctor-card" onclick="selDept('营养科',this)">
+        <span style="font-size:22px;">🥗</span>
+        <div>
+          <p style="font-size:14px;font-weight:500;color:#28231E;margin:0;">营养科</p>
+          <p style="font-size:12px;color:#9A9188;margin:2px 0 0;">饮食干预 · 体重管理</p>
+        </div>
+      </button>
+      <button class="doctor-card" onclick="selDept('康复科',this)">
+        <span style="font-size:22px;">💪</span>
+        <div>
+          <p style="font-size:14px;font-weight:500;color:#28231E;margin:0;">康复科</p>
+          <p style="font-size:12px;color:#9A9188;margin:2px 0 0;">运动康复 · 物理治疗</p>
+        </div>
+      </button>
+    </div>
+    <button onclick="goStep(2)" id="btn-s1" disabled style="
+      width:100%;margin-top:16px;background:#4E7A61;color:#fff;font-size:15px;
+      padding:13px;border-radius:var(--radius-btn);border:none;cursor:pointer;
+      font-family:inherit;opacity:0.4;transition:opacity 0.2s;
+    ">下一步：选择日期</button>
+  </div>
+
+  <!-- Step 2: 日期选择 -->
+  <div id="s2" class="step-panel" style="display:none;">
+    <h3 style="font-size:15px;font-weight:600;color:#28231E;margin:0 0 12px;">选择就诊日期</h3>
+    <div id="date-grid" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;"></div>
+    <div style="margin-top:16px;">
+      <p style="font-size:13px;font-weight:500;color:#28231E;margin:0 0 10px;">选择时间段</p>
+      <div id="slot-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;"></div>
+    </div>
+    <button onclick="goStep(3)" id="btn-s2" disabled style="
+      width:100%;margin-top:16px;background:#4E7A61;color:#fff;font-size:15px;
+      padding:13px;border-radius:var(--radius-btn);border:none;cursor:pointer;
+      font-family:inherit;opacity:0.4;transition:opacity 0.2s;
+    ">下一步：选择医生</button>
+  </div>
+
+  <!-- Step 3: 医生选择 -->
+  <div id="s3" class="step-panel" style="display:none;">
+    <h3 style="font-size:15px;font-weight:600;color:#28231E;margin:0 0 12px;">选择就诊医生</h3>
+    <div id="doctor-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <div style="margin-top:16px;">
+      <label style="font-size:13px;font-weight:500;color:#28231E;display:block;margin-bottom:8px;">就诊原因（选填）</label>
+      <textarea id="visit-reason" class="form-input" rows="3" placeholder="请简要描述此次就诊的主要原因或需要解决的问题…" style="resize:none;"></textarea>
+    </div>
+    <button onclick="goStep(4)" id="btn-s3" disabled style="
+      width:100%;margin-top:16px;background:#4E7A61;color:#fff;font-size:15px;
+      padding:13px;border-radius:var(--radius-btn);border:none;cursor:pointer;
+      font-family:inherit;opacity:0.4;transition:opacity 0.2s;
+    ">下一步：确认预约</button>
+  </div>
+
+  <!-- Step 4: 确认 -->
+  <div id="s4" class="step-panel" style="display:none;">
+    <h3 style="font-size:15px;font-weight:600;color:#28231E;margin:0 0 12px;">确认预约信息</h3>
+    <div style="background:#FDFCF9;border-radius:16px;border:1px solid var(--border-light);overflow:hidden;">
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border-light);">
+        <p style="font-size:12px;color:#9A9188;margin:0 0 4px;">科室</p>
+        <p id="c-dept"   style="font-size:15px;font-weight:500;color:#28231E;margin:0;"></p>
+      </div>
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border-light);">
+        <p style="font-size:12px;color:#9A9188;margin:0 0 4px;">就诊时间</p>
+        <p id="c-time"   style="font-size:15px;font-weight:500;color:#28231E;margin:0;"></p>
+      </div>
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border-light);">
+        <p style="font-size:12px;color:#9A9188;margin:0 0 4px;">就诊医生</p>
+        <p id="c-doctor" style="font-size:15px;font-weight:500;color:#28231E;margin:0;"></p>
+      </div>
+      <div style="padding:14px 16px;">
+        <p style="font-size:12px;color:#9A9188;margin:0 0 4px;">就诊原因</p>
+        <p id="c-reason" style="font-size:14px;color:#6A6258;margin:0;"></p>
+      </div>
+    </div>
+    <div style="background:#FFFBEB;border-radius:12px;padding:12px 14px;margin-top:12px;display:flex;gap:10px;align-items:flex-start;">
+      <svg width="16" height="16" fill="none" stroke="#D97706" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+      <p style="font-size:13px;color:#92400E;margin:0;line-height:1.55;">请于预约时间前15分钟到达候诊区；如需取消，请提前24小时操作，以免影响其他患者就诊。</p>
+    </div>
+    <button onclick="submitAppointment()" style="
+      width:100%;margin-top:16px;background:#4E7A61;color:#fff;font-size:15px;font-weight:600;
+      padding:14px;border-radius:var(--radius-btn);border:none;cursor:pointer;font-family:inherit;
+      transition:background 0.2s;
+    ">确认提交预约</button>
+    <button onclick="goStep(3)" style="
+      width:100%;margin-top:10px;background:transparent;color:#9A9188;font-size:14px;
+      padding:12px;border-radius:var(--radius-btn);border:1px solid var(--border);cursor:pointer;font-family:inherit;
+    ">返回修改</button>
+  </div>
+
+  <!-- 成功态 -->
+  <div id="success-panel" style="display:none;text-align:center;padding:24px 0;">
+    <div style="width:72px;height:72px;background:#EBF2ED;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;">
+      <svg width="36" height="36" fill="none" stroke="#4E7A61" stroke-width="2.2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 13l4 4L19 7"/>
+      </svg>
+    </div>
+    <h3 style="font-size:20px;font-weight:700;color:#28231E;margin:0 0 8px;">预约成功！</h3>
+    <p id="success-summary" style="font-size:14px;color:#6A6258;margin:0 0 24px;line-height:1.6;"></p>
+    <a href="/h5/reminders" style="display:inline-block;background:#4E7A61;color:#fff;font-size:14px;font-weight:500;padding:12px 28px;border-radius:var(--radius-btn);text-decoration:none;margin-bottom:10px;">查看提醒列表</a><br>
+    <a href="/h5/home" style="font-size:14px;color:#9A9188;text-decoration:none;">返回首页</a>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let sel = { dept:'', date:'', slot:'', doctorId:'', doctorName:'', reason:'' };
+let currentStep = 1;
+
+function goStep(n) {
+  for (let i=1;i<=4;i++) {
+    const p = document.getElementById('s'+i);
+    if (p) p.style.display = i===n ? 'block' : 'none';
+    const dot = document.getElementById('step'+i+'-dot');
+    if (dot) {
+      dot.style.background = i < n ? '#4E7A61' : i === n ? '#4E7A61' : 'var(--border)';
+      dot.style.color = i <= n ? '#fff' : '#9A9188';
+      dot.querySelector && (dot.innerHTML = i < n ? '✓' : i);
+      dot.textContent = i < n ? '✓' : String(i);
+    }
+    const lbl = dot?.nextElementSibling;
+    if (lbl) lbl.style.color = i <= n ? '#4E7A61' : '#9A9188';
+  }
+  currentStep = n;
+  if (n === 2) renderDateGrid();
+  if (n === 3) renderDoctors();
+  if (n === 4) fillConfirm();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function selDept(dept, btn) {
+  document.querySelectorAll('#s1 .doctor-card').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel'); sel.dept = dept;
+  const b = document.getElementById('btn-s1');
+  b.disabled = false; b.style.opacity = '1';
+}
+
+function renderDateGrid() {
+  const grid = document.getElementById('date-grid');
+  const today = new Date();
+  const days = ['日','一','二','三','四','五','六'];
+  grid.innerHTML = Array.from({length:14}, (_,i) => {
+    const d = new Date(today); d.setDate(today.getDate()+i);
+    const isToday = i === 0;
+    const isSun = d.getDay() === 0;
+    const str = d.toISOString().slice(0,10);
+    return `<button class="day-btn${isToday?' today':''}" ${isSun?' disabled':''} onclick="selDate('${str}',this)" style="min-width:46px;">
+      <div style="font-size:11px;color:${isSun?'#D0C9C0':'#9A9188'};">周${days[d.getDay()]}</div>
+      <div style="font-size:15px;font-weight:600;margin:4px 0 2px;">${d.getDate()}</div>
+      <div style="font-size:10px;color:${isSun?'#D0C9C0':'#4E7A61'};">${isSun?'休':'号源'}</div>
+    </button>`;
+  }).join('');
+}
+
+function selDate(date, btn) {
+  document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel'); sel.date = date;
+  renderSlots();
+}
+
+function renderSlots() {
+  const slots = ['08:00','08:30','09:00','09:30','10:00','10:30','14:00','14:30','15:00','15:30','16:00','16:30'];
+  const fulls = ['08:30','09:30','14:30'];
+  document.getElementById('slot-grid').innerHTML = slots.map(s => {
+    const full = fulls.includes(s);
+    return `<button class="slot-btn${full?' full':''}" ${full?'disabled':''} onclick="selSlot('${s}',this)">${s}</button>`;
+  }).join('');
+}
+
+function selSlot(slot, btn) {
+  document.querySelectorAll('.slot-btn:not(.full)').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel'); sel.slot = slot;
+  const b = document.getElementById('btn-s2');
+  b.disabled = false; b.style.opacity = '1';
+}
+
+function renderDoctors() {
+  const docs = [
+    {id:'d1', name:'张建国 主任医师', title:'副主任医师', intro:'从事临床工作20年，擅长高血压、冠心病综合管理', good:96},
+    {id:'d2', name:'李慧芳 副主任医师', title:'副主任医师',intro:'专长慢病中西医结合治疗，治未病经验丰富', good:94},
+    {id:'d3', name:'王志远 主治医师', title:'主治医师',   intro:'擅长代谢综合征、糖尿病管理及健康管理', good:91},
+  ];
+  document.getElementById('doctor-list').innerHTML = docs.map(d => `
+    <div class="doctor-card" onclick="selDoctor('${d.id}','${d.name}',this)">
+      <div style="width:44px;height:44px;border-radius:50%;background:#EBF2ED;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">👨‍⚕️</div>
+      <div style="flex:1;">
+        <p style="font-size:14px;font-weight:600;color:#28231E;margin:0 0 2px;">${d.name}</p>
+        <p style="font-size:12px;color:#9A9188;margin:0 0 4px;">${d.intro}</p>
+        <span style="font-size:11px;color:#4E7A61;background:#EBF2ED;padding:2px 8px;border-radius:99px;">好评率 ${d.good}%</span>
+      </div>
+    </div>`).join('');
+}
+
+function selDoctor(id, name, card) {
+  document.querySelectorAll('.doctor-card').forEach(c => c.classList.remove('sel'));
+  card.classList.add('sel');
+  sel.doctorId = id; sel.doctorName = name;
+  const b = document.getElementById('btn-s3');
+  b.disabled = false; b.style.opacity = '1';
+}
+
+function fillConfirm() {
+  sel.reason = document.getElementById('visit-reason').value || '暂未填写';
+  document.getElementById('c-dept').textContent = sel.dept;
+  document.getElementById('c-time').textContent = sel.date + ' ' + sel.slot;
+  document.getElementById('c-doctor').textContent = sel.doctorName;
+  document.getElementById('c-reason').textContent = sel.reason;
+}
+
+async function submitAppointment() {
+  try {
+    await fetch('/tools/followup/tasks', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        name: `${sel.dept}复诊 - ${sel.doctorName}`,
+        task_type: 'VISIT',
+        scheduled_date: sel.date,
+        scheduled_time: sel.slot,
+        notes: sel.reason,
+      })
+    });
+  } catch(e) {}
+
+  // 发送本地通知（若浏览器支持）
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification('复诊预约成功', { body: `${sel.date} ${sel.slot} ${sel.dept} ${sel.doctorName}` });
+  }
+
+  document.querySelectorAll('.step-panel').forEach(p => p.style.display='none');
+  document.getElementById('success-panel').style.display = 'block';
+  document.getElementById('success-summary').textContent =
+    `${sel.date} ${sel.slot}\n${sel.dept} · ${sel.doctorName}`;
+}
+
+goStep(1);
+</script>
+{% endblock %}

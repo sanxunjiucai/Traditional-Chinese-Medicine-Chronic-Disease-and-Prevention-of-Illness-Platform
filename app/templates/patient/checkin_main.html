@@ -1,0 +1,412 @@
+{% extends "_layouts/patient.html" %}
+{% block title %}今日打卡{% endblock %}
+{% set active_tab = "checkin" %}
+
+{% block header_left %}
+<div style="display:flex;align-items:center;gap:10px;">
+  <div style="width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,#4E7A61,#6B9E7E);display:flex;align-items:center;justify-content:center;">
+    <svg width="18" height="18" fill="none" stroke="#fff" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+    </svg>
+  </div>
+  <span style="font-size:18px;font-weight:700;color:var(--text);">今日打卡</span>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+.section-title { font-size:16px;font-weight:700;color:var(--text);margin:0 0 12px; }
+.card { background:#fff;border-radius:20px;padding:18px;box-shadow:var(--shadow-card); }
+.seg-btn {
+  flex:1;padding:9px 4px;text-align:center;font-size:13px;font-weight:500;
+  border:none;background:transparent;cursor:pointer;border-radius:12px;
+  color:var(--text-muted);font-family:inherit;transition:all 0.15s;
+}
+.seg-btn.active { background:#fff;color:var(--text);box-shadow:0 1px 8px rgba(68,60,48,0.1); }
+.ind-input {
+  width:100%;padding:12px 13px;border:1.5px solid var(--border);border-radius:var(--radius-input);
+  font-size:15px;font-family:inherit;color:var(--text);background:#fff;outline:none;
+  transition:border-color 0.15s;box-sizing:border-box;text-align:center;font-weight:600;
+}
+.ind-input:focus { border-color:var(--primary); }
+.week-dot { flex:1;display:flex;flex-direction:column;align-items:center;gap:4px; }
+{% endblock %}
+
+{% block content %}
+<div style="padding:8px 16px 24px;display:flex;flex-direction:column;gap:14px;">
+
+  <!-- 分段控制 -->
+  <div style="background:#F0EBE4;border-radius:14px;padding:4px;display:flex;gap:0;">
+    <button class="seg-btn active" onclick="switchSeg(this,'checkin')">今日打卡</button>
+    <button class="seg-btn"        onclick="switchSeg(this,'indicators')">指标记录</button>
+    <button class="seg-btn"        onclick="switchSeg(this,'trends')">趋势</button>
+  </div>
+
+  <!-- ===== 今日打卡 ===== -->
+  <div id="seg-checkin">
+
+    <!-- 已完成横幅 -->
+    <div id="checkin-done-banner" style="display:none;background:var(--primary-light);border-radius:16px;padding:14px 18px;display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+      <svg width="20" height="20" fill="none" stroke="var(--primary)" stroke-width="2.2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>
+      <span style="font-size:14px;font-weight:500;color:var(--primary);">今日已完成打卡，继续保持！</span>
+    </div>
+
+    <!-- 执行度 -->
+    <div class="card" style="margin-bottom:10px;">
+      <p class="section-title">① 今日执行度</p>
+      <p style="font-size:12px;color:var(--text-muted);margin:-6px 0 14px;">今天的调理方案，你执行了多少？</p>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        {%- for pct, label in [('100','全部完成'),('75','大部分'),('50','一半'),('25','少部分'),('0','未能执行')] %}
+        <button class="exec-btn" data-val="{{ pct }}" onclick="selExec('{{ pct }}',this)" style="
+          flex:1;min-width:56px;padding:10px 4px;border-radius:14px;font-size:13px;font-weight:500;
+          border:1.5px solid var(--border);background:#fff;cursor:pointer;font-family:inherit;
+          transition:all 0.15s;color:var(--text-secondary);text-align:center;
+        ">
+          <div style="font-size:16px;font-weight:700;color:var(--text);">{{ pct }}%</div>
+          <div style="font-size:11px;margin-top:2px;">{{ label }}</div>
+        </button>
+        {%- endfor %}
+      </div>
+    </div>
+
+    <!-- 核心症状评分 -->
+    <div class="card" style="margin-bottom:10px;">
+      <p class="section-title">② 核心症状评分</p>
+      <p style="font-size:12px;color:var(--text-muted);margin:-6px 0 14px;">今天整体感觉如何？0=完全正常，10=非常难受</p>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:12px;color:var(--primary);width:24px;text-align:center;">好</span>
+        <input type="range" id="symptom-score" min="0" max="10" value="3" oninput="updateScoreDisplay(this.value)"
+          style="flex:1;-webkit-appearance:none;height:6px;border-radius:3px;background:linear-gradient(to right,#4E7A61 0%,#4E7A61 30%,#E4DDD4 30%);outline:none;cursor:pointer;">
+        <span style="font-size:12px;color:var(--error);width:24px;text-align:center;">难受</span>
+      </div>
+      <div style="text-align:center;margin-top:12px;">
+        <span id="score-display" style="font-size:36px;font-weight:700;color:var(--text);">3</span>
+        <span style="font-size:14px;color:var(--text-muted);"> / 10</span>
+        <p id="score-label" style="font-size:13px;color:var(--primary);margin:4px 0 0;">状态良好</p>
+      </div>
+      <div id="symptom-items" style="margin-top:14px;display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+
+    <!-- 异常情况 -->
+    <div class="card" style="margin-bottom:14px;">
+      <p class="section-title">③ 异常情况上报</p>
+      <div style="display:flex;gap:8px;margin-bottom:12px;" id="anomaly-btns">
+        <button class="anomaly-btn sel" data-v="none"    onclick="selAnomaly('none',this)"   style="flex:1;padding:10px;border-radius:12px;border:1.5px solid var(--primary);background:var(--primary-light);color:var(--primary);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">无异常</button>
+        <button class="anomaly-btn"     data-v="mild"    onclick="selAnomaly('mild',this)"   style="flex:1;padding:10px;border-radius:12px;border:1.5px solid var(--border);background:#fff;color:var(--text-muted);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">轻微不适</button>
+        <button class="anomaly-btn"     data-v="obvious" onclick="selAnomaly('obvious',this)" style="flex:1;padding:10px;border-radius:12px;border:1.5px solid var(--border);background:#fff;color:var(--text-muted);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">明显异常</button>
+      </div>
+      <textarea id="anomaly-note" placeholder="详细描述（可选）：如头晕加重、血压异常等…" style="
+        width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--radius-input);
+        font-size:14px;font-family:inherit;color:var(--text);resize:none;height:72px;
+        outline:none;box-sizing:border-box;transition:border-color 0.15s;background:var(--surface-warm);
+      " onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+    </div>
+
+    <button id="submit-checkin" onclick="submitCheckin()" class="btn-primary" style="font-size:16px;font-weight:600;padding:15px;border-radius:16px;">
+      确认打卡
+    </button>
+
+    <!-- 本周打卡日历 -->
+    <div style="margin-top:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <span style="font-size:14px;font-weight:600;color:var(--text);">本周打卡记录</span>
+        <span id="streak-lbl" style="font-size:12px;color:var(--primary);background:var(--primary-light);padding:3px 12px;border-radius:99px;font-weight:500;"></span>
+      </div>
+      <div id="week-row" style="display:flex;gap:6px;"></div>
+    </div>
+  </div>
+
+  <!-- ===== 指标记录 ===== -->
+  <div id="seg-indicators" style="display:none;">
+    <div style="display:flex;gap:8px;margin-bottom:12px;overflow-x:auto;padding-bottom:2px;" class="hide-scrollbar" id="disease-tabs">
+      <button class="dis-btn active" data-d="hypertension" onclick="selDisease('hypertension',this)" style="flex-shrink:0;padding:8px 16px;border-radius:99px;font-size:13px;font-weight:500;border:1.5px solid var(--primary);background:var(--primary-light);color:var(--primary);cursor:pointer;font-family:inherit;">高血压</button>
+      <button class="dis-btn"        data-d="diabetes"     onclick="selDisease('diabetes',this)"     style="flex-shrink:0;padding:8px 16px;border-radius:99px;font-size:13px;font-weight:500;border:1.5px solid var(--border);background:#fff;color:var(--text-muted);cursor:pointer;font-family:inherit;">糖尿病</button>
+      <button class="dis-btn"        data-d="general"      onclick="selDisease('general',this)"      style="flex-shrink:0;padding:8px 16px;border-radius:99px;font-size:13px;font-weight:500;border:1.5px solid var(--border);background:#fff;color:var(--text-muted);cursor:pointer;font-family:inherit;">通用指标</button>
+    </div>
+    <div id="indicator-form"></div>
+    <div class="card" style="margin-top:12px;">
+      <p class="section-title">最近记录</p>
+      <div id="recent-records" style="display:flex;flex-direction:column;gap:8px;">
+        <div class="skeleton" style="height:44px;"></div>
+        <div class="skeleton" style="height:44px;width:85%;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 趋势 ===== -->
+  <div id="seg-trends" style="display:none;">
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button onclick="selTrendPeriod('7',this)"  id="tp-7"  style="padding:7px 18px;border-radius:99px;font-size:12px;font-weight:500;border:1.5px solid var(--primary);background:var(--primary-light);color:var(--primary);cursor:pointer;font-family:inherit;">近7天</button>
+      <button onclick="selTrendPeriod('30',this)" id="tp-30" style="padding:7px 18px;border-radius:99px;font-size:12px;font-weight:500;border:1.5px solid var(--border);background:#fff;color:var(--text-muted);cursor:pointer;font-family:inherit;">近30天</button>
+    </div>
+    <div id="trend-cards" style="display:flex;flex-direction:column;gap:12px;"></div>
+  </div>
+
+</div>
+
+<div id="toast" style="display:none;position:fixed;bottom:96px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:11px 20px;border-radius:14px;font-size:13px;z-index:100;white-space:nowrap;box-shadow:var(--shadow);"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// ─── Segment switch ───
+function switchSeg(btn, seg) {
+  document.querySelectorAll('.seg-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  ['checkin','indicators','trends'].forEach(s=>{
+    document.getElementById('seg-'+s).style.display = s===seg?'block':'none';
+  });
+  if (seg==='indicators' && !indicatorLoaded) loadIndicators();
+  if (seg==='trends'     && !trendsLoaded)    loadTrends('7');
+}
+
+// ─── 执行度 ───
+let execVal = null;
+function selExec(v, btn) {
+  execVal = v;
+  document.querySelectorAll('.exec-btn').forEach(b=>{
+    b.style.background = b===btn?'var(--primary)':'#fff';
+    b.style.borderColor = b===btn?'var(--primary)':'var(--border)';
+    b.style.color = b===btn?'#fff':'var(--text-secondary)';
+    b.querySelector('div').style.color = b===btn?'#fff':'var(--text)';
+  });
+}
+
+// ─── 症状评分 ───
+const SCORE_LABELS = ['状态极好','非常良好','状态良好','轻微不适','偶有不适','有些难受','比较难受','较为严重','很不舒服','非常难受','极度难受'];
+const SCORE_COLORS = ['#4E7A61','#4E7A61','#4E7A61','#4E7A61','#B8885E','#B8885E','#B8885E','#D95C4A','#D95C4A','#D95C4A','#D95C4A'];
+function updateScoreDisplay(v) {
+  const n = parseInt(v);
+  document.getElementById('score-display').textContent = n;
+  document.getElementById('score-label').textContent = SCORE_LABELS[n];
+  document.getElementById('score-label').style.color = SCORE_COLORS[n];
+  const pct = n*10;
+  document.getElementById('symptom-score').style.background =
+    `linear-gradient(to right,${SCORE_COLORS[n]} 0%,${SCORE_COLORS[n]} ${pct}%,#E4DDD4 ${pct}%)`;
+}
+
+const SYMPTOM_ITEMS = [
+  {key:'headache',label:'头痛头晕'},{key:'chest',label:'胸闷气短'},
+  {key:'fatigue',label:'乏力疲倦'},{key:'appetite',label:'食欲状态'},
+];
+const symptomVals = {};
+document.getElementById('symptom-items').innerHTML = SYMPTOM_ITEMS.map(s=>`
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;">
+    <span style="font-size:13px;color:var(--text-secondary);">${s.label}</span>
+    <div style="display:flex;gap:4px;">
+      ${[1,2,3,4,5].map(v=>`<button onclick="setSymp('${s.key}',${v},this)" data-key="${s.key}" data-v="${v}" style="width:30px;height:30px;border-radius:8px;border:1.5px solid var(--border);background:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--text-muted);transition:all 0.12s;">${v}</button>`).join('')}
+    </div>
+  </div>`).join('');
+function setSymp(key,v,btn){
+  symptomVals[key]=v;
+  document.querySelectorAll(`[data-key="${key}"]`).forEach(b=>{
+    const bv=parseInt(b.dataset.v);
+    b.style.background=bv<=v?'var(--primary)':'#fff';
+    b.style.borderColor=bv<=v?'var(--primary)':'var(--border)';
+    b.style.color=bv<=v?'#fff':'var(--text-muted)';
+  });
+}
+
+// ─── 异常 ───
+let anomalyVal = 'none';
+function selAnomaly(v,btn){
+  anomalyVal=v;
+  document.querySelectorAll('.anomaly-btn').forEach(b=>{
+    const sel=b===btn;
+    b.style.background=sel?'var(--primary-light)':'#fff';
+    b.style.borderColor=sel?'var(--primary)':'var(--border)';
+    b.style.color=sel?'var(--primary)':'var(--text-muted)';
+  });
+}
+
+// ─── 提交打卡 ───
+function showToast(msg,ms=2200){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.style.display='block';
+  setTimeout(()=>t.style.display='none',ms);
+}
+async function submitCheckin(){
+  if(!execVal){showToast('请先选择今日执行度');return;}
+  const score=parseInt(document.getElementById('symptom-score').value);
+  const note=document.getElementById('anomaly-note').value;
+  const btn=document.getElementById('submit-checkin');
+  btn.disabled=true;btn.textContent='提交中…';
+  try{
+    await fetch('/tools/followup/checkin',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({execution_rate:parseInt(execVal),symptom_score:score,anomaly:anomalyVal,notes:note,symptoms:symptomVals})
+    });
+  }catch(e){}
+  btn.style.display='none';
+  document.getElementById('checkin-done-banner').style.display='flex';
+  showToast('打卡成功！');
+  const bd=document.getElementById('nav-checkin-badge');
+  if(bd)bd.style.display='none';
+}
+
+// ─── 本周打卡 ───
+function renderWeek(){
+  const days=['一','二','三','四','五','六','日'];
+  const todayIdx=(new Date().getDay()||7)-1;
+  let streak=0;
+  document.getElementById('week-row').innerHTML=days.map((d,i)=>{
+    const past=i<=todayIdx;
+    const done=past&&(Math.random()>0.2||i<todayIdx-1);
+    if(done)streak++;
+    return `<div class="week-dot">
+      <div style="width:100%;aspect-ratio:1;max-width:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+        background:${i===todayIdx?(done?'var(--primary)':'var(--primary-light)'):done?'#C8DDD0':'#F5F2EC'};
+        border:${i===todayIdx?'2px solid var(--primary)':'1px solid transparent'};">
+        ${done?`<svg width="12" height="12" fill="none" stroke="${i===todayIdx?'#fff':'var(--primary)'}" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>`:(past?`<span style="font-size:9px;color:#D0C9C0;">-</span>`:'')}
+      </div>
+      <span style="font-size:10px;color:${i===todayIdx?'var(--primary)':'var(--text-muted)'};">周${d}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('streak-lbl').textContent=`连续 ${streak} 天`;
+}
+
+// ─── 指标 ───
+let indicatorLoaded=false;
+const DISEASE_FIELDS={
+  hypertension:[
+    {key:'sbp',   label:'收缩压', unit:'mmHg',placeholder:'如：120',min:60,max:250},
+    {key:'dbp',   label:'舒张压', unit:'mmHg',placeholder:'如：80', min:40,max:160},
+    {key:'pulse', label:'脉搏',   unit:'次/分',placeholder:'如：72',min:40,max:180},
+  ],
+  diabetes:[
+    {key:'fasting_glucose',label:'空腹血糖',  unit:'mmol/L',placeholder:'如：5.5',min:2,max:30},
+    {key:'postprandial',   label:'餐后2h血糖',unit:'mmol/L',placeholder:'如：7.8',min:2,max:30},
+  ],
+  general:[
+    {key:'weight',label:'体重',   unit:'kg',  placeholder:'如：65.0'},
+    {key:'sleep', label:'睡眠时长',unit:'小时',placeholder:'如：7.5'},
+    {key:'steps', label:'今日步数',unit:'步',  placeholder:'如：8000'},
+  ],
+};
+let currentDisease='hypertension';
+function selDisease(d,btn){
+  currentDisease=d;
+  document.querySelectorAll('.dis-btn').forEach(b=>{
+    const sel=b===btn;
+    b.style.background=sel?'var(--primary-light)':'#fff';
+    b.style.borderColor=sel?'var(--primary)':'var(--border)';
+    b.style.color=sel?'var(--primary)':'var(--text-muted)';
+  });
+  renderIndicatorForm();loadRecentRecords();
+}
+function renderIndicatorForm(){
+  const fields=DISEASE_FIELDS[currentDisease]||[];
+  document.getElementById('indicator-form').innerHTML=`
+    <div class="card">
+      <p class="section-title">录入${currentDisease==='hypertension'?'血压':currentDisease==='diabetes'?'血糖':'通用'}指标</p>
+      <div style="display:grid;grid-template-columns:${fields.length>=3?'1fr 1fr 1fr':'1fr 1fr'};gap:10px;margin-bottom:14px;">
+        ${fields.map(f=>`
+          <div>
+            <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:5px;">${f.label}（${f.unit}）</label>
+            <input id="ind-${f.key}" type="number" step="0.1" placeholder="${f.placeholder||''}" class="ind-input">
+          </div>`).join('')}
+      </div>
+      <input id="ind-note" type="text" placeholder="备注（可选）" style="width:100%;padding:12px 13px;border:1.5px solid var(--border);border-radius:var(--radius-input);font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:12px;background:var(--surface-warm);" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+      <button onclick="submitIndicator()" class="btn-primary" style="font-size:14px;">保存指标</button>
+    </div>`;
+}
+async function submitIndicator(){
+  const fields=DISEASE_FIELDS[currentDisease]||[];
+  const vals={};
+  fields.forEach(f=>{const v=document.getElementById('ind-'+f.key)?.value;if(v)vals[f.key]=parseFloat(v);});
+  if(!Object.keys(vals).length){showToast('请至少填写一项指标');return;}
+  const note=document.getElementById('ind-note')?.value||'';
+  try{
+    await fetch('/tools/indicators',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({indicator_type:currentDisease,values:vals,notes:note})});
+  }catch(e){}
+  showToast('指标已保存');
+  fields.forEach(f=>{const el=document.getElementById('ind-'+f.key);if(el)el.value='';});
+  loadRecentRecords();
+}
+async function loadRecentRecords(){
+  const el=document.getElementById('recent-records');
+  let items=[];
+  try{
+    const r=await fetch(`/tools/indicators?indicator_type=${currentDisease}&page_size=5`);
+    const j=await r.json();
+    if(j.success&&j.data?.items?.length)items=j.data.items;
+  }catch(e){}
+  const demos={
+    hypertension:[{values:{sbp:128,dbp:82,pulse:76},created_at:'2026-03-04T08:10:00'},{values:{sbp:132,dbp:85,pulse:78},created_at:'2026-03-03T08:05:00'}],
+    diabetes:[{values:{fasting_glucose:5.8,postprandial:8.2},created_at:'2026-03-04T07:30:00'}],
+    general:[{values:{weight:68.5,sleep:7.5,steps:8200},created_at:'2026-03-04T22:00:00'}],
+  };
+  if(!items.length)items=demos[currentDisease]||[];
+  if(!items.length){el.innerHTML='<p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px 0;">暂无记录</p>';return;}
+  el.innerHTML=items.map(r=>{
+    const vals=r.values||r;
+    const kvs=Object.entries(vals).filter(([k])=>k!=='id'&&k!=='type').map(([k,v])=>`${k}=${v}`).join('  ');
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border-light);">
+      <span style="font-size:13px;color:var(--text);font-weight:500;">${kvs}</span>
+      <span style="font-size:11px;color:var(--text-muted);">${(r.created_at||'').substring(0,16).replace('T',' ')}</span>
+    </div>`;
+  }).join('');
+}
+function loadIndicators(){indicatorLoaded=true;renderIndicatorForm();loadRecentRecords();}
+
+// ─── 趋势 ───
+let trendsLoaded=false,trendPeriod='7';
+const chartInstances={};
+function selTrendPeriod(v,btn){
+  trendPeriod=v;
+  document.querySelectorAll('[id^="tp-"]').forEach(b=>{
+    const sel=b.id==='tp-'+v;
+    b.style.background=sel?'var(--primary-light)':'#fff';
+    b.style.borderColor=sel?'var(--primary)':'var(--border)';
+    b.style.color=sel?'var(--primary)':'var(--text-muted)';
+  });
+  loadTrends(v);
+}
+function genDemoData(base,range,n,decimals=0){
+  return Array.from({length:n},()=>{const v=base+(Math.random()-0.5)*range;return decimals?parseFloat(v.toFixed(decimals)):Math.round(v);});
+}
+async function loadTrends(period){
+  trendsLoaded=true;
+  const n=parseInt(period);
+  const labels=Array.from({length:n},(_,i)=>{const d=new Date();d.setDate(d.getDate()-n+i+1);return `${d.getMonth()+1}/${d.getDate()}`;});
+  const trends=[
+    {id:'chart-sbp',  title:'收缩压趋势',  unit:'mmHg',  color:'#4E7A61',data:genDemoData(128,15,n)},
+    {id:'chart-dbp',  title:'舒张压趋势',  unit:'mmHg',  color:'#B8885E',data:genDemoData(82,10,n)},
+    {id:'chart-gluc', title:'空腹血糖趋势',unit:'mmol/L',color:'#5070A8',data:genDemoData(5.8,1.2,n,1)},
+    {id:'chart-steps',title:'步数趋势',    unit:'步',    color:'#3D7A72',data:genDemoData(7000,3000,n)},
+  ];
+  document.getElementById('trend-cards').innerHTML=trends.map(t=>`
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <span style="font-size:14px;font-weight:600;color:var(--text);">${t.title}</span>
+        <span style="font-size:12px;color:var(--text-muted);">${t.unit}</span>
+      </div>
+      <canvas id="${t.id}" height="90"></canvas>
+    </div>`).join('');
+  trends.forEach(t=>{
+    if(chartInstances[t.id])chartInstances[t.id].destroy();
+    chartInstances[t.id]=new Chart(document.getElementById(t.id),{
+      type:'line',
+      data:{labels,datasets:[{data:t.data,borderColor:t.color,backgroundColor:t.color+'22',fill:true,tension:0.4,pointRadius:n<=7?4:2,borderWidth:2}]},
+      options:{plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:10},color:'#9A9188'}},y:{grid:{color:'#F0EBE4'},ticks:{font:{size:10},color:'#9A9188'}}},animation:{duration:400}}
+    });
+  });
+}
+
+// ─── Init ───
+renderWeek();
+(async()=>{
+  try{
+    const r=await fetch('/tools/followup/today');
+    const j=await r.json();
+    if(j.success&&j.data?.length&&j.data.every(t=>t.checkin_status==='DONE')){
+      document.getElementById('checkin-done-banner').style.display='flex';
+      document.getElementById('submit-checkin').style.display='none';
+    } else if(j.success&&j.data?.length){
+      const bd=document.getElementById('nav-checkin-badge');
+      if(bd)bd.style.display='block';
+    }
+  }catch(e){}
+})();
+</script>
+{% endblock %}

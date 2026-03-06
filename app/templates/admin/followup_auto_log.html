@@ -1,0 +1,431 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "followup" %}
+{% block title %}随访任务自动生成日志 - 治未病平台{% endblock %}
+{% block page_title %}随访任务自动生成日志{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+
+  <!-- KPI 卡片区（4横排） -->
+  <div class="grid grid-cols-4 gap-4">
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <p class="text-xs text-gray-500 mb-1">今日生成</p>
+      <p class="text-2xl font-bold text-gray-800">12</p>
+      <p class="text-xs text-gray-400 mt-1">条随访任务</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <p class="text-xs text-gray-500 mb-1">本周生成</p>
+      <p class="text-2xl font-bold text-gray-800">89</p>
+      <p class="text-xs text-gray-400 mt-1">条随访任务</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <p class="text-xs text-gray-500 mb-1">成功率</p>
+      <p class="text-2xl font-bold text-green-600">94.3%</p>
+      <p class="text-xs text-gray-400 mt-1">近7天平均</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <p class="text-xs text-gray-500 mb-1">失败待处理</p>
+      <p class="text-2xl font-bold text-orange-500">5</p>
+      <p class="text-xs text-orange-400 mt-1 font-medium">需要人工干预</p>
+    </div>
+  </div>
+
+  <!-- 筛选栏 -->
+  <div class="bg-white rounded-xl shadow-sm p-4 flex flex-wrap gap-3 items-end">
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">开始日期</label>
+      <input type="date" id="filter-start"
+        class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">结束日期</label>
+      <input type="date" id="filter-end"
+        class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">触发规则</label>
+      <select id="filter-rule"
+        class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 w-44">
+        <option value="">全部规则</option>
+        <option value="1">高血压月度随访</option>
+        <option value="2">糖尿病月度随访</option>
+        <option value="3">重点人群双周随访</option>
+        <option value="4">预警后随访</option>
+        <option value="5">老年人季度评估</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">结果状态</label>
+      <select id="filter-status"
+        class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 w-36">
+        <option value="">全部状态</option>
+        <option value="SUCCESS">成功</option>
+        <option value="FAILED">失败</option>
+        <option value="PARTIAL">部分成功</option>
+      </select>
+    </div>
+    <button onclick="loadLogs()"
+      class="bg-amber-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-amber-700 transition-colors">
+      查询
+    </button>
+    <button onclick="resetFilters()"
+      class="border border-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition-colors">
+      重置
+    </button>
+  </div>
+
+  <!-- 日志表格 -->
+  <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+      <h3 class="text-sm font-medium text-gray-700">执行日志列表</h3>
+      <span class="text-xs text-gray-400" id="log-count">共 8 条记录</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+          <tr>
+            <th class="px-5 py-3 text-left whitespace-nowrap">执行时间</th>
+            <th class="px-5 py-3 text-left whitespace-nowrap">触发规则</th>
+            <th class="px-5 py-3 text-left whitespace-nowrap">触发范围</th>
+            <th class="px-5 py-3 text-center whitespace-nowrap">生成数量</th>
+            <th class="px-5 py-3 text-center whitespace-nowrap">成功</th>
+            <th class="px-5 py-3 text-center whitespace-nowrap">失败</th>
+            <th class="px-5 py-3 text-center whitespace-nowrap">耗时</th>
+            <th class="px-5 py-3 text-center whitespace-nowrap">操作</th>
+          </tr>
+        </thead>
+        <tbody id="log-table-body" class="divide-y divide-gray-100">
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 分页 -->
+    <div class="px-5 py-3 border-t border-gray-100 flex items-center justify-between">
+      <span class="text-xs text-gray-400">共 8 条，第 1/1 页</span>
+      <div class="flex gap-1">
+        <button class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-400 cursor-not-allowed">上一页</button>
+        <button class="px-3 py-1.5 text-xs border border-amber-600 bg-amber-600 rounded-lg text-white">1</button>
+        <button class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-400 cursor-not-allowed">下一页</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── 失败详情 Modal ── -->
+<div id="detail-modal"
+  class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50"
+  onclick="if(event.target===this)closeDetail()">
+  <div class="bg-white rounded-xl w-[520px] shadow-xl max-h-[80vh] overflow-hidden flex flex-col">
+    <!-- Modal 头部 -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <h3 class="font-semibold text-gray-800">执行详情</h3>
+      <button onclick="closeDetail()" class="text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <!-- Modal 内容 -->
+    <div class="flex-1 overflow-y-auto px-6 py-4" id="detail-content">
+    </div>
+    <!-- Modal 底部 -->
+    <div class="px-6 py-4 border-t border-gray-100 flex justify-end">
+      <button onclick="closeDetail()"
+        class="bg-amber-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-amber-700 transition-colors">
+        关闭
+      </button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ── 演示日志数据 ──
+const demoLogs = [
+  {
+    id: 'L001',
+    time: '2026-03-03 08:00:15',
+    rule: '高血压月度随访',
+    scope: '高血压患者 × 23人',
+    total: 23,
+    success: 23,
+    failed: 0,
+    elapsed: '1.2s',
+    status: 'SUCCESS',
+    failDetails: []
+  },
+  {
+    id: 'L002',
+    time: '2026-03-03 08:00:18',
+    rule: '糖尿病月度随访',
+    scope: '糖尿病患者 × 18人',
+    total: 18,
+    success: 16,
+    failed: 2,
+    elapsed: '0.9s',
+    status: 'PARTIAL',
+    failDetails: [
+      { reason: '档案状态异常', count: 1, patients: ['张三（GZ2024001）'] },
+      { reason: '患者已有进行中任务', count: 1, patients: ['李四（GZ2024002）'] },
+    ]
+  },
+  {
+    id: 'L003',
+    time: '2026-03-03 07:00:06',
+    rule: '重点人群双周随访',
+    scope: '重点关注患者 × 8人',
+    total: 8,
+    success: 8,
+    failed: 0,
+    elapsed: '0.5s',
+    status: 'SUCCESS',
+    failDetails: []
+  },
+  {
+    id: 'L004',
+    time: '2026-03-02 20:05:32',
+    rule: '预警后随访',
+    scope: '预警触发患者 × 3人',
+    total: 3,
+    success: 2,
+    failed: 1,
+    elapsed: '0.3s',
+    status: 'PARTIAL',
+    failDetails: [
+      { reason: '档案状态异常', count: 1, patients: ['王五（GZ2024003）'] },
+    ]
+  },
+  {
+    id: 'L005',
+    time: '2026-03-02 08:00:11',
+    rule: '高血压月度随访',
+    scope: '高血压患者 × 23人',
+    total: 23,
+    success: 20,
+    failed: 3,
+    elapsed: '1.5s',
+    status: 'PARTIAL',
+    failDetails: [
+      { reason: '档案状态异常', count: 2, patients: ['赵六（GZ2024004）', '孙七（GZ2024005）'] },
+      { reason: '患者已有进行中任务', count: 1, patients: ['周八（GZ2024006）'] },
+    ]
+  },
+  {
+    id: 'L006',
+    time: '2026-03-01 08:00:09',
+    rule: '老年人季度评估',
+    scope: '老年档案患者 × 31人',
+    total: 31,
+    success: 31,
+    failed: 0,
+    elapsed: '2.1s',
+    status: 'SUCCESS',
+    failDetails: []
+  },
+  {
+    id: 'L007',
+    time: '2026-02-29 15:30:47',
+    rule: '重点人群双周随访',
+    scope: '重点关注患者 × 8人',
+    total: 0,
+    success: 0,
+    failed: 8,
+    elapsed: '0.2s',
+    status: 'FAILED',
+    failDetails: [
+      { reason: '规则配置错误（频率字段缺失）', count: 8, patients: [] },
+    ]
+  },
+  {
+    id: 'L008',
+    time: '2026-02-28 08:00:14',
+    rule: '糖尿病月度随访',
+    scope: '糖尿病患者 × 18人',
+    total: 18,
+    success: 18,
+    failed: 0,
+    elapsed: '1.0s',
+    status: 'SUCCESS',
+    failDetails: []
+  },
+];
+
+// ── 状态徽章 ──
+function statusBadge(status) {
+  const map = {
+    SUCCESS: 'bg-green-100 text-green-700',
+    FAILED: 'bg-red-100 text-red-700',
+    PARTIAL: 'bg-orange-100 text-orange-700',
+  };
+  const labels = { SUCCESS: '成功', FAILED: '失败', PARTIAL: '部分成功' };
+  return `<span class="px-2 py-0.5 rounded-full text-xs font-medium ${map[status]||'bg-gray-100 text-gray-500'}">${labels[status]||status}</span>`;
+}
+
+// ── 加载日志列表 ──
+function loadLogs() {
+  const statusFilter = document.getElementById('filter-status').value;
+  const ruleFilter = document.getElementById('filter-rule').value;
+
+  let filtered = demoLogs.filter(l => {
+    if (statusFilter && l.status !== statusFilter) return false;
+    if (ruleFilter) {
+      const ruleMap = { '1': '高血压月度随访', '2': '糖尿病月度随访', '3': '重点人群双周随访', '4': '预警后随访', '5': '老年人季度评估' };
+      if (l.rule !== ruleMap[ruleFilter]) return false;
+    }
+    return true;
+  });
+
+  document.getElementById('log-count').textContent = `共 ${filtered.length} 条记录`;
+
+  if (filtered.length === 0) {
+    document.getElementById('log-table-body').innerHTML = `
+      <tr><td colspan="8" class="px-5 py-10 text-center text-gray-400 text-sm">暂无符合条件的日志</td></tr>`;
+    return;
+  }
+
+  document.getElementById('log-table-body').innerHTML = filtered.map(l => `
+    <tr class="hover:bg-gray-50 transition-colors">
+      <td class="px-5 py-3 text-gray-600 whitespace-nowrap font-mono text-xs">${l.time}</td>
+      <td class="px-5 py-3 font-medium text-gray-800 whitespace-nowrap">${l.rule}</td>
+      <td class="px-5 py-3 text-gray-500 text-xs">${l.scope}</td>
+      <td class="px-5 py-3 text-center">
+        <span class="font-semibold text-gray-700">${l.total}</span>
+      </td>
+      <td class="px-5 py-3 text-center">
+        <span class="text-green-600 font-medium">${l.success}</span>
+      </td>
+      <td class="px-5 py-3 text-center">
+        ${l.failed > 0
+          ? `<span class="text-orange-500 font-semibold">${l.failed}</span>`
+          : `<span class="text-gray-400">0</span>`}
+      </td>
+      <td class="px-5 py-3 text-center text-gray-500 text-xs">${l.elapsed}</td>
+      <td class="px-5 py-3 text-center">
+        <button onclick="showDetail('${l.id}')"
+          class="text-amber-600 hover:text-amber-700 text-xs hover:underline font-medium">
+          详情
+        </button>
+      </td>
+    </tr>`).join('');
+}
+
+// ── 显示详情 Modal ──
+function showDetail(id) {
+  const log = demoLogs.find(l => l.id === id);
+  if (!log) return;
+
+  const statusClass = {
+    SUCCESS: 'text-green-600 bg-green-50 border-green-200',
+    FAILED: 'text-red-600 bg-red-50 border-red-200',
+    PARTIAL: 'text-orange-600 bg-orange-50 border-orange-200',
+  };
+  const statusLabels = { SUCCESS: '成功', FAILED: '失败', PARTIAL: '部分成功' };
+
+  let failHtml = '';
+  if (log.failDetails.length > 0) {
+    failHtml = `
+      <div class="mt-4">
+        <h4 class="text-sm font-semibold text-gray-700 mb-2">失败原因明细</h4>
+        <div class="space-y-2">
+          ${log.failDetails.map(d => `
+            <div class="border border-orange-200 rounded-lg p-3 bg-orange-50">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-sm text-orange-700 font-medium">${d.reason}</span>
+                <span class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">${d.count} 条</span>
+              </div>
+              ${d.patients.length > 0 ? `
+                <div class="flex flex-wrap gap-1 mt-1">
+                  ${d.patients.map(p => `<span class="text-xs bg-white border border-orange-200 text-orange-600 px-2 py-0.5 rounded">${p}</span>`).join('')}
+                </div>` : ''}
+            </div>`).join('')}
+        </div>
+      </div>`;
+  } else {
+    failHtml = `
+      <div class="mt-4 bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
+        <svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+        <span class="text-sm text-green-700">所有任务均执行成功，无失败记录</span>
+      </div>`;
+  }
+
+  document.getElementById('detail-content').innerHTML = `
+    <div class="space-y-4">
+      <!-- 基本信息 -->
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-gray-50 rounded-lg p-3">
+          <p class="text-xs text-gray-500 mb-0.5">执行时间</p>
+          <p class="text-sm font-medium text-gray-800 font-mono">${log.time}</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3">
+          <p class="text-xs text-gray-500 mb-0.5">执行耗时</p>
+          <p class="text-sm font-medium text-gray-800">${log.elapsed}</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3">
+          <p class="text-xs text-gray-500 mb-0.5">触发规则</p>
+          <p class="text-sm font-medium text-gray-800">${log.rule}</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3">
+          <p class="text-xs text-gray-500 mb-0.5">触发范围</p>
+          <p class="text-sm font-medium text-gray-800">${log.scope}</p>
+        </div>
+      </div>
+      <!-- 统计数据 -->
+      <div class="grid grid-cols-3 gap-3">
+        <div class="text-center border border-gray-200 rounded-lg py-3">
+          <p class="text-2xl font-bold text-gray-800">${log.total}</p>
+          <p class="text-xs text-gray-500 mt-0.5">生成总量</p>
+        </div>
+        <div class="text-center border border-green-200 rounded-lg py-3 bg-green-50">
+          <p class="text-2xl font-bold text-green-600">${log.success}</p>
+          <p class="text-xs text-green-600 mt-0.5">执行成功</p>
+        </div>
+        <div class="text-center border ${log.failed > 0 ? 'border-orange-200 bg-orange-50' : 'border-gray-200'} rounded-lg py-3">
+          <p class="text-2xl font-bold ${log.failed > 0 ? 'text-orange-500' : 'text-gray-400'}">${log.failed}</p>
+          <p class="text-xs ${log.failed > 0 ? 'text-orange-500' : 'text-gray-400'} mt-0.5">执行失败</p>
+        </div>
+      </div>
+      <!-- 执行结果 -->
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-gray-600">执行结果：</span>
+        <span class="px-2.5 py-1 rounded-full text-xs font-semibold border ${statusClass[log.status]}">${statusLabels[log.status]}</span>
+      </div>
+      ${failHtml}
+    </div>`;
+
+  const modal = document.getElementById('detail-modal');
+  modal.classList.remove('hidden');
+  modal.style.display = 'flex';
+}
+
+function closeDetail() {
+  const modal = document.getElementById('detail-modal');
+  modal.classList.add('hidden');
+  modal.style.display = '';
+}
+
+function resetFilters() {
+  document.getElementById('filter-start').value = '';
+  document.getElementById('filter-end').value = '';
+  document.getElementById('filter-rule').value = '';
+  document.getElementById('filter-status').value = '';
+  loadLogs();
+}
+
+// 初始化加载
+loadLogs();
+
+// 设置默认日期范围（近7天）
+(function() {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(start.getDate() - 7);
+  document.getElementById('filter-end').value = end.toISOString().slice(0, 10);
+  document.getElementById('filter-start').value = start.toISOString().slice(0, 10);
+})();
+</script>
+{% endblock %}

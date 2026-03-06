@@ -1,0 +1,479 @@
+{% extends "_layouts/patient.html" %}
+{% block title %}首页{% endblock %}
+{% set active_tab = "plan" %}
+
+{% block header_right %}
+<div style="display:flex;align-items:center;gap:10px;">
+  <a href="/h5/care-plan" style="
+    text-decoration:none;
+    background:linear-gradient(135deg,#D4A96A,#B8885E);
+    color:#fff;
+    font-size:13px;
+    font-weight:600;
+    padding:7px 16px;
+    border-radius:99px;
+    box-shadow:0 2px 8px rgba(184,136,94,0.3);
+    letter-spacing:0.02em;
+  ">会员</a>
+  <a href="/h5/notifications" style="text-decoration:none;position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:var(--surface);box-shadow:var(--shadow-xs);">
+    <svg width="18" height="18" fill="none" stroke="var(--text-secondary)" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+    </svg>
+    <span id="hdr-notif-dot" style="display:none;position:absolute;top:7px;right:7px;width:7px;height:7px;background:#D95C4A;border-radius:50%;"></span>
+  </a>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+/* 周日历 */
+.week-strip {
+  display:flex;
+  gap:0;
+  overflow-x:auto;
+  padding:6px 16px 10px;
+  scroll-snap-type:x mandatory;
+}
+.week-strip::-webkit-scrollbar { display:none; }
+.week-day {
+  flex:0 0 auto;
+  width:52px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:4px;
+  padding:6px 0 8px;
+  scroll-snap-align:center;
+  cursor:pointer;
+  transition:all 0.2s;
+}
+.week-day .wd-label { font-size:12px; color:var(--text-muted); font-weight:400; }
+.week-day .wd-num {
+  width:36px; height:36px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:15px; font-weight:600; color:var(--text);
+  transition:all 0.2s;
+}
+.week-day.active .wd-num {
+  background:var(--primary);
+  color:#fff;
+  box-shadow:0 2px 8px rgba(78,122,97,0.3);
+}
+.week-day.today .wd-label { color:var(--primary); font-weight:500; }
+
+/* 功能卡 */
+.feature-card {
+  margin:0 16px;
+  border-radius:22px;
+  overflow:hidden;
+  position:relative;
+  background:linear-gradient(145deg,#FDF8F0 0%,#F7EEE0 50%,#F0E8D6 100%);
+  box-shadow:var(--shadow-card);
+  min-height:220px;
+}
+.feature-card .fc-img {
+  position:absolute;
+  right:-10px;
+  bottom:0;
+  width:55%;
+  height:100%;
+  object-fit:cover;
+  opacity:0.9;
+}
+.feature-card .fc-content {
+  position:relative;
+  z-index:2;
+  padding:24px 20px 20px;
+}
+
+/* 时辰卡 */
+.shichen-card {
+  margin:14px 16px 0;
+  border-radius:20px;
+  padding:18px 20px;
+  position:relative;
+  overflow:hidden;
+  background:linear-gradient(140deg,#E8F4F1 0%,#D8EDE8 100%);
+  box-shadow:var(--shadow-xs);
+}
+.shichen-card::after {
+  content:'';
+  position:absolute;
+  right:16px;
+  top:50%;
+  transform:translateY(-50%);
+  width:80px;
+  height:80px;
+  border-radius:50%;
+  background:rgba(78,122,97,0.06);
+}
+
+/* 养生打卡 */
+.checkin-circle {
+  width:64px;height:64px;border-radius:50%;
+  border:2.5px solid var(--primary-muted);
+  display:flex;align-items:center;justify-content:center;
+  background:var(--surface);
+  transition:all 0.2s;
+  position:relative;
+}
+.checkin-circle.done {
+  border-color:var(--primary);
+  background:var(--primary-light);
+}
+.checkin-circle .cc-icon { font-size:24px; }
+
+/* 方案模块卡 */
+.mod-card {
+  background:#fff; border-radius:18px; padding:16px;
+  box-shadow:var(--shadow-xs);
+}
+.mod-header {
+  display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;
+}
+.mod-icon {
+  width:36px; height:36px; border-radius:11px; display:flex;
+  align-items:center; justify-content:center; font-size:17px; flex-shrink:0;
+}
+.item-row {
+  display:flex; align-items:flex-start; gap:10px;
+  padding:9px 0; border-bottom:1px solid var(--border-light);
+}
+.item-row:last-child { border-bottom:none; padding-bottom:0; }
+{% endblock %}
+
+{% block content %}
+
+<!-- 周日历条 -->
+<div class="week-strip" id="week-strip"></div>
+
+<!-- 功能卡：养生运动推荐 -->
+<div class="feature-card" id="feature-card">
+  <div class="fc-content">
+    <h2 style="font-size:26px;font-weight:800;color:var(--primary);margin:0 0 6px;letter-spacing:-0.02em;" id="fc-title">八段锦</h2>
+    <p style="font-size:14px;color:var(--text-secondary);margin:0 0 20px;" id="fc-sub">养精神 · 舒缓肩颈</p>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+      <span style="display:flex;align-items:center;gap:4px;font-size:13px;color:var(--text-muted);">
+        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span id="fc-dur">15分钟</span>
+      </span>
+      <span style="background:var(--primary);color:#fff;font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px;" id="fc-cal">50千卡</span>
+    </div>
+    <a href="/h5/checkin" style="
+      display:inline-flex;align-items:center;gap:6px;
+      background:var(--surface);color:var(--text);
+      font-size:14px;font-weight:600;
+      padding:10px 20px;border-radius:99px;
+      box-shadow:var(--shadow-sm);
+      text-decoration:none;
+      transition:transform 0.15s;
+    " onmousedown="this.style.transform='scale(0.97)'" onmouseup="this.style.transform=''">
+      马上跟练
+      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </a>
+  </div>
+</div>
+
+<!-- 时辰养生 -->
+<div class="shichen-card" id="shichen-card">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+    <span style="font-size:18px;font-weight:700;color:var(--primary);" id="sc-name">酉时</span>
+    <span style="font-size:14px;font-weight:600;color:var(--primary);opacity:0.7;" id="sc-range">17点~19点</span>
+  </div>
+  <p style="font-size:14px;color:var(--text);margin:0 0 4px;line-height:1.6;" id="sc-desc">酉时，肾经当令，宜吃营养晚餐。</p>
+  <p style="font-size:13px;color:var(--text-secondary);margin:0 0 14px;" id="sc-advice">建议清淡饮食，不宜过饱和油腻。</p>
+  <div style="display:flex;gap:24px;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="width:30px;height:30px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">宜</span>
+      <span style="font-size:14px;color:var(--text);" id="sc-good">晚餐</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="width:30px;height:30px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">忌</span>
+      <span style="font-size:14px;color:var(--text);" id="sc-bad">过劳</span>
+    </div>
+  </div>
+</div>
+
+<!-- 每日养生打卡 -->
+<div style="margin:18px 16px 0;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+    <h3 style="font-size:17px;font-weight:700;color:var(--text);margin:0;">每日养生打卡</h3>
+    <a href="/h5/checkin" style="text-decoration:none;">
+      <svg width="20" height="20" fill="none" stroke="var(--text-muted)" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+    </a>
+  </div>
+  <div style="display:flex;justify-content:space-around;" id="checkin-circles">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+      <div class="checkin-circle"><span class="cc-icon">🌙</span></div>
+      <span style="font-size:12px;color:var(--text-muted);">早睡</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+      <div class="checkin-circle"><span class="cc-icon">🍵</span></div>
+      <span style="font-size:12px;color:var(--text-muted);">饮食</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+      <div class="checkin-circle"><span class="cc-icon">🏃</span></div>
+      <span style="font-size:12px;color:var(--text-muted);">运动</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+      <div class="checkin-circle"><span class="cc-icon">💊</span></div>
+      <span style="font-size:12px;color:var(--text-muted);">用药</span>
+    </div>
+  </div>
+</div>
+
+<!-- 今日方案 -->
+<div style="margin:20px 16px 0;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+    <h3 style="font-size:17px;font-weight:700;color:var(--text);margin:0;">今天要做什么</h3>
+    <a href="/h5/plan/detail" style="font-size:13px;color:var(--primary);text-decoration:none;font-weight:500;">查看方案 &rsaquo;</a>
+  </div>
+  <div id="today-modules" style="display:flex;flex-direction:column;gap:10px;">
+    <div class="skeleton" style="height:90px;"></div>
+    <div class="skeleton" style="height:90px;width:90%;"></div>
+  </div>
+  <div id="no-plan-hint" style="display:none;background:#fff;border-radius:18px;padding:28px;text-align:center;box-shadow:var(--shadow-xs);">
+    <div style="font-size:36px;margin-bottom:10px;">📋</div>
+    <p style="font-size:14px;color:#28231E;font-weight:500;margin:0 0 6px;">暂无进行中方案</p>
+    <p style="font-size:13px;color:#9A9188;margin:0;">医生制定方案后将在此显示</p>
+  </div>
+</div>
+
+<!-- 快捷入口 -->
+<div style="display:flex;gap:8px;margin:16px 16px 24px;">
+  <a href="/h5/plan/detail" style="
+    flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;
+    padding:14px 8px;background:#fff;border-radius:16px;
+    box-shadow:var(--shadow-xs);text-decoration:none;cursor:pointer;
+    transition:background 0.15s;
+  ">
+    <svg width="20" height="20" fill="none" stroke="#4E7A61" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+    </svg>
+    <span style="font-size:12px;color:#28231E;font-weight:500;">方案详情</span>
+  </a>
+  <a href="/h5/plan/history" style="
+    flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;
+    padding:14px 8px;background:#fff;border-radius:16px;
+    box-shadow:var(--shadow-xs);text-decoration:none;cursor:pointer;
+    transition:background 0.15s;
+  ">
+    <svg width="20" height="20" fill="none" stroke="#B8885E" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+    </svg>
+    <span style="font-size:12px;color:#28231E;font-weight:500;">调整记录</span>
+  </a>
+  <a href="/h5/plan/documents" style="
+    flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;
+    padding:14px 8px;background:#fff;border-radius:16px;
+    box-shadow:var(--shadow-xs);text-decoration:none;cursor:pointer;
+    transition:background 0.15s;
+  ">
+    <svg width="20" height="20" fill="none" stroke="#5070A8" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+    </svg>
+    <span style="font-size:12px;color:#28231E;font-weight:500;">资料处方</span>
+  </a>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ─── 周日历 ───
+function renderWeekStrip() {
+  const strip = document.getElementById('week-strip');
+  const today = new Date();
+  const dayNames = ['周日','周一','周二','周三','周四','周五','周六'];
+  let html = '';
+  for (let i = -3; i <= 6; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + i);
+    const isToday = i === 0;
+    const dow = dayNames[d.getDay()];
+    const num = d.getDate();
+    html += `<div class="week-day ${isToday ? 'active today' : ''}">
+      <span class="wd-label">${isToday ? '今' : dow}</span>
+      <span class="wd-num">${num}</span>
+    </div>`;
+  }
+  strip.innerHTML = html;
+  // scroll to active
+  setTimeout(() => {
+    const active = strip.querySelector('.active');
+    if (active) active.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }, 50);
+}
+
+// ─── 时辰养生 ───
+const SHICHEN = [
+  { name:'子时', range:'23点~1点', desc:'子时，胆经当令，宜安睡养胆。', advice:'阴阳交接，深度睡眠最为关键。', good:'安睡', bad:'熬夜' },
+  { name:'丑时', range:'1点~3点',  desc:'丑时，肝经当令，肝血回流养肝。', advice:'保持深度睡眠，养血护肝。', good:'深睡', bad:'饮酒' },
+  { name:'寅时', range:'3点~5点',  desc:'寅时，肺经当令，气血始动。',     advice:'此时深睡，有助肺气调和。', good:'安睡', bad:'起夜' },
+  { name:'卯时', range:'5点~7点',  desc:'卯时，大肠经当令，宜起床排便。', advice:'醒后喝杯温水，促进肠道蠕动。', good:'排便', bad:'赖床' },
+  { name:'辰时', range:'7点~9点',  desc:'辰时，胃经当令，宜吃营养早餐。', advice:'早餐要吃好，五谷杂粮最养胃。', good:'早餐', bad:'空腹' },
+  { name:'巳时', range:'9点~11点', desc:'巳时，脾经当令，脾主运化。',     advice:'可适当运动，促进气血运行。', good:'运动', bad:'久坐' },
+  { name:'午时', range:'11点~13点',desc:'午时，心经当令，宜小憩养心。',   advice:'午休20分钟，养心安神。', good:'午休', bad:'大怒' },
+  { name:'未时', range:'13点~15点',desc:'未时，小肠经当令，营养吸收。',   advice:'适量饮水，促进营养吸收。', good:'喝水', bad:'贪凉' },
+  { name:'申时', range:'15点~17点',desc:'申时，膀胱经当令，宜多饮水。',   advice:'充足饮水，有助排毒代谢。', good:'饮水', bad:'憋尿' },
+  { name:'酉时', range:'17点~19点',desc:'酉时，肾经当令，宜吃营养晚餐。', advice:'建议清淡饮食，不宜过饱和油腻。', good:'晚餐', bad:'过劳' },
+  { name:'戌时', range:'19点~21点',desc:'戌时，心包经当令，宜散步放松。', advice:'饭后散步，保持心情愉悦。', good:'散步', bad:'剧烈运动' },
+  { name:'亥时', range:'21点~23点',desc:'亥时，三焦经当令，宜泡脚入睡。', advice:'温水泡脚，准备安睡。', good:'泡脚', bad:'进食' },
+];
+function renderShichen() {
+  const hour = new Date().getHours();
+  let idx;
+  if (hour >= 23 || hour < 1) idx = 0;
+  else if (hour < 3) idx = 1;
+  else if (hour < 5) idx = 2;
+  else if (hour < 7) idx = 3;
+  else if (hour < 9) idx = 4;
+  else if (hour < 11) idx = 5;
+  else if (hour < 13) idx = 6;
+  else if (hour < 15) idx = 7;
+  else if (hour < 17) idx = 8;
+  else if (hour < 19) idx = 9;
+  else if (hour < 21) idx = 10;
+  else idx = 11;
+  const s = SHICHEN[idx];
+  document.getElementById('sc-name').textContent = s.name;
+  document.getElementById('sc-range').textContent = s.range;
+  document.getElementById('sc-desc').textContent = s.desc;
+  document.getElementById('sc-advice').textContent = s.advice;
+  document.getElementById('sc-good').textContent = s.good;
+  document.getElementById('sc-bad').textContent = s.bad;
+}
+
+// ─── 养生运动推荐 ───
+const EXERCISES = [
+  { title:'八段锦', sub:'养精神 · 舒缓肩颈', dur:'15分钟', cal:'50千卡' },
+  { title:'五禽戏', sub:'强筋骨 · 通经络', dur:'20分钟', cal:'70千卡' },
+  { title:'太极拳', sub:'调气血 · 养心神', dur:'30分钟', cal:'90千卡' },
+  { title:'易筋经', sub:'柔韧筋骨 · 舒展全身', dur:'25分钟', cal:'65千卡' },
+];
+function renderFeature() {
+  const idx = new Date().getDay() % EXERCISES.length;
+  const e = EXERCISES[idx];
+  document.getElementById('fc-title').textContent = e.title;
+  document.getElementById('fc-sub').textContent = e.sub;
+  document.getElementById('fc-dur').textContent = e.dur;
+  document.getElementById('fc-cal').textContent = e.cal;
+}
+
+// ─── 今日方案模块 ───
+const CAT = {
+  medicine: { icon:'💊', label:'用药',  bg:'#F7EEE4', color:'#B8885E' },
+  diet:     { icon:'🍵', label:'饮食',  bg:'#EBF2ED', color:'#4E7A61' },
+  exercise: { icon:'🏃', label:'运动',  bg:'#E6F2F0', color:'#3D7A72' },
+  sleep:    { icon:'🌙', label:'作息',  bg:'#EEF2F7', color:'#5070A8' },
+  therapy:  { icon:'🌿', label:'理疗',  bg:'#F5F0E8', color:'#7A6C4E' },
+};
+
+const DEMO_TODAY = [
+  { cat:'medicine', items:[
+    {text:'苯磺酸氨氯地平 5mg', sub:'晨起口服，随餐服用', done:false},
+    {text:'六味地黄丸 6g',       sub:'饭前30分钟，每日2次', done:true},
+  ]},
+  { cat:'diet', items:[
+    {text:'低盐低脂饮食',     sub:'每日食盐<5g，避免动物内脏', done:false},
+    {text:'山药薏仁粥（今日）', sub:'健脾祛湿，早餐推荐', done:false},
+  ]},
+  { cat:'exercise', items:[
+    {text:'步行6000步',    sub:'心率控制<130次/分', done:false},
+    {text:'八段锦 20分钟', sub:'晨起练习，舒展筋骨', done:true},
+  ]},
+  { cat:'sleep', items:[
+    {text:'22:30前入睡', sub:'保证7小时睡眠', done:false},
+  ]},
+  { cat:'therapy', items:[
+    {text:'足三里艾灸', sub:'今日轮次，每穴15分钟', done:false},
+  ]},
+];
+
+function renderModules(data) {
+  const el = document.getElementById('today-modules');
+  el.innerHTML = data.map(mod => {
+    const c = CAT[mod.cat] || CAT.medicine;
+    const total = mod.items.length, done = mod.items.filter(i=>i.done).length;
+    return `
+      <div class="mod-card">
+        <div class="mod-header">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="mod-icon" style="background:${c.bg};">${c.icon}</div>
+            <span style="font-size:14px;font-weight:600;color:#28231E;">${c.label}</span>
+          </div>
+          <span style="font-size:12px;color:${done===total?'#4E7A61':'#9A9188'};">${done}/${total} 完成</span>
+        </div>
+        <div>
+          ${mod.items.map(item => `
+            <div class="item-row">
+              <div style="width:20px;height:20px;border-radius:50%;flex-shrink:0;margin-top:1px;${item.done?'background:#4E7A61;':'border:1.5px solid #D0C9C0;'}display:flex;align-items:center;justify-content:center;">
+                ${item.done?'<svg width="10" height="10" fill="none" stroke="#fff" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>':''}
+              </div>
+              <div style="flex:1;">
+                <p style="font-size:14px;color:${item.done?'#9A9188':'#28231E'};margin:0;${item.done?'text-decoration:line-through;':''}">${item.text}</p>
+                ${item.sub?`<p style="font-size:12px;color:#9A9188;margin:2px 0 0;">${item.sub}</p>`:''}
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function loadPlan() {
+  let planData = null, todayItems = DEMO_TODAY;
+  try {
+    const r1 = await fetch('/tools/followup/plans');
+    const j1 = await r1.json();
+    if (j1.success) planData = (j1.data || []).find(p => p.status === 'ACTIVE');
+  } catch(e) {}
+
+  // 今日任务
+  try {
+    const r3 = await fetch('/tools/followup/today');
+    const j3 = await r3.json();
+    if (j3.success && j3.data?.length) {
+      const TYPE_CAT = {MEDICATION:'medicine',DIET:'diet',EXERCISE:'exercise',SLEEP:'sleep',THERAPY:'therapy'};
+      const grouped = {};
+      j3.data.forEach(t => {
+        const cat = TYPE_CAT[t.task_type] || 'medicine';
+        if (!grouped[cat]) grouped[cat] = [];
+        grouped[cat].push({text:t.name, sub:t.description||'', done:t.checkin_status==='DONE'});
+      });
+      todayItems = Object.entries(grouped).map(([cat,items])=>({cat,items}));
+    }
+  } catch(e) {}
+
+  // update checkin circles
+  const doneMap = {};
+  todayItems.forEach(mod => mod.items.forEach(item => { if(item.done) doneMap[mod.cat] = true; }));
+  const circleMap = { sleep:'🌙', diet:'🍵', exercise:'🏃', medicine:'💊' };
+  const cats = ['sleep','diet','exercise','medicine'];
+  cats.forEach(cat => {
+    const circles = document.querySelectorAll('.checkin-circle');
+    // match by icon
+  });
+
+  document.getElementById('today-modules').innerHTML = '';
+  if (!todayItems.length) { document.getElementById('no-plan-hint').style.display='block'; return; }
+  renderModules(todayItems);
+}
+
+// 通知红点
+async function checkNotif() {
+  try {
+    const r = await fetch('/tools/notifications/count');
+    const j = await r.json();
+    if ((j.data?.unread||0) > 0) document.getElementById('hdr-notif-dot').style.display='block';
+  } catch(e) {}
+}
+
+// ─── Init ───
+renderWeekStrip();
+renderShichen();
+renderFeature();
+loadPlan();
+checkNotif();
+</script>
+{% endblock %}

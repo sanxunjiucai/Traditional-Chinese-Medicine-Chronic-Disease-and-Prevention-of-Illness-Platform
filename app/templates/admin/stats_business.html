@@ -1,0 +1,269 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "stats_business" %}
+{% block title %}业务统计 - 治未病平台{% endblock %}
+{% block page_title %}业务运营统计{% endblock %}
+
+{% block content %}
+
+<!-- 第1行 KPI 卡片：核心运营数据 -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+  <div class="bg-white rounded-xl shadow-sm p-5 border-l-4" style="border-left-color:#4E7A61">
+    <p class="text-gray-500 text-sm">管理患者总数</p>
+    <p id="kpi-total-archives" class="text-3xl font-bold mt-1" style="color:#4E7A61">--</p>
+    <p class="text-gray-400 text-xs mt-1">档案在管</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5 border-l-4 border-green-500">
+    <p class="text-gray-500 text-sm">本月下达方案</p>
+    <p id="kpi-plans-month" class="text-3xl font-bold text-green-600 mt-1">--</p>
+    <p id="kpi-plans-total" class="text-gray-400 text-xs mt-1">累计: --</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5 border-l-4" style="border-left-color:#B8885E">
+    <p class="text-gray-500 text-sm">复诊转化率</p>
+    <p id="kpi-return-rate" class="text-3xl font-bold mt-1" style="color:#B8885E">--%</p>
+    <p class="text-gray-400 text-xs mt-1">本月复诊转化</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5 border-l-4 border-orange-500">
+    <p class="text-gray-500 text-sm">咨询收入估算</p>
+    <p id="kpi-revenue" class="text-3xl font-bold text-orange-500 mt-1">约--元</p>
+    <p id="kpi-consult-month" class="text-gray-400 text-xs mt-1">本月咨询: -- 次</p>
+  </div>
+</div>
+
+<!-- 第2行 KPI 卡片：风险与服务质量 -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="bg-white rounded-xl shadow-sm p-5 border-l-4 border-red-500">
+    <p class="text-gray-500 text-sm">高风险患者</p>
+    <p id="kpi-high-risk" class="text-3xl font-bold text-red-600 mt-1">--</p>
+    <p class="text-gray-400 text-xs mt-1">需重点关注</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5 border-l-4" style="border-left-color:#5070A8">
+    <p class="text-gray-500 text-sm">随访完成率</p>
+    <p id="kpi-followup-rate" class="text-3xl font-bold mt-1" style="color:#5070A8">--%</p>
+    <p class="text-gray-400 text-xs mt-1">本期随访质量</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5 border-l-4 border-yellow-500">
+    <p class="text-gray-500 text-sm">本月AI预警</p>
+    <p id="kpi-alerts-month" class="text-3xl font-bold text-yellow-600 mt-1">--</p>
+    <p class="text-gray-400 text-xs mt-1">自动触发预警</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5 border-l-4 border-gray-400">
+    <p class="text-gray-500 text-sm">未复诊提醒</p>
+    <p id="kpi-no-visit" class="text-3xl font-bold text-gray-600 mt-1">--</p>
+    <p class="text-gray-400 text-xs mt-1">已发送提醒</p>
+  </div>
+</div>
+
+<!-- 月度趋势图 + 商业价值说明 -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+  <!-- 月度趋势图（纯CSS柱状图） -->
+  <div class="lg:col-span-2 bg-white rounded-xl shadow-sm p-5">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="font-semibold text-gray-700">近6个月业务趋势</h3>
+      <!-- 图例 -->
+      <div class="flex items-center gap-4 text-xs text-gray-500">
+        <span class="flex items-center gap-1.5">
+          <span class="w-3 h-3 rounded-sm inline-block" style="background:#4E7A61"></span>方案下达
+        </span>
+        <span class="flex items-center gap-1.5">
+          <span class="w-3 h-3 rounded-sm inline-block" style="background:#B8885E"></span>咨询量
+        </span>
+        <span class="flex items-center gap-1.5">
+          <span class="w-3 h-3 rounded-sm bg-orange-400 inline-block"></span>预警触发
+        </span>
+      </div>
+    </div>
+
+    <!-- 柱状图容器 -->
+    <div id="trend-chart" class="flex items-end gap-3 h-44 px-2">
+      <!-- 由JS动态填充 -->
+      <div class="flex-1 flex items-center justify-center text-gray-400 text-sm">加载中...</div>
+    </div>
+    <!-- X轴标签 -->
+    <div id="trend-labels" class="flex gap-3 mt-2 px-2 text-xs text-gray-400"></div>
+  </div>
+
+  <!-- 商业价值说明卡片 -->
+  <div class="space-y-4">
+    <div class="bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-sm p-5 text-white">
+      <div class="flex items-center gap-2 mb-3">
+        <svg class="w-5 h-5 text-green-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <h3 class="font-semibold text-green-50">商业价值估算</h3>
+      </div>
+      <div class="space-y-2 text-sm">
+        <div class="flex justify-between">
+          <span class="text-green-100">复诊收入（估算）</span>
+          <span id="bv-return-revenue" class="font-bold text-white">--元/月</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-green-100">咨询收入（估算）</span>
+          <span id="bv-consult-revenue" class="font-bold text-white">--元/月</span>
+        </div>
+        <div class="border-t border-green-400 my-2"></div>
+        <div class="flex justify-between">
+          <span class="text-green-100">合计月度估算</span>
+          <span id="bv-total-revenue" class="font-bold text-white text-base">--元</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-3 text-sm">运营健康指数</h3>
+      <div class="space-y-3">
+        <div>
+          <div class="flex justify-between text-xs text-gray-600 mb-1">
+            <span>随访完成率</span>
+            <span id="health-followup-label" class="font-medium">--%</span>
+          </div>
+          <div class="h-2 rounded-full overflow-hidden" style="background:#EDE8E2">
+            <div id="health-followup-bar" class="h-full rounded-full transition-all duration-700" style="width:0%;background:#4E7A61"></div>
+          </div>
+        </div>
+        <div>
+          <div class="flex justify-between text-xs text-gray-600 mb-1">
+            <span>复诊转化率</span>
+            <span id="health-return-label" class="font-medium">--%</span>
+          </div>
+          <div class="h-2 rounded-full overflow-hidden" style="background:#EDE8E2">
+            <div id="health-return-bar" class="h-full rounded-full transition-all duration-700" style="width:0%;background:#B8885E"></div>
+          </div>
+        </div>
+        <div>
+          <div class="flex justify-between text-xs text-gray-600 mb-1">
+            <span>高风险管控（相对）</span>
+            <span id="health-risk-label" class="font-medium">--</span>
+          </div>
+          <div class="h-2 rounded-full overflow-hidden" style="background:#EDE8E2">
+            <div id="health-risk-bar" class="h-full bg-red-400 rounded-full transition-all duration-700" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+      <p class="text-xs text-gray-400 mt-4 leading-relaxed">
+        数据每日自动更新。持续提升随访完成率和复诊转化率，是平台商业健康运营的核心驱动力。
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// 单位：复诊每次约200元，咨询每次约50元（演示估算参数）
+const RETURN_VISIT_UNIT = 200;
+const CONSULT_UNIT = 50;
+
+function pct(val) {
+  if (val === null || val === undefined) return '--';
+  return Math.round(val * 100) + '%';
+}
+function num(val) {
+  if (val === null || val === undefined) return '--';
+  return val;
+}
+
+async function loadKPI() {
+  try {
+    const r = await fetch('/tools/stats/business');
+    const j = await r.json();
+    if (!j.success) return;
+    const d = j.data;
+
+    document.getElementById('kpi-total-archives').textContent = num(d.total_archives);
+    document.getElementById('kpi-plans-month').textContent = num(d.plans_issued_this_month);
+    document.getElementById('kpi-plans-total').textContent = '累计: ' + num(d.plans_issued_total);
+    document.getElementById('kpi-return-rate').textContent = pct(d.return_visit_conversion_rate);
+    document.getElementById('kpi-revenue').textContent = '约' + num(d.consultation_revenue_estimate) + '元';
+    document.getElementById('kpi-consult-month').textContent = '本月咨询: ' + num(d.consultations_this_month) + ' 次';
+    document.getElementById('kpi-high-risk').textContent = num(d.high_risk_patients);
+    document.getElementById('kpi-followup-rate').textContent = pct(d.followup_completion_rate);
+    document.getElementById('kpi-alerts-month').textContent = num(d.auto_alerts_this_month);
+    document.getElementById('kpi-no-visit').textContent = num(d.no_visit_reminder_sent);
+
+    // 商业价值估算
+    const returnRevenue = Math.round((d.consultations_this_month || 0) * (d.return_visit_conversion_rate || 0) * RETURN_VISIT_UNIT);
+    const consultRevenue = d.consultation_revenue_estimate || 0;
+    const totalRevenue = returnRevenue + consultRevenue;
+    document.getElementById('bv-return-revenue').textContent = '约 ¥' + returnRevenue + ' 元/月';
+    document.getElementById('bv-consult-revenue').textContent = '约 ¥' + consultRevenue + ' 元/月';
+    document.getElementById('bv-total-revenue').textContent = '约 ¥' + totalRevenue + ' 元';
+
+    // 运营健康指数进度条
+    const followupPct = Math.round((d.followup_completion_rate || 0) * 100);
+    const returnPct = Math.round((d.return_visit_conversion_rate || 0) * 100);
+    // 高风险占比（高风险/总数，反向：越少越好，显示"管控良好"程度）
+    const riskRatio = d.total_archives > 0
+      ? Math.max(0, 100 - Math.round(d.high_risk_patients / d.total_archives * 100 * 5))
+      : 100;
+
+    setTimeout(() => {
+      document.getElementById('health-followup-bar').style.width = followupPct + '%';
+      document.getElementById('health-followup-label').textContent = followupPct + '%';
+      document.getElementById('health-return-bar').style.width = returnPct + '%';
+      document.getElementById('health-return-label').textContent = returnPct + '%';
+      document.getElementById('health-risk-bar').style.width = Math.min(riskRatio, 100) + '%';
+      document.getElementById('health-risk-label').textContent = d.high_risk_patients + ' 人';
+    }, 300);
+
+  } catch (e) {
+    console.warn('KPI加载失败', e);
+  }
+}
+
+async function loadTrend() {
+  try {
+    const r = await fetch('/tools/stats/business/trend?months=6');
+    const j = await r.json();
+    if (!j.success) return;
+    const d = j.data;
+
+    const labels = d.labels || [];
+    const plans = d.plans_issued || [];
+    const consults = d.consultations || [];
+    const alerts = d.alerts_triggered || [];
+
+    // 计算最大值用于等比缩放
+    const allVals = [...plans, ...consults, ...alerts];
+    const maxVal = Math.max(...allVals, 1);
+
+    const chartEl = document.getElementById('trend-chart');
+    const labelsEl = document.getElementById('trend-labels');
+
+    chartEl.innerHTML = labels.map((label, i) => {
+      const planH = Math.round((plans[i] || 0) / maxVal * 100);
+      const consultH = Math.round((consults[i] || 0) / maxVal * 100);
+      const alertH = Math.round((alerts[i] || 0) / maxVal * 100);
+      return `
+        <div class="flex-1 flex flex-col items-center gap-0.5">
+          <div class="w-full flex items-end gap-0.5 h-40">
+            <div class="flex-1 rounded-t transition-all duration-700"
+                 style="height:${planH}%;background:#4E7A61"
+                 title="方案下达: ${plans[i] || 0}"></div>
+            <div class="flex-1 rounded-t transition-all duration-700"
+                 style="height:${consultH}%;background:#B8885E"
+                 title="咨询量: ${consults[i] || 0}"></div>
+            <div class="flex-1 bg-orange-400 rounded-t transition-all duration-700"
+                 style="height:${alertH}%"
+                 title="预警触发: ${alerts[i] || 0}"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    labelsEl.innerHTML = labels.map(label => `
+      <div class="flex-1 text-center truncate">${label}</div>
+    `).join('');
+
+  } catch (e) {
+    console.warn('趋势图加载失败', e);
+    document.getElementById('trend-chart').innerHTML =
+      '<div class="flex-1 flex items-center justify-center text-gray-400 text-sm">数据加载失败</div>';
+  }
+}
+
+loadKPI();
+loadTrend();
+</script>
+{% endblock %}

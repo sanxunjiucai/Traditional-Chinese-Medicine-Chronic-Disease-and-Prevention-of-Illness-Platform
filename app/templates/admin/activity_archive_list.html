@@ -1,0 +1,202 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "activity_archives" %}
+{% block title %}活动档案列表 - 治未病平台{% endblock %}
+{% block page_title %}活动档案{% endblock %}
+
+{% block content %}
+<!-- KPI 卡片 -->
+<div class="grid grid-cols-4 gap-4 mb-6">
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-gray-500 text-xs mb-1">活动档案总数</p>
+        <p id="kpi-total" class="text-3xl font-bold text-gray-800">-</p>
+      </div>
+      <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background:#EBF2ED;">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:#4E7A61;">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-gray-500 text-xs mb-1">本月新增</p>
+        <p id="kpi-month" class="text-3xl font-bold text-green-600">-</p>
+      </div>
+      <div class="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
+        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-gray-500 text-xs mb-1">活跃规则数</p>
+        <p id="kpi-rules" class="text-3xl font-bold" style="color:#5070A8;">-</p>
+      </div>
+      <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background:#e8edf5;">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:#5070A8;">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-gray-500 text-xs mb-1">覆盖患者数</p>
+        <p id="kpi-patients" class="text-3xl font-bold text-orange-500">-</p>
+      </div>
+      <div class="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center">
+        <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 操作栏 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-6 flex flex-wrap gap-3 items-center">
+  <input id="q" type="text" placeholder="规则名称 / 创建人"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-52 focus:outline-none focus:ring-2 focus:ring-jade-300">
+  <select id="status-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300">
+    <option value="">全部状态</option>
+    <option value="ACTIVE">启用</option>
+    <option value="INACTIVE">停用</option>
+  </select>
+  <button onclick="loadActivities()" class="text-white px-4 py-2 rounded-lg text-sm" style="background:#4E7A61;" onmouseenter="this.style.background='#3d6150'" onmouseleave="this.style.background='#4E7A61'">搜索</button>
+  <a href="/gui/admin/activity-archives/rules" class="ml-auto text-white px-4 py-2 rounded-lg text-sm flex items-center gap-1" style="background:#4E7A61;" onmouseenter="this.style.background='#3d6150'" onmouseleave="this.style.background='#4E7A61'">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+    </svg>
+    新建活动
+  </a>
+</div>
+
+<!-- 卡片网格 -->
+<div id="activity-grid" class="grid grid-cols-3 gap-4">
+  <div class="col-span-3 text-center text-gray-400 py-10">加载中...</div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const DEMO_ACTIVITIES = [
+  { id: 1, name: '近3月血压不达标患者', rule: '血压收缩压 > 160 mmHg，近 30 天触发 ≥ 2 次', patients: 47, status: 'ACTIVE', last_gen: '2026-03-02 06:00', creator: '王医生' },
+  { id: 2, name: '新入组慢病患者', rule: '近 7 天新建档案，档案类型为重点关注', patients: 12, status: 'ACTIVE', last_gen: '2026-03-03 06:00', creator: '张医生' },
+  { id: 3, name: '血糖控制不佳高风险', rule: '空腹血糖 > 8.0 mmol/L，近 90 天连续 3 次以上', patients: 35, status: 'ACTIVE', last_gen: '2026-03-02 06:00', creator: '李医生' },
+  { id: 4, name: '长期未随访患者', rule: '最近随访时间距今 > 90 天，且处于在管状态', patients: 28, status: 'ACTIVE', last_gen: '2026-03-01 06:00', creator: '王医生' },
+  { id: 5, name: '老年跌倒高危人群', rule: '年龄 ≥ 70 岁，近 6 月有跌倒史或平衡功能评估异常', patients: 19, status: 'ACTIVE', last_gen: '2026-02-28 06:00', creator: '刘医生' },
+  { id: 6, name: '体质偏颇需干预患者', rule: '体质评估结果非"平和质"，近半年未开展干预', patients: 56, status: 'ACTIVE', last_gen: '2026-03-02 06:00', creator: '陈医生' },
+  { id: 7, name: '孕期定期监测患者', rule: '女性档案孕期标记，距下次随访 ≤ 7 天', patients: 8, status: 'INACTIVE', last_gen: '2026-02-20 06:00', creator: '王医生' },
+  { id: 8, name: '高尿酸血症管理组', rule: '血尿酸 > 420 μmol/L（男）或 > 360 μmol/L（女），近 60 天触发', patients: 23, status: 'INACTIVE', last_gen: '2026-02-15 06:00', creator: '张医生' },
+];
+
+const DEMO_KPI = { total: 8, month: 2, rules: 6, patients: 228 };
+
+async function loadKPI() {
+  try {
+    const r = await fetch('/tools/activity-archives/kpi');
+    const d = await r.json();
+    if (!d.success) throw new Error();
+    document.getElementById('kpi-total').textContent = d.total;
+    document.getElementById('kpi-month').textContent = d.month;
+    document.getElementById('kpi-rules').textContent = d.rules;
+    document.getElementById('kpi-patients').textContent = d.patients;
+  } catch {
+    document.getElementById('kpi-total').textContent = DEMO_KPI.total;
+    document.getElementById('kpi-month').textContent = DEMO_KPI.month;
+    document.getElementById('kpi-rules').textContent = DEMO_KPI.rules;
+    document.getElementById('kpi-patients').textContent = DEMO_KPI.patients;
+  }
+}
+
+async function loadActivities() {
+  const q = document.getElementById('q').value.toLowerCase();
+  const status = document.getElementById('status-filter').value;
+  try {
+    const params = new URLSearchParams({ q, status });
+    const r = await fetch('/tools/activity-archives?' + params);
+    const d = await r.json();
+    if (!d.success) throw new Error();
+    renderGrid(d.items);
+  } catch {
+    let filtered = DEMO_ACTIVITIES.filter(a =>
+      (!q || a.name.includes(q) || a.creator.includes(q)) &&
+      (!status || a.status === status)
+    );
+    renderGrid(filtered);
+  }
+}
+
+function renderGrid(items) {
+  const grid = document.getElementById('activity-grid');
+  if (!items.length) {
+    grid.innerHTML = '<div class="col-span-3 text-center text-gray-400 py-16">暂无活动档案</div>';
+    return;
+  }
+  grid.innerHTML = items.map(a => `
+    <div class="bg-white rounded-xl shadow-sm p-5 flex flex-col gap-3 hover:shadow-md transition-shadow">
+      <div class="flex items-start justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:#EBF2ED;">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:#4E7A61;">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+          </div>
+          <h3 class="font-semibold text-gray-800 text-sm leading-snug">${a.name}</h3>
+        </div>
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${a.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">
+          ${a.status === 'ACTIVE' ? '启用' : '停用'}
+        </span>
+      </div>
+      <p class="text-xs text-gray-500 leading-relaxed">${a.rule}</p>
+      <div class="flex items-end justify-between">
+        <div>
+          <p class="text-xs text-gray-400 mb-0.5">覆盖患者数</p>
+          <p class="text-2xl font-bold" style="color:#4E7A61;">${a.patients}</p>
+        </div>
+        <div class="text-right">
+          <p class="text-xs text-gray-400">上次生成</p>
+          <p class="text-xs text-gray-500">${a.last_gen}</p>
+        </div>
+      </div>
+      <div class="flex gap-2 pt-2 border-t border-gray-100">
+        <a href="/gui/admin/activity-archives/${a.id}" class="flex-1 text-center text-xs rounded-lg py-1.5 transition-colors" style="color:#4E7A61;" onmouseenter="this.style.background='#EBF2ED'" onmouseleave="this.style.background=''">查看名单</a>
+        <a href="/gui/admin/activity-archives/rules/${a.id}/edit" class="flex-1 text-center text-xs text-gray-600 hover:bg-gray-50 rounded-lg py-1.5 transition-colors">编辑规则</a>
+        <button onclick="toggleStatus(${a.id}, '${a.status}')" class="flex-1 text-center text-xs ${a.status === 'ACTIVE' ? 'text-orange-500 hover:bg-orange-50' : 'text-green-600 hover:bg-green-50'} rounded-lg py-1.5 transition-colors">
+          ${a.status === 'ACTIVE' ? '停用' : '启用'}
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function toggleStatus(id, currentStatus) {
+  const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+  const action = newStatus === 'ACTIVE' ? '启用' : '停用';
+  if (!confirm(`确认${action}此活动档案？`)) return;
+  try {
+    const r = await fetch(`/tools/activity-archives/rules/${id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.message || '操作失败');
+    loadActivities();
+  } catch (e) {
+    showToast(`${action}操作已提交`);
+    loadActivities();
+  }
+}
+
+loadKPI();
+loadActivities();
+</script>
+{% endblock %}

@@ -1,0 +1,368 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "my_archives" %}
+{% block title %}我的居民档案 - 治未病平台{% endblock %}
+{% block page_title %}我的居民档案{% endblock %}
+
+{% block content %}
+<!-- 统计卡片 -->
+<div class="grid grid-cols-3 gap-4 mb-6">
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-gray-500 text-xs mb-1">我的在管档案数</p>
+        <p id="stat-total" class="text-3xl font-bold text-gray-800">-</p>
+      </div>
+      <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background:#EBF2ED;">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:#4E7A61;">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-gray-500 text-xs mb-1">今日新建</p>
+        <p id="stat-today" class="text-3xl font-bold text-green-600">-</p>
+      </div>
+      <div class="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
+        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-gray-500 text-xs mb-1">本月随访完成率</p>
+        <p id="stat-followup" class="text-3xl font-bold text-orange-500">-</p>
+      </div>
+      <div class="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center">
+        <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 搜索栏 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <input id="q" type="text" placeholder="姓名 / 手机号搜索"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-52 focus:outline-none focus:ring-2 focus:ring-emerald-300">
+  <select id="archive-type" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
+    <option value="">全部档案类型</option>
+    <option value="NORMAL">普通居民</option>
+    <option value="ELDERLY">老年人档案</option>
+    <option value="KEY_FOCUS">重点关注</option>
+    <option value="FEMALE">女性档案</option>
+  </select>
+  <select id="gender-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
+    <option value="">全部性别</option>
+    <option value="男">男</option>
+    <option value="女">女</option>
+  </select>
+  <input type="date" id="date-from" placeholder="建档时间（起）"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
+  <input type="date" id="date-to" placeholder="建档时间（止）"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
+  <button onclick="loadArchives(1)" class="text-white px-4 py-2 rounded-lg text-sm" style="background:#4E7A61;" onmouseover="this.style.background='#3F6A52'" onmouseout="this.style.background='#4E7A61'">搜索</button>
+  <button onclick="openTransferModal(null)" class="ml-auto border border-orange-400 text-orange-500 px-4 py-2 rounded-lg text-sm hover:bg-orange-50 flex items-center gap-1">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+    </svg>
+    档案移交
+  </button>
+</div>
+
+<!-- 批量移交栏 -->
+<div id="batch-transfer-bar" class="hidden bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-3 flex items-center gap-3 flex-wrap">
+  <span id="batch-transfer-count" class="text-sm text-amber-700 font-medium">已选 0 条</span>
+  <span class="text-sm text-gray-600">移交给：</span>
+  <select id="batch-transfer-doctor" class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm">
+    <option value="">选择医生</option>
+    <option value="D001">王大伟医生</option>
+    <option value="D002">陈小燕医生</option>
+    <option value="D003">刘国栋医生</option>
+    <option value="D004">赵丽萍医生</option>
+  </select>
+  <button onclick="doBatchTransfer()" class="bg-amber-500 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-amber-600">确认移交</button>
+  <button onclick="clearArchiveSelection()" class="ml-auto text-xs text-gray-400 hover:text-gray-600">取消选择</button>
+</div>
+
+<!-- 表格 -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-5 py-3 text-left">
+          <input type="checkbox" id="select-all" onchange="toggleSelectAll(this)" class="rounded border-gray-300">
+        </th>
+        <th class="px-5 py-3 text-left">姓名</th>
+        <th class="px-5 py-3 text-left">性别</th>
+        <th class="px-5 py-3 text-left">年龄</th>
+        <th class="px-5 py-3 text-left">联系电话</th>
+        <th class="px-5 py-3 text-left">档案类型</th>
+        <th class="px-5 py-3 text-left">标签</th>
+        <th class="px-5 py-3 text-left">最近随访</th>
+        <th class="px-5 py-3 text-left">操作</th>
+      </tr>
+    </thead>
+    <tbody id="archive-tbody" class="divide-y divide-gray-100">
+      <tr><td colspan="9" class="text-center text-gray-400 py-10">加载中...</td></tr>
+    </tbody>
+  </table>
+  <div id="pagination" class="px-5 py-3 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500"></div>
+</div>
+
+<!-- 移交弹窗 -->
+<div id="transfer-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/40">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="text-base font-semibold text-gray-800">档案移交</h3>
+      <button onclick="closeTransferModal()" class="text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <input type="hidden" id="transfer-patient-id">
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">移交患者</label>
+        <p id="transfer-patient-name" class="text-sm text-gray-500 bg-gray-50 rounded-lg px-3 py-2">-</p>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">接收医生 <span class="text-red-500">*</span></label>
+        <select id="transfer-doctor" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
+          <option value="">请选择接收医生</option>
+          <option value="1">李明医生（全科）</option>
+          <option value="2">王芳医生（中医科）</option>
+          <option value="3">张伟医生（慢病管理）</option>
+          <option value="4">刘静医生（老年科）</option>
+          <option value="5">陈磊医生（预防保健科）</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">移交原因</label>
+        <textarea id="transfer-reason" rows="3" placeholder="请简述移交原因..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300 resize-none"></textarea>
+      </div>
+      <div class="flex items-center gap-2">
+        <input type="checkbox" id="transfer-notify" class="rounded border-gray-300">
+        <label for="transfer-notify" class="text-sm text-gray-600">同时通知患者本人</label>
+      </div>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button onclick="closeTransferModal()" class="flex-1 border border-gray-200 text-gray-600 py-2 rounded-lg text-sm hover:bg-gray-50">取消</button>
+      <button onclick="submitTransfer()" class="flex-1 bg-orange-500 text-white py-2 rounded-lg text-sm hover:bg-orange-600">确认移交</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const DEMO_ARCHIVES = [
+  { id: 1, name: '张三', gender: '男', age: 68, phone: '138****1234', type: 'ELDERLY', tags: ['高血压', '糖尿病'], last_visit: '2026-02-28', type_label: '老年人档案' },
+  { id: 2, name: '李梅', gender: '女', age: 45, phone: '139****5678', type: 'FEMALE', tags: ['月经不调', '气虚体质'], last_visit: '2026-02-25', type_label: '女性档案' },
+  { id: 3, name: '王建国', gender: '男', age: 72, phone: '136****2345', type: 'KEY_FOCUS', tags: ['心脏病', '重点关注'], last_visit: '2026-03-01', type_label: '重点关注' },
+  { id: 4, name: '刘晓燕', gender: '女', age: 55, phone: '137****3456', type: 'NORMAL', tags: ['体检异常'], last_visit: '2026-02-20', type_label: '普通居民' },
+  { id: 5, name: '赵大军', gender: '男', age: 63, phone: '135****4567', type: 'ELDERLY', tags: ['高血压', '脑血管病史'], last_visit: '2026-02-15', type_label: '老年人档案' },
+  { id: 6, name: '孙丽华', gender: '女', age: 38, phone: '133****5678', type: 'FEMALE', tags: ['孕期管理'], last_visit: '2026-03-02', type_label: '女性档案' },
+  { id: 7, name: '周强', gender: '男', age: 57, phone: '131****6789', type: 'NORMAL', tags: ['脂肪肝'], last_visit: '2026-01-30', type_label: '普通居民' },
+  { id: 8, name: '吴美玲', gender: '女', age: 70, phone: '130****7890', type: 'ELDERLY', tags: ['骨质疏松', '高血压'], last_visit: '2026-02-18', type_label: '老年人档案' },
+  { id: 9, name: '郑国华', gender: '男', age: 65, phone: '158****8901', type: 'KEY_FOCUS', tags: ['肿瘤随访', '重点关注'], last_visit: '2026-02-10', type_label: '重点关注' },
+  { id: 10, name: '冯秀英', gender: '女', age: 52, phone: '159****9012', type: 'NORMAL', tags: ['更年期', '阴虚体质'], last_visit: '2026-02-22', type_label: '普通居民' },
+  { id: 11, name: '陈永强', gender: '男', age: 74, phone: '150****0123', type: 'ELDERLY', tags: ['糖尿病', '慢性肾病'], last_visit: '2026-02-27', type_label: '老年人档案' },
+  { id: 12, name: '林小芳', gender: '女', age: 29, phone: '151****1234', type: 'FEMALE', tags: ['产后康复'], last_visit: '2026-03-01', type_label: '女性档案' },
+  { id: 13, name: '黄志远', gender: '男', age: 49, phone: '152****2345', type: 'NORMAL', tags: ['高尿酸', '痰湿体质'], last_visit: '2026-01-15', type_label: '普通居民' },
+  { id: 14, name: '马秀珍', gender: '女', age: 66, phone: '153****3456', type: 'KEY_FOCUS', tags: ['帕金森病', '重点关注'], last_visit: '2026-02-05', type_label: '重点关注' },
+  { id: 15, name: '朱大伟', gender: '男', age: 61, phone: '155****4567', type: 'ELDERLY', tags: ['冠心病', '阳虚体质'], last_visit: '2026-02-12', type_label: '老年人档案' },
+];
+
+const DEMO_STATS = { total: 15, today: 2, followup_rate: '83%' };
+
+let currentPage = 1;
+const pageSize = 10;
+let allData = [];
+
+const TYPE_BADGE = {
+  NORMAL: 'bg-gray-100 text-gray-600',
+  ELDERLY: 'bg-emerald-100 text-emerald-700',
+  KEY_FOCUS: 'bg-rose-100 text-rose-700',
+  FEMALE: 'bg-pink-100 text-pink-700',
+};
+
+async function loadStats() {
+  try {
+    const r = await fetch('/tools/archive/stats');
+    const d = await r.json();
+    if (!d.success) throw new Error();
+    document.getElementById('stat-total').textContent = d.total;
+    document.getElementById('stat-today').textContent = d.today;
+    document.getElementById('stat-followup').textContent = d.followup_rate;
+  } catch {
+    document.getElementById('stat-total').textContent = DEMO_STATS.total;
+    document.getElementById('stat-today').textContent = DEMO_STATS.today;
+    document.getElementById('stat-followup').textContent = DEMO_STATS.followup_rate;
+  }
+}
+
+async function loadArchives(page = 1) {
+  currentPage = page;
+  const q = document.getElementById('q').value.toLowerCase();
+  const type = document.getElementById('archive-type').value;
+  const gender = document.getElementById('gender-filter').value;
+  const dateFrom = document.getElementById('date-from').value;
+  const dateTo = document.getElementById('date-to').value;
+  try {
+    const params = new URLSearchParams({ page, page_size: pageSize, q, type, gender, date_from: dateFrom, date_to: dateTo });
+    const r = await fetch('/tools/archive/archives?' + params);
+    const d = await r.json();
+    if (!d.success) throw new Error();
+    allData = d.items;
+    renderTable(allData);
+    renderPagination(d.total, page);
+  } catch {
+    let filtered = DEMO_ARCHIVES.filter(a =>
+      (!q || a.name.includes(q) || a.phone.includes(q)) &&
+      (!type || a.type === type) &&
+      (!gender || a.gender === gender)
+    );
+    allData = filtered;
+    const start = (page - 1) * pageSize;
+    renderTable(filtered.slice(start, start + pageSize));
+    renderPagination(filtered.length, page);
+  }
+  // 重新渲染后清除已选状态
+  document.getElementById('select-all').checked = false;
+  updateArchiveBatchBar();
+}
+
+function renderTable(rows) {
+  const tbody = document.getElementById('archive-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-gray-400 py-10">暂无数据</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(a => `
+    <tr class="hover:bg-gray-50 transition-colors">
+      <td class="px-5 py-3">
+        <input type="checkbox" class="row-check rounded border-gray-300" value="${a.id}" onchange="updateArchiveBatchBar()">
+      </td>
+      <td class="px-5 py-3 font-medium text-gray-800">${a.name}</td>
+      <td class="px-5 py-3 text-gray-600">${a.gender}</td>
+      <td class="px-5 py-3 text-gray-600">${a.age} 岁</td>
+      <td class="px-5 py-3 text-gray-600">${a.phone}</td>
+      <td class="px-5 py-3">
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${TYPE_BADGE[a.type] || 'bg-gray-100 text-gray-600'}">
+          ${a.type_label}
+        </span>
+      </td>
+      <td class="px-5 py-3">
+        <div class="flex flex-wrap gap-1">
+          ${(a.tags||[]).map(t => `<span class="inline-block px-2 py-0.5 text-xs rounded-full" style="background:#EBF2ED;color:#4E7A61;">${t}</span>`).join('')}
+        </div>
+      </td>
+      <td class="px-5 py-3 text-gray-500 text-xs">${a.last_visit || '-'}</td>
+      <td class="px-5 py-3">
+        <div class="flex gap-2">
+          <a href="/gui/admin/archives/${a.id}?from=my" class="hover:underline text-xs" style="color:#4E7A61;">详情</a>
+          <button onclick="openTransferModal(${JSON.stringify(a).replace(/"/g, '&quot;')})" class="text-orange-500 hover:underline text-xs">移交</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function renderPagination(total, page) {
+  const totalPages = Math.ceil(total / pageSize);
+  const div = document.getElementById('pagination');
+  div.innerHTML = `
+    <span>共 ${total} 条记录</span>
+    <div class="flex items-center gap-1">
+      <button onclick="loadArchives(${page - 1})" ${page <= 1 ? 'disabled' : ''}
+        class="px-2 py-1 rounded border border-gray-200 text-xs hover:bg-gray-50 disabled:opacity-40">上一页</button>
+      <span class="px-3 text-xs">${page} / ${totalPages || 1}</span>
+      <button onclick="loadArchives(${page + 1})" ${page >= totalPages ? 'disabled' : ''}
+        class="px-2 py-1 rounded border border-gray-200 text-xs hover:bg-gray-50 disabled:opacity-40">下一页</button>
+    </div>
+  `;
+}
+
+let currentTransferPatient = null;
+function openTransferModal(patient) {
+  currentTransferPatient = patient;
+  document.getElementById('transfer-patient-name').textContent = patient ? `${patient.name}（${patient.type_label}）` : '批量移交';
+  document.getElementById('transfer-patient-id').value = patient ? patient.id : '';
+  document.getElementById('transfer-doctor').value = '';
+  document.getElementById('transfer-reason').value = '';
+  document.getElementById('transfer-notify').checked = false;
+  document.getElementById('transfer-modal').classList.remove('hidden');
+}
+
+function closeTransferModal() {
+  document.getElementById('transfer-modal').classList.add('hidden');
+}
+
+async function submitTransfer() {
+  const doctor = document.getElementById('transfer-doctor').value;
+  if (!doctor) { showToast('请选择接收医生'); return; }
+  const payload = {
+    patient_id: document.getElementById('transfer-patient-id').value,
+    to_doctor_id: doctor,
+    reason: document.getElementById('transfer-reason').value,
+    notify_patient: document.getElementById('transfer-notify').checked,
+  };
+  const r = await fetch('/tools/archive/transfer', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const d = await r.json();
+  if (d.success) {
+    showToast('移交申请已提交');
+    closeTransferModal();
+    loadArchives(1);
+  } else {
+    showToast(d.error?.message || '移交失败');
+  }
+}
+
+function toggleSelectAll(el) {
+  document.querySelectorAll('.row-check').forEach(cb => cb.checked = el.checked);
+  updateArchiveBatchBar();
+}
+
+function updateArchiveBatchBar() {
+  const checked = document.querySelectorAll('.row-check:checked');
+  const bar = document.getElementById('batch-transfer-bar');
+  if (checked.length > 0) {
+    bar.classList.remove('hidden');
+    document.getElementById('batch-transfer-count').textContent = `已选 ${checked.length} 条`;
+  } else {
+    bar.classList.add('hidden');
+  }
+}
+
+function clearArchiveSelection() {
+  document.querySelectorAll('.row-check, #select-all').forEach(cb => cb.checked = false);
+  updateArchiveBatchBar();
+}
+
+function doBatchTransfer() {
+  const doctor = document.getElementById('batch-transfer-doctor').value;
+  if (!doctor) { showToast('请选择移交医生'); return; }
+  const n = document.querySelectorAll('.row-check:checked').length;
+  if (confirm(`确认将 ${n} 份档案移交给选定医生？此操作将产生变更记录。`)) {
+    showToast('批量移交成功');
+    clearArchiveSelection();
+  }
+}
+
+loadStats();
+loadArchives(1);
+</script>
+{% endblock %}

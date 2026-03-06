@@ -1,0 +1,349 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "archive_audit" %}
+{% block title %}患者标签管理 - 治未病平台{% endblock %}
+{% block page_title %}患者标签管理{% endblock %}
+
+{% block content %}
+{# 接收 Jinja2 变量 patient_id（由视图函数传入） #}
+{% set _patient_id = patient_id | default("") %}
+
+<!-- 患者基本信息卡片 -->
+<div class="bg-white rounded-xl shadow-sm p-5 mb-5">
+  <div class="flex items-start justify-between">
+    <div class="flex items-center gap-4">
+      <!-- 头像占位 -->
+      <div class="w-14 h-14 rounded-full bg-teal-100 flex items-center justify-center flex-shrink-0">
+        <span id="patient-avatar" class="text-teal-700 font-bold text-xl">-</span>
+      </div>
+      <div>
+        <div class="flex items-center gap-2 mb-0.5">
+          <h2 id="patient-name" class="text-lg font-semibold text-gray-800">加载中...</h2>
+          <span id="patient-gender-badge" class="hidden text-xs px-2 py-0.5 rounded-full bg-teal-50 text-teal-700"></span>
+        </div>
+        <div class="flex items-center gap-4 text-xs text-gray-500">
+          <span>档案号：<span id="patient-archive-no" class="font-mono text-gray-700">-</span></span>
+          <span>年龄：<span id="patient-age" class="text-gray-700">-</span></span>
+          <span>手机：<span id="patient-phone" class="text-gray-700">-</span></span>
+        </div>
+      </div>
+    </div>
+    <a href="/gui/admin/archives" class="text-xs text-teal-600 hover:underline flex items-center gap-1 mt-1">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+      </svg>
+      返回档案列表
+    </a>
+  </div>
+
+  <!-- 已有标签展示 -->
+  <div class="mt-4 pt-4 border-t border-gray-100">
+    <div class="flex items-start gap-2 flex-wrap">
+      <span class="text-xs text-gray-500 mt-1 flex-shrink-0">已有标签：</span>
+      <div id="current-labels" class="flex items-center gap-2 flex-wrap">
+        <span class="text-xs text-gray-300">无标签</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-cols-2 gap-5">
+  <!-- 左：添加标签区域 -->
+  <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+      <h3 class="font-semibold text-gray-700 text-sm">添加标签</h3>
+      <span class="text-xs text-gray-400">点击标签即可添加</span>
+    </div>
+    <div class="p-5">
+      <!-- 搜索框 -->
+      <div class="relative mb-4">
+        <svg class="w-4 h-4 absolute left-3 top-2.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
+        </svg>
+        <input id="label-search" type="text" placeholder="搜索标签..."
+          class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300"
+          oninput="filterAvailableLabels()">
+      </div>
+
+      <!-- 标签建议（按分类分组） -->
+      <div id="label-suggestions" class="space-y-4 max-h-96 overflow-y-auto pr-1">
+        <!-- JS 填充 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 右：操作历史 -->
+  <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <div class="px-5 py-3 border-b border-gray-100">
+      <h3 class="font-semibold text-gray-700 text-sm">操作历史 <span class="text-xs text-gray-400 font-normal">（最近 5 条）</span></h3>
+    </div>
+    <div id="history-list" class="divide-y divide-gray-100">
+      <!-- JS 填充 -->
+    </div>
+    <div class="px-5 py-3 bg-gray-50">
+      <p class="text-xs text-gray-400 text-center">仅展示最近 5 条操作记录</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ── Demo 数据 ──────────────────────────────────────────────────────────────
+const DEMO_PATIENT = {
+  id: '{{ _patient_id }}' || 'demo-001',
+  name: '王建国',
+  gender: 'male',
+  age: 65,
+  phone: '138****8888',
+  archive_no: 'PA-2024-00128',
+};
+
+const ALL_CATEGORIES = [
+  { id: 1, name: '慢病管理', color: '#ef4444' },
+  { id: 2, name: '体质类型', color: '#9B6080' },
+  { id: 3, name: '随访状态', color: '#4E7A61' },
+  { id: 4, name: '风险等级', color: '#f97316' },
+  { id: 5, name: '特殊人群', color: '#22c55e' },
+];
+
+const ALL_LABELS = [
+  { id: 1,  name: '高血压',   category_id: 1, color: '#ef4444' },
+  { id: 2,  name: '糖尿病',   category_id: 1, color: '#ef4444' },
+  { id: 3,  name: '高血脂',   category_id: 1, color: '#f97316' },
+  { id: 4,  name: '平和质',   category_id: 2, color: '#22c55e' },
+  { id: 5,  name: '气虚质',   category_id: 2, color: '#9B6080' },
+  { id: 6,  name: '阳虚质',   category_id: 2, color: '#9B6080' },
+  { id: 7,  name: '随访中',   category_id: 3, color: '#4E7A61' },
+  { id: 8,  name: '随访完成', category_id: 3, color: '#14b8a6' },
+  { id: 9,  name: '高风险',   category_id: 4, color: '#ef4444' },
+  { id: 10, name: '中风险',   category_id: 4, color: '#f97316' },
+  { id: 11, name: '老年人',   category_id: 5, color: '#6b7280' },
+  { id: 12, name: '孕产妇',   category_id: 5, color: '#ec4899' },
+];
+
+// 该患者当前已打标签（id 列表）
+let patientLabelIds = [1, 7, 11]; // 高血压、随访中、老年人
+
+const DEMO_HISTORY = [
+  { action: 'add',    label: '老年人',   operator: 'admin@tcm',   time: '2026-03-03 09:12', note: '' },
+  { action: 'add',    label: '随访中',   operator: 'doctor@tcm',  time: '2026-02-28 14:30', note: '开始慢病随访' },
+  { action: 'remove', label: '中风险',   operator: 'doctor@tcm',  time: '2026-02-20 10:05', note: '风险评估更新' },
+  { action: 'add',    label: '高血压',   operator: 'doctor@tcm',  time: '2026-01-15 11:00', note: '确诊高血压' },
+  { action: 'add',    label: '中风险',   operator: 'admin@tcm',   time: '2026-01-15 11:00', note: '' },
+];
+
+// ── 初始化患者信息 ──────────────────────────────────────────────────────────
+function initPatient() {
+  document.getElementById('patient-name').textContent = DEMO_PATIENT.name;
+  document.getElementById('patient-avatar').textContent = DEMO_PATIENT.name[0];
+  document.getElementById('patient-archive-no').textContent = DEMO_PATIENT.archive_no;
+  document.getElementById('patient-age').textContent = DEMO_PATIENT.age + ' 岁';
+  document.getElementById('patient-phone').textContent = DEMO_PATIENT.phone;
+  const gBadge = document.getElementById('patient-gender-badge');
+  if (DEMO_PATIENT.gender === 'male') {
+    gBadge.textContent = '男';
+    gBadge.className = 'text-xs px-2 py-0.5 rounded-full bg-teal-50 text-teal-700';
+  } else {
+    gBadge.textContent = '女';
+    gBadge.className = 'text-xs px-2 py-0.5 rounded-full bg-pink-50 text-pink-600';
+  }
+  gBadge.classList.remove('hidden');
+}
+
+// ── 渲染已有标签 ─────────────────────────────────────────────────────────────
+function renderCurrentLabels() {
+  const el = document.getElementById('current-labels');
+  if (!patientLabelIds.length) {
+    el.innerHTML = '<span class="text-xs text-gray-300">无标签</span>';
+    return;
+  }
+  el.innerHTML = patientLabelIds.map(lid => {
+    const label = ALL_LABELS.find(l => l.id === lid);
+    if (!label) return '';
+    return `
+      <span class="relative inline-flex items-center gap-1 text-xs font-medium px-3 py-1 rounded-full text-white pr-6 group"
+        style="background:${label.color}">
+        ${label.name}
+        <button onclick="removeLabel(${lid})"
+          class="absolute right-1 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-black/20 hover:bg-black/40 flex items-center justify-center leading-none transition-colors"
+          title="移除标签">
+          <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </span>
+    `;
+  }).join('');
+}
+
+// ── 渲染标签建议（按分类分组） ───────────────────────────────────────────────
+function filterAvailableLabels() {
+  const q = (document.getElementById('label-search').value || '').toLowerCase();
+  const el = document.getElementById('label-suggestions');
+
+  const groups = ALL_CATEGORIES.map(cat => {
+    let labels = ALL_LABELS.filter(l => l.category_id === cat.id);
+    if (q) labels = labels.filter(l => l.name.toLowerCase().includes(q));
+    return { cat, labels };
+  }).filter(g => g.labels.length > 0);
+
+  if (!groups.length) {
+    el.innerHTML = '<p class="text-center text-gray-400 text-sm py-6">未找到匹配标签</p>';
+    return;
+  }
+
+  el.innerHTML = groups.map(({ cat, labels }) => `
+    <div>
+      <div class="flex items-center gap-1.5 mb-2">
+        <span class="w-2 h-2 rounded-full" style="background:${cat.color}"></span>
+        <span class="text-xs font-medium text-gray-500">${cat.name}</span>
+      </div>
+      <div class="flex flex-wrap gap-2 pl-3.5">
+        ${labels.map(l => {
+          const already = patientLabelIds.includes(l.id);
+          return `
+            <button onclick="${already ? '' : 'addLabel(' + l.id + ')'}"
+              class="text-xs px-3 py-1 rounded-full border transition-all ${already
+                ? 'border-transparent text-white cursor-default'
+                : 'border-gray-200 text-gray-700 hover:border-transparent hover:text-white'}"
+              style="${already
+                ? 'background:' + l.color
+                : '--hover-bg:' + l.color}"
+              onmouseenter="${already ? '' : 'this.style.background=this.style.getPropertyValue(\"--hover-bg\") || \"' + l.color + '\"'}"
+              onmouseleave="${already ? '' : 'this.style.background=\"\"'}"
+              title="${already ? '已添加' : '点击添加'}">
+              ${l.name}${already ? ' ✓' : ''}
+            </button>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── 添加/移除标签 ────────────────────────────────────────────────────────────
+function addLabel(id) {
+  if (patientLabelIds.includes(id)) return;
+  patientLabelIds.push(id);
+  const label = ALL_LABELS.find(l => l.id === id);
+  if (label) {
+    DEMO_HISTORY.unshift({
+      action: 'add',
+      label: label.name,
+      operator: 'admin@tcm',
+      time: '2026-03-03 ' + new Date().toTimeString().slice(0, 5),
+      note: '',
+    });
+  }
+  renderAll();
+}
+
+function removeLabel(id) {
+  if (!confirm('确认移除该标签？')) return;
+  patientLabelIds = patientLabelIds.filter(lid => lid !== id);
+  const label = ALL_LABELS.find(l => l.id === id);
+  if (label) {
+    DEMO_HISTORY.unshift({
+      action: 'remove',
+      label: label.name,
+      operator: 'admin@tcm',
+      time: '2026-03-03 ' + new Date().toTimeString().slice(0, 5),
+      note: '手动移除',
+    });
+  }
+  renderAll();
+}
+
+// ── 渲染操作历史 ─────────────────────────────────────────────────────────────
+function renderHistory() {
+  const el = document.getElementById('history-list');
+  const items = DEMO_HISTORY.slice(0, 5);
+  if (!items.length) {
+    el.innerHTML = '<div class="px-5 py-8 text-center text-gray-400 text-sm">暂无操作记录</div>';
+    return;
+  }
+  el.innerHTML = items.map(h => `
+    <div class="px-5 py-3 flex items-start gap-3">
+      <div class="mt-0.5 flex-shrink-0">
+        <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs ${h.action === 'add' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-500'}">
+          ${h.action === 'add' ? '+' : '−'}
+        </span>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm text-gray-700">
+          <span class="font-medium">${h.action === 'add' ? '添加' : '移除'}</span>
+          标签
+          <span class="text-teal-600 font-medium">「${h.label}」</span>
+        </p>
+        ${h.note ? `<p class="text-xs text-gray-400 mt-0.5">${h.note}</p>` : ''}
+        <p class="text-xs text-gray-400 mt-0.5">${h.operator} · ${h.time}</p>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderAll() {
+  renderCurrentLabels();
+  filterAvailableLabels();
+  renderHistory();
+}
+
+// ── 初始化 ───────────────────────────────────────────────────────────────────
+(async function init() {
+  const patientId = DEMO_PATIENT.id;
+
+  // 加载分类和标签
+  try {
+    const [catR, lblR] = await Promise.all([
+      fetch('/tools/label/categories'),
+      fetch('/tools/label/labels?page_size=200'),
+    ]);
+    const catD = await catR.json();
+    const lblD = await lblR.json();
+    if (catD.success && catD.data.items.length > 0) {
+      ALL_CATEGORIES.splice(0, ALL_CATEGORIES.length,
+        ...catD.data.items.map(c => ({ id: c.id, name: c.name, color: c.color || '#4E7A61' }))
+      );
+    }
+    if (lblD.success && lblD.data.items.length > 0) {
+      ALL_LABELS.splice(0, ALL_LABELS.length,
+        ...lblD.data.items.map(l => ({ id: l.id, name: l.name, category_id: l.category_id, color: l.color || '#4E7A61' }))
+      );
+    }
+  } catch (_) {}
+
+  // 加载患者信息
+  if (patientId && patientId !== 'demo-001') {
+    try {
+      const archR = await fetch(`/tools/archive/archives/${patientId}`);
+      const archD = await archR.json();
+      if (archD.success && archD.data) {
+        const a = archD.data;
+        DEMO_PATIENT.name = a.name || DEMO_PATIENT.name;
+        DEMO_PATIENT.gender = a.gender || DEMO_PATIENT.gender;
+        if (a.birth_date) {
+          const bd = new Date(a.birth_date);
+          DEMO_PATIENT.age = new Date().getFullYear() - bd.getFullYear();
+        }
+        DEMO_PATIENT.phone = a.phone || DEMO_PATIENT.phone;
+        DEMO_PATIENT.archive_no = 'A-' + patientId.slice(0, 8).toUpperCase();
+      }
+    } catch (_) {}
+
+    // 加载患者当前标签
+    try {
+      const plR = await fetch(`/tools/label/patients/${patientId}/labels`);
+      const plD = await plR.json();
+      if (plD.success && plD.data && plD.data.items) {
+        patientLabelIds.splice(0, patientLabelIds.length,
+          ...plD.data.items.map(l => l.label_id || l.id).filter(Boolean)
+        );
+      }
+    } catch (_) {}
+  }
+
+  initPatient();
+  renderAll();
+})();
+</script>
+{% endblock %}

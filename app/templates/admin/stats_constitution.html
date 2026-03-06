@@ -1,0 +1,137 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "stats" %}
+{% block title %}中医体质辨识统计 - 治未病平台{% endblock %}
+{% block page_title %}中医体质辨识统计{% endblock %}
+
+{% block content %}
+<!-- 筛选 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <select id="time-dim" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300">
+    <option value="month" selected>月维度</option>
+    <option value="quarter">季度</option>
+    <option value="year">年维度</option>
+  </select>
+  <input type="date" id="date-from" value="2025-01-01"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300">
+  <span class="text-gray-400">至</span>
+  <input type="date" id="date-to" value="2026-03-03"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300">
+  <button onclick="loadStats()" class="bg-rose-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-rose-700">查询</button>
+</div>
+
+<!-- KPI -->
+<div class="grid grid-cols-4 gap-4 mb-6">
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <p class="text-xs text-gray-400 mb-1">评估总次数</p>
+    <p class="text-3xl font-bold text-rose-600">892</p>
+    <p class="text-xs text-green-500 mt-1">↑ 本月 +48</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <p class="text-xs text-gray-400 mb-1">已出报告</p>
+    <p class="text-3xl font-bold text-gray-700">756</p>
+    <p class="text-xs text-gray-400 mt-1">报告率 84.8%</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <p class="text-xs text-gray-400 mb-1">平和质占比</p>
+    <p class="text-3xl font-bold text-green-600">28.4%</p>
+    <p class="text-xs text-gray-400 mt-1">↑ 较去年+2.1%</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <p class="text-xs text-gray-400 mb-1">偏颇体质</p>
+    <p class="text-3xl font-bold text-orange-500">71.6%</p>
+    <p class="text-xs text-gray-400 mt-1">需干预人群</p>
+  </div>
+</div>
+
+<div class="grid grid-cols-2 gap-4 mb-4">
+  <!-- 体质分布 -->
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <h3 class="font-semibold text-gray-700 mb-4">体质分布（当前）</h3>
+    <div class="space-y-3">
+      {# 暖色 TCM 体质调色板：与「玉竹·自然」设计语言协调 #}
+      {% set types = [
+        ('平和质', 28.4, '#4E7A61'),
+        ('气虚质', 15.2, '#B8885E'),
+        ('阳虚质', 12.8, '#7B98BE'),
+        ('痰湿质', 11.3, '#8B9E70'),
+        ('湿热质',  9.6, '#C87A5A'),
+        ('阴虚质',  8.7, '#9B6080'),
+        ('血瘀质',  7.4, '#8B6068'),
+        ('气郁质',  5.2, '#7090A8'),
+        ('特禀质',  1.4, '#9A8060'),
+      ] %}
+      {% for name, val, clr in types %}
+      <div class="flex items-center gap-3">
+        <span class="text-sm w-16 text-right" style="color:#6A6258;">{{ name }}</span>
+        <div class="flex-1 rounded-full h-2.5" style="background:#EDE8E2;">
+          <div class="h-2.5 rounded-full" style="width:{{ val * 2 }}%;background:{{ clr }};"></div>
+        </div>
+        <span class="text-sm font-bold w-12 text-right" style="color:{{ clr }};">{{ val }}%</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- 趋势图 -->
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <h3 class="font-semibold text-gray-700 mb-4">体质评估月度趋势</h3>
+    <div class="h-48 flex items-end gap-2">
+      {% for val, label in [(45,'1月'),(52,'2月'),(38,'3月'),(61,'4月'),(55,'5月'),(72,'6月'),(68,'7月'),(83,'8月'),(76,'9月'),(92,'10月'),(88,'11月'),(95,'12月')] %}
+      <div class="flex-1 flex flex-col items-center gap-1">
+        <div class="w-full rounded-t" style="height:{{ val * 1.5 }}px;background:#4E7A61;opacity:.75;"></div>
+        <span class="text-xs text-gray-400">{{ label }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- 体质干预效果 -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <div class="px-5 py-4 border-b border-gray-100">
+    <h3 class="font-semibold text-gray-700">主要偏颇体质干预效果追踪</h3>
+    <p class="text-xs text-gray-400 mt-0.5">首次评估 vs 最近评估（重复评估患者）</p>
+  </div>
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-5 py-3 text-left">体质类型</th>
+        <th class="px-5 py-3 text-left">评估人数</th>
+        <th class="px-5 py-3 text-left">转归平和</th>
+        <th class="px-5 py-3 text-left">转归率</th>
+        <th class="px-5 py-3 text-left">平均干预周期</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for bt, count, turned, weeks in [
+        ('气虚质',136,28,'20.6%','14周'),
+        ('阳虚质',114,22,'19.3%','16周'),
+        ('痰湿质',101,15,'14.9%','20周'),
+        ('湿热质',86,24,'27.9%','12周'),
+        ('气郁质',46,19,'41.3%','10周'),
+      ] %}
+      <tr class="hover:bg-gray-50">
+        <td class="px-5 py-3 font-medium text-gray-800">{{ bt }}</td>
+        <td class="px-5 py-3 text-gray-600">{{ count }}</td>
+        <td class="px-5 py-3 text-green-600 font-semibold">{{ turned }}</td>
+        <td class="px-5 py-3">
+          <div class="flex items-center gap-2">
+            <div class="w-20 rounded-full h-1.5" style="background:#EDE8E2">
+              <div class="bg-green-400 h-1.5 rounded-full" style="width: {{ (turned|int / count|int * 100)|round }}%"></div>
+            </div>
+            <span class="text-gray-600">{{ turned }}</span>
+          </div>
+        </td>
+        <td class="px-5 py-3 text-gray-500">{{ weeks }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function loadStats() { console.log('Reloading stats'); }
+</script>
+{% endblock %}

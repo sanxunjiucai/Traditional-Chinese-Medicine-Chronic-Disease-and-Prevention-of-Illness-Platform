@@ -5,75 +5,113 @@
 
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  .type-btn {
+    flex: 1;
+    padding: 9px 4px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    background: transparent;
+    color: #9A9188;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    font-family: inherit;
+  }
+  .type-btn.active {
+    background: #4E7A61;
+    color: #fff;
+  }
+  .day-btn {
+    padding: 7px 16px;
+    border-radius: 99px;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1.5px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  .day-btn.active {
+    background: #4E7A61;
+    color: #fff;
+    border-color: #4E7A61;
+  }
+  .day-btn:not(.active) {
+    background: #F0EBE4;
+    color: #6A6258;
+  }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="px-4 pt-4 space-y-4">
+<div style="padding: 16px; display: flex; flex-direction: column; gap: 14px;">
 
   <!-- 指标类型切换 -->
-  <div class="bg-white rounded-2xl p-1 flex">
-    <button onclick="switchType('BLOOD_PRESSURE')" id="btn-BLOOD_PRESSURE"
-      class="flex-1 py-2 rounded-xl text-sm font-medium transition type-btn active-btn">血压</button>
-    <button onclick="switchType('BLOOD_GLUCOSE')" id="btn-BLOOD_GLUCOSE"
-      class="flex-1 py-2 rounded-xl text-sm font-medium transition type-btn">血糖</button>
-    <button onclick="switchType('WEIGHT')" id="btn-WEIGHT"
-      class="flex-1 py-2 rounded-xl text-sm font-medium transition type-btn">体重</button>
+  <div style="background:#fff;border-radius:16px;padding:5px;display:flex;box-shadow:0 1px 10px rgba(68,60,48,0.06);">
+    <button onclick="switchType('BLOOD_PRESSURE')" id="btn-BLOOD_PRESSURE" class="type-btn active">血压</button>
+    <button onclick="switchType('BLOOD_GLUCOSE')"  id="btn-BLOOD_GLUCOSE"  class="type-btn">血糖</button>
+    <button onclick="switchType('WEIGHT')"          id="btn-WEIGHT"          class="type-btn">体重</button>
   </div>
 
-  <!-- 时间范围切换 -->
-  <div class="flex space-x-2">
-    <button onclick="switchDays(7)"  id="btn-7"  class="day-btn px-3 py-1.5 rounded-full text-xs bg-green-600 text-white">7天</button>
-    <button onclick="switchDays(30)" id="btn-30" class="day-btn px-3 py-1.5 rounded-full text-xs bg-gray-100 text-gray-500">30天</button>
-    <button onclick="switchDays(90)" id="btn-90" class="day-btn px-3 py-1.5 rounded-full text-xs bg-gray-100 text-gray-500">90天</button>
+  <!-- 时间范围 -->
+  <div style="display:flex;gap:8px;">
+    <button onclick="switchDays(7)"  id="btn-7"  class="day-btn active">7天</button>
+    <button onclick="switchDays(30)" id="btn-30" class="day-btn">30天</button>
+    <button onclick="switchDays(90)" id="btn-90" class="day-btn">90天</button>
   </div>
 
-  <!-- 趋势图 -->
-  <div class="bg-white rounded-2xl p-4">
-    <div class="flex items-center justify-between mb-3">
-      <h3 class="font-semibold text-gray-800" id="chart-title">血压趋势</h3>
-      <a href="/h5/indicators/add" class="bg-green-600 text-white text-xs px-3 py-1.5 rounded-full">+ 录入</a>
+  <!-- 趋势图卡片 -->
+  <div style="background:#fff;border-radius:20px;padding:18px;box-shadow:0 1px 14px rgba(68,60,48,0.07);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <h3 style="font-size:15px;font-weight:600;color:#28231E;margin:0;" id="chart-title">血压趋势</h3>
+      <a href="/h5/indicators/add" style="
+        background:#4E7A61;color:#fff;font-size:12px;font-weight:500;
+        padding:7px 14px;border-radius:99px;text-decoration:none;cursor:pointer;
+        transition:background 0.2s;
+      ">+ 录入</a>
     </div>
-    <div class="relative h-48">
+    <div style="position:relative;height:180px;">
       <canvas id="trendChart"></canvas>
-      <div id="no-data" class="hidden absolute inset-0 flex items-center justify-center text-gray-400 text-sm">
+      <div id="no-data" style="display:none;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9A9188;font-size:14px;flex-direction:column;gap:8px;">
+        <svg width="36" height="36" fill="none" stroke="#D0C9C0" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/>
+        </svg>
         暂无数据，点击录入开始记录
       </div>
     </div>
   </div>
 
   <!-- 统计摘要 -->
-  <div class="bg-white rounded-2xl p-4">
-    <h3 class="font-semibold text-gray-800 mb-3" id="stats-title">统计摘要</h3>
-    <div id="stats-grid" class="grid grid-cols-3 gap-3">
-      <div class="text-center">
-        <p class="text-2xl font-bold text-green-600" id="stat-avg">--</p>
-        <p class="text-xs text-gray-400 mt-0.5">平均</p>
+  <div style="background:#fff;border-radius:20px;padding:18px;box-shadow:0 1px 14px rgba(68,60,48,0.07);">
+    <h3 style="font-size:15px;font-weight:600;color:#28231E;margin:0 0 14px;" id="stats-title">统计摘要</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+      <div style="text-align:center;padding:12px 8px;background:#F5F2EC;border-radius:14px;">
+        <p style="font-size:24px;font-weight:700;color:#4E7A61;margin:0;" id="stat-avg">--</p>
+        <p style="font-size:12px;color:#9A9188;margin:4px 0 0;">平均</p>
       </div>
-      <div class="text-center">
-        <p class="text-2xl font-bold text-blue-500" id="stat-max">--</p>
-        <p class="text-xs text-gray-400 mt-0.5">最高</p>
+      <div style="text-align:center;padding:12px 8px;background:#F5F2EC;border-radius:14px;">
+        <p style="font-size:24px;font-weight:700;color:#D95C4A;margin:0;" id="stat-max">--</p>
+        <p style="font-size:12px;color:#9A9188;margin:4px 0 0;">最高</p>
       </div>
-      <div class="text-center">
-        <p class="text-2xl font-bold text-orange-400" id="stat-min">--</p>
-        <p class="text-xs text-gray-400 mt-0.5">最低</p>
+      <div style="text-align:center;padding:12px 8px;background:#F5F2EC;border-radius:14px;">
+        <p style="font-size:24px;font-weight:700;color:#5B9BD0;margin:0;" id="stat-min">--</p>
+        <p style="font-size:12px;color:#9A9188;margin:4px 0 0;">最低</p>
       </div>
     </div>
   </div>
 
-  <!-- 历史记录列表 -->
-  <div class="bg-white rounded-2xl p-4">
-    <h3 class="font-semibold text-gray-800 mb-3">历史记录</h3>
-    <div id="history-list" class="space-y-2"></div>
+  <!-- 历史记录 -->
+  <div style="background:#fff;border-radius:20px;padding:18px;box-shadow:0 1px 14px rgba(68,60,48,0.07);">
+    <h3 style="font-size:15px;font-weight:600;color:#28231E;margin:0 0 14px;">历史记录</h3>
+    <div id="history-list" style="display:flex;flex-direction:column;gap:0;"></div>
   </div>
 
 </div>
 {% endblock %}
 
 {% block extra_scripts %}
-<style>
-.type-btn { color: #6b7280; }
-.active-btn { background-color: #16a34a; color: white; }
-</style>
 <script>
 let currentType = 'BLOOD_PRESSURE';
 let currentDays = 7;
@@ -83,28 +121,24 @@ const CHART_TITLES = {
   BLOOD_PRESSURE: '血压趋势 (mmHg)',
   BLOOD_GLUCOSE:  '血糖趋势 (mmol/L)',
   WEIGHT:         '体重趋势 (kg)',
-  WAIST_CIRCUMFERENCE: '腰围趋势 (cm)',
 };
 
 function switchType(type) {
   currentType = type;
-  document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active-btn'));
-  document.getElementById('btn-' + type).classList.add('active-btn');
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + type).classList.add('active');
   loadData();
 }
 
 function switchDays(days) {
   currentDays = days;
-  document.querySelectorAll('.day-btn').forEach(b => {
-    b.className = 'day-btn px-3 py-1.5 rounded-full text-xs bg-gray-100 text-gray-500';
-  });
-  document.getElementById('btn-' + days).className = 'day-btn px-3 py-1.5 rounded-full text-xs bg-green-600 text-white';
+  document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + days).classList.add('active');
   loadData();
 }
 
 function extractValue(values, type) {
   if (type === 'BLOOD_PRESSURE') return values.systolic;
-  if (type === 'BLOOD_GLUCOSE') return values.value;
   return values.value;
 }
 
@@ -115,18 +149,25 @@ function formatLabel(indicator, type) {
 
 async function loadData() {
   document.getElementById('chart-title').textContent = CHART_TITLES[currentType] || currentType;
+  const noDataEl = document.getElementById('no-data');
+  noDataEl.style.display = 'none';
+
   try {
     const resp = await fetch(`/tools/indicators?indicator_type=${currentType}&days=${currentDays}`);
     const data = await resp.json();
     if (!data.success) return;
 
     const indicators = data.data;
-    document.getElementById('no-data').classList.toggle('hidden', indicators.length > 0);
 
-    const labels = indicators.map(i => new Date(i.recorded_at).toLocaleDateString('zh-CN', {month: 'numeric', day: 'numeric'}));
+    if (indicators.length === 0) {
+      noDataEl.style.display = 'flex';
+      if (chart) { chart.destroy(); chart = null; }
+    }
+
+    const labels = indicators.map(i =>
+      new Date(i.recorded_at).toLocaleDateString('zh-CN', {month:'numeric', day:'numeric'}));
     const values = indicators.map(i => extractValue(i.values, currentType));
 
-    // 统计
     if (values.length > 0) {
       const avg = (values.reduce((a, b) => a + b, 0) / values.length).toFixed(1);
       document.getElementById('stat-avg').textContent = avg;
@@ -134,7 +175,6 @@ async function loadData() {
       document.getElementById('stat-min').textContent = Math.min(...values).toFixed(1);
     }
 
-    // 图表
     const ctx = document.getElementById('trendChart').getContext('2d');
     if (chart) chart.destroy();
     chart = new Chart(ctx, {
@@ -144,38 +184,44 @@ async function loadData() {
         datasets: [{
           label: currentType === 'BLOOD_PRESSURE' ? '收缩压' : '数值',
           data: values,
-          borderColor: '#16a34a',
-          backgroundColor: 'rgba(22,163,74,0.1)',
+          borderColor: '#4E7A61',
+          backgroundColor: 'rgba(78,122,97,0.08)',
           fill: true,
-          tension: 0.3,
+          tension: 0.4,
           pointRadius: 4,
+          pointBackgroundColor: '#4E7A61',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
         }],
       },
       options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: {legend: {display: false}},
-        scales: {x: {grid: {display: false}}, y: {grid: {color: '#f3f4f6'}}},
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#9A9188', font: { size: 11 } } },
+          y: { grid: { color: '#F0EBE4' }, ticks: { color: '#9A9188', font: { size: 11 } } },
+        },
       },
     });
 
     // 历史列表
     const list = document.getElementById('history-list');
     list.innerHTML = '';
-    indicators.slice().reverse().forEach(ind => {
+    indicators.slice().reverse().forEach((ind, idx) => {
       const div = document.createElement('div');
-      div.className = 'flex items-center justify-between py-2 border-b border-gray-50 last:border-0';
+      const isLast = idx === indicators.length - 1;
+      div.style.cssText = `display:flex;align-items:center;justify-content:space-between;padding:12px 0;${!isLast ? 'border-bottom:1px solid #F0EBE4;' : ''}`;
       div.innerHTML = `
         <div>
-          <p class="text-sm font-medium text-gray-800">${formatLabel(ind, currentType)}</p>
-          ${ind.note ? `<p class="text-xs text-gray-400">${ind.note}</p>` : ''}
+          <p style="font-size:15px;font-weight:500;color:#28231E;margin:0;">${formatLabel(ind, currentType)}</p>
+          ${ind.note ? `<p style="font-size:12px;color:#9A9188;margin:3px 0 0;">${ind.note}</p>` : ''}
         </div>
-        <p class="text-xs text-gray-400">${new Date(ind.recorded_at).toLocaleString('zh-CN')}</p>
+        <p style="font-size:12px;color:#9A9188;margin:0;">${new Date(ind.recorded_at).toLocaleString('zh-CN', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'})}</p>
       `;
       list.appendChild(div);
     });
-  } catch(e) {
-    console.error(e);
-  }
+  } catch(e) { console.error(e); }
 }
 
 loadData();

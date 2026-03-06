@@ -1,0 +1,151 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "intervention" %}
+{% block title %}中医干预记录 - 治未病平台{% endblock %}
+{% block page_title %}中医干预管理{% endblock %}
+
+{% block content %}
+<!-- 统计卡片 -->
+<div class="grid grid-cols-4 gap-4 mb-4">
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-xs text-gray-400">干预总次数</p>
+    <p class="text-2xl font-bold text-green-600 mt-1">348</p>
+    <p class="text-xs text-green-500 mt-0.5">↑ 本月 +26</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-xs text-gray-400">进行中</p>
+    <p class="text-2xl font-bold text-green-600 mt-1">42</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-xs text-gray-400">已完成</p>
+    <p class="text-2xl font-bold text-gray-700 mt-1">291</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-xs text-gray-400">有效率</p>
+    <p class="text-2xl font-bold text-amber-600 mt-1">78.3%</p>
+  </div>
+</div>
+
+<!-- 筛选栏 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <input id="q" type="text" placeholder="患者姓名/档案号"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-44 focus:outline-none focus:ring-2 focus:ring-green-300">
+  <select id="type-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+    <option value="">全部类型</option>
+    <option value="ACUPUNCTURE">针灸</option>
+    <option value="MASSAGE">推拿</option>
+    <option value="HERBAL">中药</option>
+    <option value="DIET">食疗</option>
+    <option value="EXERCISE">运动</option>
+    <option value="OTHER">其他</option>
+  </select>
+  <select id="status-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+    <option value="">全部状态</option>
+    <option value="IN_PROGRESS">进行中</option>
+    <option value="COMPLETED">已完成</option>
+    <option value="PAUSED">已暂停</option>
+  </select>
+  <button onclick="loadList()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">查询</button>
+  <div class="ml-auto">
+    <a href="/gui/admin/intervention/new"
+      class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">+ 新增干预</a>
+  </div>
+</div>
+
+<!-- 列表 -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-5 py-3 text-left">患者</th>
+        <th class="px-5 py-3 text-left">干预类型</th>
+        <th class="px-5 py-3 text-left">干预方案</th>
+        <th class="px-5 py-3 text-left">执行医生</th>
+        <th class="px-5 py-3 text-left">开始日期</th>
+        <th class="px-5 py-3 text-left">周期</th>
+        <th class="px-5 py-3 text-left">状态</th>
+        <th class="px-5 py-3 text-left">操作</th>
+      </tr>
+    </thead>
+    <tbody id="list-body" class="divide-y divide-gray-100"></tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const STATUS_MAP = {
+  IN_PROGRESS: {label:'进行中',cls:'bg-green-100 text-green-700'},
+  COMPLETED:   {label:'已完成',cls:'bg-gray-100 text-gray-600'},
+  PAUSED:      {label:'已暂停',cls:'bg-orange-100 text-orange-600'},
+};
+const TYPE_LABELS = {
+  ACUPUNCTURE:'针灸',MASSAGE:'推拿',HERBAL:'中药',DIET:'食疗',
+  EXERCISE:'运动',BATH:'药浴',COMBINED:'综合干预',
+};
+
+async function loadList() {
+  const q = document.getElementById('q').value;
+  const type = document.getElementById('type-filter').value;
+  const status = document.getElementById('status-filter').value;
+  const params = new URLSearchParams();
+  if (type) params.set('intervention_type', type);
+  if (status) params.set('status', status);
+
+  let items = [];
+  try {
+    const res = await fetch('/tools/intervention/interventions?' + params);
+    const data = await res.json();
+    if (data.success) items = data.data.items || [];
+  } catch(e) {}
+
+  if (q) items = items.filter(r => (r.patient_name||'').includes(q) || (r.plan_name||'').includes(q));
+
+  if (!items.length) {
+    document.getElementById('list-body').innerHTML = '<tr><td colspan="8" class="px-5 py-8 text-center text-gray-400">暂无符合条件的干预记录</td></tr>';
+    return;
+  }
+  document.getElementById('list-body').innerHTML = items.map(r => {
+    const s = STATUS_MAP[r.status] || {label:r.status||'-',cls:'bg-gray-100 text-gray-500'};
+    const archiveLink = r.archive_id ? `/gui/admin/archives/${r.archive_id}` : '#';
+    return `<tr class="hover:bg-gray-50">
+      <td class="px-5 py-3">
+        <p class="font-medium text-gray-800">${r.patient_name||'-'}</p>
+        <a href="${archiveLink}" class="text-xs text-green-600 hover:underline">${r.archive_id ? r.archive_id.slice(0,8)+'...' : '查看档案'}</a>
+      </td>
+      <td class="px-5 py-3 text-gray-600">${TYPE_LABELS[r.intervention_type]||r.intervention_type||'-'}</td>
+      <td class="px-5 py-3 text-gray-700">${r.plan_name||'-'}</td>
+      <td class="px-5 py-3 text-gray-500">-</td>
+      <td class="px-5 py-3 text-gray-500">${r.start_date||'-'}</td>
+      <td class="px-5 py-3 text-gray-500">${r.duration_weeks ? r.duration_weeks+'周' : '-'}</td>
+      <td class="px-5 py-3"><span class="px-2 py-0.5 rounded-full text-xs font-medium ${s.cls}">${s.label}</span></td>
+      <td class="px-5 py-3">
+        <div class="flex gap-2 flex-wrap">
+          <a href="/gui/admin/intervention/${r.id}" class="text-green-600 hover:underline text-xs">详情</a>
+          ${r.status === 'IN_PROGRESS' ? `<button onclick="adjustPlan('${r.id}')" class="text-green-600 hover:underline text-xs">调整</button>` : ''}
+          ${r.status === 'IN_PROGRESS' ? `<button onclick="updateStatus('${r.id}','PAUSED')" class="text-orange-500 hover:underline text-xs">暂停</button>` : ''}
+          ${r.status === 'PAUSED' ? `<button onclick="updateStatus('${r.id}','IN_PROGRESS')" class="text-green-500 hover:underline text-xs">恢复</button>` : ''}
+          ${r.status !== 'COMPLETED' ? `<button onclick="updateStatus('${r.id}','COMPLETED')" class="text-gray-400 hover:underline text-xs">完结</button>` : ''}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function adjustPlan(id) { showToast('调整干预计划'); }
+async function updateStatus(id, newStatus) {
+  const labels = {PAUSED:'暂停',IN_PROGRESS:'恢复',COMPLETED:'完结'};
+  if (!confirm(`确认${labels[newStatus]||newStatus}该干预计划？`)) return;
+  try {
+    const res = await fetch(`/tools/intervention/interventions/${id}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({status: newStatus})
+    });
+    const data = await res.json();
+    if (data.success) { loadList(); }
+    else showToast(data.error?.message || '操作失败');
+  } catch(e) { showToast('操作失败，请重试'); }
+}
+
+loadList();
+</script>
+{% endblock %}

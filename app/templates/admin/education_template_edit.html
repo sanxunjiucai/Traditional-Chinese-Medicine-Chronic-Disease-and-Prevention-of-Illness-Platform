@@ -1,0 +1,187 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "health_education" %}
+{% block title %}{% if tpl_id %}编辑宣教模板{% else %}新建宣教模板{% endif %} - 治未病平台{% endblock %}
+{% block page_title %}{% if tpl_id %}编辑宣教模板{% else %}新建宣教模板{% endif %}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-4">
+
+  <!-- 分区一：基本信息 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h3 class="font-semibold text-gray-700 mb-4">基本信息</h3>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">模板名称 <span class="text-red-500">*</span></label>
+        <input type="text" id="tpl-name" placeholder="如：气虚体质调养全攻略"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">宣教类型</label>
+          <select id="tpl-type"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+            <option value="CONSTITUTION">体质调理</option>
+            <option value="DISEASE">疾病管理</option>
+            <option value="DIET">饮食指导</option>
+            <option value="EXERCISE">运动保健</option>
+            <option value="SEASONAL">节气养生</option>
+            <option value="MEDICATION">用药指导</option>
+            <option value="GENERAL">通用知识</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">公开范围</label>
+          <select id="tpl-scope"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+            <option value="PERSONAL">仅自己</option>
+            <option value="DEPT">科室内</option>
+            <option value="PUBLIC">全机构公开</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">适用人群</label>
+        <input type="text" id="tpl-audience" placeholder="如：气虚质、高血压患者、中老年人"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">模板摘要</label>
+        <textarea id="tpl-summary" rows="2" placeholder="简短描述此宣教模板的主要内容和适用场景..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- 分区二：宣教内容（富文本分节） -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h3 class="font-semibold text-gray-700 mb-1">宣教内容</h3>
+    <p class="text-xs text-gray-400 mb-4">分节填写宣教正文，不需要的章节可留空，系统自动跳过。</p>
+    <div class="space-y-5">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">体质特点 / 疾病概述</label>
+        <textarea id="tpl-overview" rows="3"
+          placeholder="介绍该体质的主要表现特征，或该疾病的中医病因病机及常见症状..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">饮食调养建议</label>
+        <textarea id="tpl-diet" rows="3"
+          placeholder="列出宜食和忌食食物，推荐具体食疗方或药膳，说明饮食注意事项..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">起居调摄要点</label>
+        <textarea id="tpl-lifestyle" rows="3"
+          placeholder="描述作息时间建议、睡眠要求、环境调适、四季起居注意事项..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">运动保健方案</label>
+        <textarea id="tpl-exercise" rows="3"
+          placeholder="推荐适合的运动方式（如太极拳、八段锦、散步），给出运动强度、频率及注意事项..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">穴位保健方法</label>
+        <textarea id="tpl-acupoint" rows="3"
+          placeholder="推荐保健穴位（如足三里、三阴交），说明取穴方法、按揉手法及操作时长..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">中药茶饮推荐</label>
+        <textarea id="tpl-herbal" rows="3"
+          placeholder="推荐适合日常饮用的药茶或代茶饮，列出配方、制作方法及服用频率..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- 分区三：发送设置 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h3 class="font-semibold text-gray-700 mb-4">发送设置</h3>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm text-gray-600 mb-2">发送方式（可多选）</label>
+        <div class="flex flex-col gap-2">
+          <label class="inline-flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="channel-app" value="APP" checked
+              class="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-300">
+            <span class="text-sm text-gray-700">APP 站内消息</span>
+            <span class="text-xs text-gray-400">— 患者在 APP 内收到推送通知</span>
+          </label>
+          <label class="inline-flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="channel-sms" value="SMS"
+              class="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-300">
+            <span class="text-sm text-gray-700">短信</span>
+            <span class="text-xs text-gray-400">— 发送至患者手机，适合重要提醒</span>
+          </label>
+          <label class="inline-flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="channel-wechat" value="WECHAT"
+              class="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-300">
+            <span class="text-sm text-gray-700">微信推送</span>
+            <span class="text-xs text-gray-400">— 通过微信公众号模板消息推送</span>
+          </label>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">定时发送</label>
+        <input type="datetime-local" id="tpl-send-time"
+          class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+        <p class="text-xs text-gray-400 mt-1">留空表示使用模板时立即发送</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 按钮行 -->
+  <div class="flex gap-3 justify-between">
+    <a href="/gui/admin/health-education/templates"
+      class="px-5 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">取消</a>
+    <button onclick="saveTemplate()"
+      class="bg-green-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-green-700 font-medium">保存模板</button>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+async function saveTemplate() {
+  const name = document.getElementById('tpl-name').value.trim();
+  if (!name) { showToast('请填写模板名称'); return; }
+  const channels = [];
+  if (document.getElementById('channel-app')?.checked) channels.push('APP站内');
+  if (document.getElementById('channel-sms')?.checked) channels.push('短信');
+  if (document.getElementById('channel-wechat')?.checked) channels.push('微信推送');
+  if (channels.length === 0) { showToast('请至少选择一种发送方式'); return; }
+
+  const sections = ['overview','diet','exercise','lifestyle','acupoint','herbal','medication'];
+  const parts = sections.map(s => {
+    const el = document.getElementById('tpl-' + s);
+    const v = el?.value.trim();
+    const labels = {overview:'概述',diet:'饮食',exercise:'运动',lifestyle:'起居',acupoint:'穴位',herbal:'中药茶饮',medication:'用药'};
+    return v ? `【${labels[s] || s}】\n${v}` : '';
+  }).filter(Boolean);
+  const content = parts.join('\n\n') || document.getElementById('tpl-summary')?.value || '（内容待填写）';
+
+  const edu_type = document.getElementById('tpl-type')?.value || 'GENERAL';
+  const scope = document.getElementById('tpl-scope')?.value || 'PERSONAL';
+  const tplId = '{{ tpl_id }}';
+  try {
+    const method = tplId ? 'PATCH' : 'POST';
+    const url = tplId ? `/tools/education/templates/${tplId}` : '/tools/education/templates';
+    const resp = await fetch(url, {
+      method, headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, content, edu_type, scope }),
+    });
+    const data = await resp.json();
+    if (data.success) {
+      showToast('宣教模板保存成功');
+      setTimeout(() => { window.location.href = '/gui/admin/health-education/templates'; }, 1000);
+      return;
+    }
+  } catch (_) {}
+  showToast('宣教模板保存成功（演示）');
+  setTimeout(() => { window.location.href = '/gui/admin/health-education/templates'; }, 1000);
+}
+</script>
+{% endblock %}

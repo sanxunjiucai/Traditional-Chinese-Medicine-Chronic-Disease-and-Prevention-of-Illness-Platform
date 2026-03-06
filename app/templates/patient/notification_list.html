@@ -1,0 +1,152 @@
+{% extends "_layouts/patient.html" %}
+{% block title %}通知中心{% endblock %}
+{% block page_title %}通知中心{% endblock %}
+{% set active_tab = "home" %}
+
+{% block content %}
+<div style="padding: 16px; display: flex; flex-direction: column; gap: 12px; padding-bottom: 24px;">
+
+  <!-- 筛选操作栏 -->
+  <div style="display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;gap:8px;">
+      <button onclick="filterNotifs('')" id="btn-all" style="
+        padding:7px 16px;border-radius:99px;font-size:13px;font-weight:500;
+        background:#4E7A61;color:#fff;border:none;cursor:pointer;font-family:inherit;
+      ">全部</button>
+      <button onclick="filterNotifs('UNREAD')" id="btn-unread" style="
+        padding:7px 16px;border-radius:99px;font-size:13px;font-weight:500;
+        background:#F0EBE4;color:#6A6258;border:none;cursor:pointer;font-family:inherit;
+      ">未读</button>
+    </div>
+    <button onclick="markAllRead()" style="
+      color:#4E7A61;font-size:13px;font-weight:500;background:none;border:none;cursor:pointer;padding:0;
+    ">全部已读</button>
+  </div>
+
+  <!-- 通知列表 -->
+  <div id="notif-list" style="display:flex;flex-direction:column;gap:10px;">
+    <p style="text-align:center;color:#9A9188;font-size:14px;padding:24px 0;margin:0;" id="notif-loading">加载中…</p>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let allNotifs = [];
+let currentFilter = '';
+
+// SVG 图标替换 emoji
+const TYPE_ICONS = {
+  RISK_ALERT: {
+    svg: `<svg width="20" height="20" fill="none" stroke="#D95C4A" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+    bg: '#FEF2F0', dot: '#D95C4A'
+  },
+  PLAN_ISSUED: {
+    svg: `<svg width="20" height="20" fill="none" stroke="#5070A8" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
+    bg: '#EEF2F7', dot: '#5070A8'
+  },
+  FOLLOWUP_REMINDER: {
+    svg: `<svg width="20" height="20" fill="none" stroke="#B8885E" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+    bg: '#F7EEE4', dot: '#B8885E'
+  },
+  CONSULTATION_REPLY: {
+    svg: `<svg width="20" height="20" fill="none" stroke="#4E7A61" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
+    bg: '#EBF2ED', dot: '#4E7A61'
+  },
+  SYSTEM: {
+    svg: `<svg width="20" height="20" fill="none" stroke="#9A9188" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
+    bg: '#F5F2EC', dot: '#9A9188'
+  },
+};
+
+async function loadNotifs() {
+  try {
+    const r = await fetch('/tools/notifications/mine');
+    const j = await r.json();
+    if (!j.success) { renderEmpty(); return; }
+    allNotifs = j.data?.items || j.data || [];
+    renderList(allNotifs);
+  } catch(e) { renderEmpty(); }
+}
+
+function filterNotifs(filter) {
+  currentFilter = filter;
+  ['btn-all', 'btn-unread'].forEach(id => {
+    const btn = document.getElementById(id);
+    const isActive = (id === 'btn-unread') === (filter === 'UNREAD');
+    btn.style.background = isActive ? '#4E7A61' : '#F0EBE4';
+    btn.style.color = isActive ? '#fff' : '#6A6258';
+  });
+  const filtered = filter ? allNotifs.filter(n => n.status === filter) : allNotifs;
+  renderList(filtered);
+}
+
+function renderList(items) {
+  const container = document.getElementById('notif-list');
+  if (!items || !items.length) {
+    container.innerHTML = `<p style="text-align:center;color:#9A9188;font-size:14px;padding:40px 0;margin:0;">暂无通知</p>`;
+    return;
+  }
+  container.innerHTML = items.map(n => {
+    const t = TYPE_ICONS[n.notif_type] || TYPE_ICONS.SYSTEM;
+    const isUnread = n.status === 'UNREAD';
+    const time = n.created_at?.substring(0, 16).replace('T', ' ') || '';
+    const url = n.action_url || null;
+    return `
+      <div onclick="openNotif('${n.id}', '${url || ''}')" style="
+        background:#fff;border-radius:18px;padding:14px;
+        display:flex;align-items:flex-start;gap:12px;cursor:pointer;
+        box-shadow:0 1px 12px rgba(68,60,48,${isUnread ? '0.08' : '0.04'});
+        opacity:${isUnread ? '1' : '0.7'};
+        transition:transform 0.15s;
+      ">
+        <div style="width:42px;height:42px;border-radius:13px;background:${t.bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          ${t.svg}
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px;">
+            <p style="font-size:14px;font-weight:${isUnread ? '600' : '500'};color:#28231E;margin:0;line-height:1.4;">${escHtml(n.title)}</p>
+            ${isUnread ? `<div style="width:8px;height:8px;border-radius:50%;background:#D95C4A;flex-shrink:0;margin-top:4px;"></div>` : ''}
+          </div>
+          <p style="font-size:13px;color:#6A6258;margin:0 0 6px;line-height:1.6;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${escHtml(n.content)}</p>
+          <p style="font-size:11px;color:#9A9188;margin:0;">${time}</p>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderEmpty() {
+  document.getElementById('notif-list').innerHTML =
+    `<p style="text-align:center;color:#9A9188;font-size:14px;padding:40px 0;margin:0;">暂无通知</p>`;
+}
+
+async function openNotif(id, url) {
+  await fetch(`/tools/notifications/${id}/read`, { method: 'POST' });
+  const notif = allNotifs.find(n => n.id === id);
+  if (notif) notif.status = 'READ';
+  if (url) { window.location.href = url; return; }
+  filterNotifs(currentFilter);
+}
+
+async function markAllRead() {
+  await fetch('/tools/notifications/read-all', { method: 'POST' });
+  allNotifs.forEach(n => n.status = 'READ');
+  filterNotifs(currentFilter);
+}
+
+function escHtml(str) {
+  return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// 支持从首页"医生方案"入口带 ?type=PLAN_ISSUED 进入时自动筛选
+loadNotifs().then(() => {
+  const typeFilter = new URLSearchParams(location.search).get('type');
+  if (typeFilter) {
+    allNotifs = allNotifs.filter(n => n.notif_type === typeFilter);
+    document.querySelector('.search-section-title') && (document.querySelector('.search-section-title').textContent = '方案通知');
+    renderList(allNotifs);
+  }
+});
+</script>
+{% endblock %}

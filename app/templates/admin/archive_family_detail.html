@@ -14,7 +14,7 @@
   <svg class="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
   </svg>
-  <span class="text-gray-700 font-medium">李氏家庭</span>
+  <span id="breadcrumb-name" class="text-gray-700 font-medium">家庭档案详情</span>
 </nav>
 
 <div class="flex gap-6">
@@ -34,8 +34,8 @@
               </svg>
             </div>
             <div>
-              <h2 class="text-xl font-bold text-gray-800">李氏家庭</h2>
-              <p class="text-sm text-gray-400 mt-0.5">家庭编号：F2024-00087</p>
+              <h2 id="info-family-name" class="text-xl font-bold text-gray-800">加载中...</h2>
+              <p class="text-sm text-gray-400 mt-0.5">家庭编号：{{ family_id }}</p>
             </div>
           </div>
         </div>
@@ -50,35 +50,24 @@
       <!-- 2×3 信息格 -->
       <div class="grid grid-cols-3 gap-4 mb-5">
         <div class="bg-gray-50 rounded-lg p-3">
-          <p class="text-xs text-gray-400 mb-1">户主</p>
-          <p class="text-sm font-semibold text-gray-800">李建国</p>
-        </div>
-        <div class="bg-gray-50 rounded-lg p-3">
           <p class="text-xs text-gray-400 mb-1">家庭人数</p>
-          <p class="text-sm font-semibold text-gray-800">5 人</p>
+          <p id="info-member-count" class="text-sm font-semibold text-gray-800">-</p>
         </div>
-        <div class="bg-gray-50 rounded-lg p-3">
+        <div class="bg-gray-50 rounded-lg p-3 col-span-2">
           <p class="text-xs text-gray-400 mb-1">家庭地址</p>
-          <p class="text-sm font-semibold text-gray-800 truncate" title="河东区幸福里12号楼3单元502">河东区幸福里12号楼3单元502</p>
-        </div>
-        <div class="bg-gray-50 rounded-lg p-3">
-          <p class="text-xs text-gray-400 mb-1">责任医生</p>
-          <p class="text-sm font-semibold text-gray-800">王医生</p>
+          <p id="info-address" class="text-sm font-semibold text-gray-800 truncate">-</p>
         </div>
         <div class="bg-gray-50 rounded-lg p-3">
           <p class="text-xs text-gray-400 mb-1">建档日期</p>
-          <p class="text-sm font-semibold text-gray-800">2024-03-15</p>
+          <p id="info-created" class="text-sm font-semibold text-gray-800">-</p>
         </div>
-        <div class="bg-gray-50 rounded-lg p-3">
-          <p class="text-xs text-gray-400 mb-1">家庭标签</p>
-          <div class="flex flex-wrap gap-1 mt-0.5">
-            <span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-xs">慢病家庭</span>
-            <span class="px-1.5 py-0.5 rounded text-xs" style="background:#EBF2ED;color:#4E7A61;">三代同堂</span>
-          </div>
+        <div class="bg-gray-50 rounded-lg p-3 col-span-2">
+          <p class="text-xs text-gray-400 mb-1">备注</p>
+          <p id="info-notes" class="text-sm text-gray-600">-</p>
         </div>
       </div>
 
-      <button onclick="showToast('编辑家庭信息')"
+      <button onclick="openEditModal()"
         class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 transition-colors">
         编辑家庭信息
       </button>
@@ -88,7 +77,7 @@
     <div class="bg-white rounded-xl shadow-sm overflow-hidden">
       <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
         <h3 class="font-semibold text-gray-700">家庭成员列表</h3>
-        <span class="text-xs text-gray-400">共 5 名成员</span>
+        <span id="member-count-label" class="text-xs text-gray-400"></span>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
@@ -98,142 +87,19 @@
               <th class="px-5 py-3 text-left">与户主关系</th>
               <th class="px-5 py-3 text-left">性别</th>
               <th class="px-5 py-3 text-left">年龄</th>
-              <th class="px-5 py-3 text-left">档案号</th>
-              <th class="px-5 py-3 text-left">体质类型</th>
-              <th class="px-5 py-3 text-left">健康状态</th>
               <th class="px-5 py-3 text-left">操作</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-gray-100">
-            <!-- 成员1：户主 -->
-            <tr class="hover:bg-gray-50">
-              <td class="px-5 py-3">
-                <div class="flex items-center gap-2">
-                  <div class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-sm flex-shrink-0">李</div>
-                  <div>
-                    <a href="/gui/admin/archives/A10023" class="font-medium text-gray-800 hover:text-emerald-600 hover:underline">李建国</a>
-                    <span class="ml-1 px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded text-xs" title="户主">户</span>
-                  </div>
-                </div>
-              </td>
-              <td class="px-5 py-3 text-gray-600">户主</td>
-              <td class="px-5 py-3 text-gray-600">男</td>
-              <td class="px-5 py-3 text-gray-600">58岁</td>
-              <td class="px-5 py-3 text-gray-400 font-mono text-xs">A10023</td>
-              <td class="px-5 py-3">
-                <span class="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs">气虚质</span>
-              </td>
-              <td class="px-5 py-3">
-                <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">良好</span>
-              </td>
-              <td class="px-5 py-3">
-                <a href="/gui/admin/archives/A10023?from=families" class="text-emerald-600 hover:underline text-xs">查看档案</a>
-              </td>
-            </tr>
-            <!-- 成员2 -->
-            <tr class="hover:bg-gray-50">
-              <td class="px-5 py-3">
-                <div class="flex items-center gap-2">
-                  <div class="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center text-pink-700 font-bold text-sm flex-shrink-0">李</div>
-                  <a href="/gui/admin/archives/A10024" class="font-medium text-gray-800 hover:text-emerald-600 hover:underline">李淑华</a>
-                </div>
-              </td>
-              <td class="px-5 py-3 text-gray-600">配偶</td>
-              <td class="px-5 py-3 text-gray-600">女</td>
-              <td class="px-5 py-3 text-gray-600">55岁</td>
-              <td class="px-5 py-3 text-gray-400 font-mono text-xs">A10024</td>
-              <td class="px-5 py-3">
-                <span class="px-2 py-0.5 rounded-full text-xs" style="background:#EDE8E2;color:#5070A8;">阳虚质</span>
-              </td>
-              <td class="px-5 py-3">
-                <span class="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs">一般</span>
-              </td>
-              <td class="px-5 py-3">
-                <a href="/gui/admin/archives/A10024?from=families" class="text-emerald-600 hover:underline text-xs">查看档案</a>
-              </td>
-            </tr>
-            <!-- 成员3 -->
-            <tr class="hover:bg-gray-50">
-              <td class="px-5 py-3">
-                <div class="flex items-center gap-2">
-                  <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0" style="background:#EBF2ED;color:#4E7A61;">李</div>
-                  <a href="/gui/admin/archives/A10089" class="font-medium text-gray-800 hover:text-emerald-600 hover:underline">李明</a>
-                </div>
-              </td>
-              <td class="px-5 py-3 text-gray-600">子女</td>
-              <td class="px-5 py-3 text-gray-600">男</td>
-              <td class="px-5 py-3 text-gray-600">30岁</td>
-              <td class="px-5 py-3 text-gray-400 font-mono text-xs">A10089</td>
-              <td class="px-5 py-3">
-                <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs">平和质</span>
-              </td>
-              <td class="px-5 py-3">
-                <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">良好</span>
-              </td>
-              <td class="px-5 py-3">
-                <a href="/gui/admin/archives/A10089?from=families" class="text-emerald-600 hover:underline text-xs">查看档案</a>
-              </td>
-            </tr>
-            <!-- 成员4 -->
-            <tr class="hover:bg-gray-50">
-              <td class="px-5 py-3">
-                <div class="flex items-center gap-2">
-                  <div class="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-rose-700 font-bold text-sm flex-shrink-0">王</div>
-                  <div>
-                    <a href="/gui/admin/archives/A10091" class="font-medium text-gray-800 hover:text-emerald-600 hover:underline">王晓燕</a>
-                    <span class="ml-1 text-xs text-gray-400">（儿媳）</span>
-                  </div>
-                </div>
-              </td>
-              <td class="px-5 py-3 text-gray-600">其他</td>
-              <td class="px-5 py-3 text-gray-600">女</td>
-              <td class="px-5 py-3 text-gray-600">28岁</td>
-              <td class="px-5 py-3 text-gray-400 font-mono text-xs">A10091</td>
-              <td class="px-5 py-3">
-                <span class="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs">湿热质</span>
-              </td>
-              <td class="px-5 py-3">
-                <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">良好</span>
-              </td>
-              <td class="px-5 py-3">
-                <a href="/gui/admin/archives/A10091?from=families" class="text-emerald-600 hover:underline text-xs">查看档案</a>
-              </td>
-            </tr>
-            <!-- 成员5 -->
-            <tr class="hover:bg-gray-50">
-              <td class="px-5 py-3">
-                <div class="flex items-center gap-2">
-                  <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0" style="background:#EDE8E2;color:#5070A8;">李</div>
-                  <div>
-                    <a href="/gui/admin/archives/A10103" class="font-medium text-gray-800 hover:text-emerald-600 hover:underline">李小宝</a>
-                    <span class="ml-1 text-xs text-gray-400">（孙子）</span>
-                  </div>
-                </div>
-              </td>
-              <td class="px-5 py-3 text-gray-600">子女</td>
-              <td class="px-5 py-3 text-gray-600">男</td>
-              <td class="px-5 py-3 text-gray-600">3岁</td>
-              <td class="px-5 py-3 text-gray-400 font-mono text-xs">A10103</td>
-              <td class="px-5 py-3">
-                <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs">平和质</span>
-              </td>
-              <td class="px-5 py-3">
-                <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">良好</span>
-              </td>
-              <td class="px-5 py-3">
-                <a href="/gui/admin/archives/A10103?from=families" class="text-emerald-600 hover:underline text-xs">查看档案</a>
-              </td>
-            </tr>
+          <tbody id="members-tbody" class="divide-y divide-gray-100">
+            <tr><td colspan="5" class="text-center text-gray-400 py-8">加载中...</td></tr>
           </tbody>
         </table>
       </div>
     </div>
 
-    <!-- 卡片3：家庭健康概览 -->
+    <!-- 卡片3：家庭健康概览（静态展示） -->
     <div class="bg-white rounded-xl shadow-sm p-6">
-      <h3 class="font-semibold text-gray-700 mb-5">家庭健康概览</h3>
-
-      <!-- 4 个 KPI -->
+      <h3 class="font-semibold text-gray-700 mb-5">健康管理概览</h3>
       <div class="grid grid-cols-4 gap-4 mb-6">
         <div class="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
           <p class="text-xs text-emerald-600 mb-1">体质评估完成率</p>
@@ -308,106 +174,51 @@
           </svg>
           新增成员
         </button>
-        <button onclick="showToast('批量随访功能：已为该家庭 5 名成员生成随访任务')"
-          class="w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm transition-colors" style="background:#EBF2ED;color:#4E7A61;border:1px solid #B8D4C2;" onmouseover="this.style.background='#D8EAE0'" onmouseout="this.style.background='#EBF2ED'">
+        <a href="/gui/admin/archives/families"
+          class="w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm transition-colors" style="background:#EBF2ED;color:#4E7A61;border:1px solid #B8D4C2;">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
           </svg>
-          批量随访
-        </button>
-        <button onclick="showToast('家庭健康报告：PDF 已生成，共 12 页')"
-          class="w-full flex items-center gap-2 px-4 py-2.5 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-sm hover:bg-gray-100 transition-colors">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-          </svg>
-          导出家庭报告
-        </button>
+          返回家庭档案列表
+        </a>
       </div>
     </div>
 
-    <!-- 右侧卡片2：最近活动时间轴 -->
+    <!-- 右侧卡片2：家庭概况 -->
     <div class="bg-white rounded-xl shadow-sm p-5">
-      <h3 class="font-semibold text-gray-700 mb-4">最近活动</h3>
-      <div class="space-y-0">
-        <div class="flex gap-3">
-          <div class="flex flex-col items-center flex-shrink-0">
-            <div class="w-2 h-2 rounded-full bg-emerald-400 mt-1"></div>
-            <div class="w-px flex-1 bg-gray-200 mt-1 min-h-4"></div>
-          </div>
-          <div class="pb-4 flex-1 min-w-0">
-            <p class="text-xs text-gray-400">2026-03-01</p>
-            <p class="text-sm text-gray-700 mt-0.5">李建国完成第7次随访</p>
-          </div>
-        </div>
-        <div class="flex gap-3">
-          <div class="flex flex-col items-center flex-shrink-0">
-            <div class="w-2 h-2 rounded-full mt-1" style="background:#5070A8;"></div>
-            <div class="w-px flex-1 bg-gray-200 mt-1 min-h-4"></div>
-          </div>
-          <div class="pb-4 flex-1 min-w-0">
-            <p class="text-xs text-gray-400">2026-02-25</p>
-            <p class="text-sm text-gray-700 mt-0.5">李淑华完成体质评估</p>
-          </div>
-        </div>
-        <div class="flex gap-3">
-          <div class="flex flex-col items-center flex-shrink-0">
-            <div class="w-2 h-2 rounded-full mt-1" style="background:#B8885E;"></div>
-            <div class="w-px flex-1 bg-gray-200 mt-1 min-h-4"></div>
-          </div>
-          <div class="pb-4 flex-1 min-w-0">
-            <p class="text-xs text-gray-400">2026-02-18</p>
-            <p class="text-sm text-gray-700 mt-0.5">李小宝建立健康档案</p>
-          </div>
-        </div>
-        <div class="flex gap-3">
-          <div class="flex flex-col items-center flex-shrink-0">
-            <div class="w-2 h-2 rounded-full bg-amber-400 mt-1"></div>
-            <div class="w-px flex-1 bg-gray-200 mt-1 min-h-4"></div>
-          </div>
-          <div class="pb-4 flex-1 min-w-0">
-            <p class="text-xs text-gray-400">2026-02-10</p>
-            <p class="text-sm text-gray-700 mt-0.5">李明健康评估得分 88分</p>
-          </div>
-        </div>
-        <div class="flex gap-3">
-          <div class="flex flex-col items-center flex-shrink-0">
-            <div class="w-2 h-2 rounded-full bg-rose-400 mt-1"></div>
-            <div class="w-px flex-1 bg-gray-200 mt-1 min-h-4"></div>
-          </div>
-          <div class="pb-4 flex-1 min-w-0">
-            <p class="text-xs text-gray-400">2026-01-28</p>
-            <p class="text-sm text-gray-700 mt-0.5">王晓燕湿热质干预计划启动</p>
-          </div>
-        </div>
-        <div class="flex gap-3">
-          <div class="flex flex-col items-center flex-shrink-0">
-            <div class="w-2 h-2 rounded-full bg-gray-300 mt-1"></div>
-          </div>
-          <div class="pb-0 flex-1 min-w-0">
-            <p class="text-xs text-gray-400">2026-01-15</p>
-            <p class="text-sm text-gray-700 mt-0.5">李建国血压预警触发</p>
-          </div>
-        </div>
-      </div>
+      <h3 class="font-semibold text-gray-700 mb-3">家庭概况</h3>
+      <dl class="space-y-2 text-sm">
+        <div class="flex"><dt class="w-20 text-gray-400 flex-shrink-0">家庭人数</dt><dd id="side-member-count" class="text-gray-700">-</dd></div>
+        <div class="flex"><dt class="w-20 text-gray-400 flex-shrink-0">建档时间</dt><dd id="side-created" class="text-gray-700">-</dd></div>
+        <div class="flex flex-col gap-1"><dt class="text-gray-400">家庭地址</dt><dd id="side-address" class="text-gray-500 text-xs leading-5">-</dd></div>
+      </dl>
     </div>
 
-    <!-- 右侧卡片3：家庭标签 -->
-    <div class="bg-white rounded-xl shadow-sm p-5">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="font-semibold text-gray-700">家庭标签</h3>
-        <button onclick="showToast('添加标签')"
-          class="text-xs text-emerald-600 hover:underline">+ 添加</button>
+  </div>
+</div>
+
+<!-- 编辑家庭弹窗 -->
+<div id="edit-family-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+    <h3 class="font-semibold text-gray-800 mb-4">编辑家庭信息</h3>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">家庭名称 <span class="text-red-500">*</span></label>
+        <input id="edit-family-name" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
       </div>
-      <div class="flex flex-wrap gap-2">
-        <span class="px-2.5 py-1 bg-amber-100 text-amber-700 rounded-lg text-xs font-medium">慢病家庭</span>
-        <span class="px-2.5 py-1 rounded-lg text-xs font-medium" style="background:#EBF2ED;color:#4E7A61;">三代同堂</span>
-        <span class="px-2.5 py-1 rounded-lg text-xs font-medium" style="background:#F5EDE3;color:#B8885E;">重点关注</span>
-        <span class="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-medium">高血压史</span>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">家庭地址</label>
+        <input id="edit-family-address" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">备注</label>
+        <textarea id="edit-family-notes" rows="2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"></textarea>
       </div>
     </div>
-
+    <div class="flex gap-3 justify-end mt-4">
+      <button onclick="document.getElementById('edit-family-modal').classList.add('hidden')" class="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600">取消</button>
+      <button onclick="saveFamily()" class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm hover:bg-emerald-700">保存</button>
+    </div>
   </div>
 </div>
 
@@ -434,26 +245,7 @@
           class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700">搜索</button>
       </div>
       <!-- 搜索结果列表 -->
-      <div id="member-search-results" class="mt-2 border border-gray-100 rounded-lg overflow-hidden hidden">
-        <div class="divide-y divide-gray-100">
-          <div onclick="selectMember('A10201', '张伟')"
-            class="px-3 py-2.5 hover:bg-emerald-50 cursor-pointer flex items-center justify-between">
-            <div>
-              <p class="text-sm font-medium text-gray-700">张伟</p>
-              <p class="text-xs text-gray-400">A10201 · 男 · 45岁</p>
-            </div>
-            <span class="text-xs text-emerald-600">选择</span>
-          </div>
-          <div onclick="selectMember('A10205', '刘芳')"
-            class="px-3 py-2.5 hover:bg-emerald-50 cursor-pointer flex items-center justify-between">
-            <div>
-              <p class="text-sm font-medium text-gray-700">刘芳</p>
-              <p class="text-xs text-gray-400">A10205 · 女 · 42岁</p>
-            </div>
-            <span class="text-xs text-emerald-600">选择</span>
-          </div>
-        </div>
-      </div>
+      <div id="member-search-results" class="mt-2 border border-gray-100 rounded-lg overflow-hidden hidden max-h-48 overflow-y-auto"></div>
 
       <!-- 已选成员显示 -->
       <div id="selected-member" class="hidden mt-2 flex items-center gap-2 px-3 py-2 bg-emerald-50 rounded-lg border border-emerald-200">
@@ -471,10 +263,13 @@
       <select id="member-relation"
         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300 bg-white">
         <option value="">请选择关系</option>
-        <option value="spouse">配偶</option>
-        <option value="child">子女</option>
-        <option value="parent">父母</option>
-        <option value="other">其他</option>
+        <option value="户主">户主</option>
+        <option value="配偶">配偶</option>
+        <option value="子女">子女</option>
+        <option value="父母">父母</option>
+        <option value="祖父母">祖父母</option>
+        <option value="兄弟姐妹">兄弟姐妹</option>
+        <option value="其他">其他</option>
       </select>
     </div>
 
@@ -490,21 +285,150 @@
 
 {% block extra_scripts %}
 <script>
+const familyId = '{{ family_id }}';
 let selectedMemberId = null;
 let selectedMemberName = null;
 
-function searchMember() {
+function calcAge(birthDate) {
+  if (!birthDate) return '-';
+  return new Date().getFullYear() - new Date(birthDate).getFullYear();
+}
+
+async function loadFamilyInfo() {
+  try {
+    const r = await fetch(`/tools/archive/families/${familyId}`);
+    const j = await r.json();
+    if (!j.success) return;
+    const f = j.data;
+    document.getElementById('breadcrumb-name').textContent = f.family_name;
+    document.getElementById('info-family-name').textContent = f.family_name;
+    document.getElementById('info-member-count').textContent = (f.member_count || 0) + ' 人';
+    document.getElementById('info-address').textContent = f.address || '-';
+    document.getElementById('info-notes').textContent = f.notes || '-';
+    document.getElementById('info-created').textContent = f.created_at?.substring(0, 10) || '-';
+    document.getElementById('side-member-count').textContent = (f.member_count || 0) + ' 人';
+    document.getElementById('side-created').textContent = f.created_at?.substring(0, 10) || '-';
+    document.getElementById('side-address').textContent = f.address || '-';
+    // 预填编辑弹窗
+    document.getElementById('edit-family-name').value = f.family_name || '';
+    document.getElementById('edit-family-address').value = f.address || '';
+    document.getElementById('edit-family-notes').value = f.notes || '';
+  } catch {}
+}
+
+async function loadMembers() {
+  const tbody = document.getElementById('members-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-400 py-8">加载中...</td></tr>';
+  try {
+    const r = await fetch(`/tools/archive/families/${familyId}/members`);
+    const j = await r.json();
+    if (!j.success) throw new Error(j.error?.message);
+    const members = j.data?.items || [];
+    document.getElementById('member-count-label').textContent = `共 ${members.length} 名成员`;
+    if (!members.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-400 py-8">暂无成员，点击右侧「新增成员」添加</td></tr>';
+      return;
+    }
+    tbody.innerHTML = members.map(m => `
+      <tr class="hover:bg-gray-50">
+        <td class="px-5 py-3">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0" style="background:#EBF2ED;color:#4E7A61;">${m.name[0] || '?'}</div>
+            <a href="/gui/admin/archives/${m.archive_id}?from=families" class="font-medium text-gray-800 hover:text-emerald-600 hover:underline">${m.name}</a>
+          </div>
+        </td>
+        <td class="px-5 py-3 text-gray-600">${m.relation || '-'}</td>
+        <td class="px-5 py-3 text-gray-600">${m.gender === 'male' ? '男' : m.gender === 'female' ? '女' : '-'}</td>
+        <td class="px-5 py-3 text-gray-500">${calcAge(m.birth_date)} 岁</td>
+        <td class="px-5 py-3 flex gap-3">
+          <a href="/gui/admin/archives/${m.archive_id}?from=families" class="text-xs hover:underline" style="color:#4E7A61;">查看档案</a>
+          <button onclick="removeMember('${m.id}','${m.name}')" class="text-red-400 text-xs hover:underline">移除</button>
+        </td>
+      </tr>`).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-gray-400 py-8">${e.message || '加载失败'}</td></tr>`;
+  }
+}
+
+async function removeMember(memberId, name) {
+  if (!confirm(`确定从家庭中移除成员「${name}」？`)) return;
+  try {
+    const r = await fetch(`/tools/archive/families/${familyId}/members/${memberId}`, {method: 'DELETE'});
+    const j = await r.json();
+    if (j.success) {
+      showToast('已移除');
+      loadMembers();
+      loadFamilyInfo();
+    } else {
+      showToast(j.error?.message || '操作失败');
+    }
+  } catch {
+    showToast('操作失败，请重试');
+  }
+}
+
+function openEditModal() {
+  document.getElementById('edit-family-modal').classList.remove('hidden');
+}
+
+async function saveFamily() {
+  const body = {
+    family_name: document.getElementById('edit-family-name').value.trim(),
+    address: document.getElementById('edit-family-address').value || null,
+    notes: document.getElementById('edit-family-notes').value || null,
+  };
+  if (!body.family_name) { showToast('请填写家庭名称'); return; }
+  try {
+    const r = await fetch(`/tools/archive/families/${familyId}`, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    const j = await r.json();
+    if (j.success) {
+      showToast('保存成功');
+      document.getElementById('edit-family-modal').classList.add('hidden');
+      loadFamilyInfo();
+    } else {
+      showToast(j.error?.message || '保存失败');
+    }
+  } catch {
+    showToast('操作失败，请重试');
+  }
+}
+
+async function searchMember() {
   const q = document.getElementById('member-search').value.trim();
-  if (!q) { showToast('请输入姓名或档案号'); return; }
-  // 演示：显示预设搜索结果
-  document.getElementById('member-search-results').classList.remove('hidden');
+  if (!q) { showToast('请输入姓名或手机号'); return; }
+  try {
+    const r = await fetch(`/tools/archive/archives?q=${encodeURIComponent(q)}&page_size=5`);
+    const j = await r.json();
+    const resultsDiv = document.getElementById('member-search-results');
+    if (!j.success || !j.data?.items?.length) {
+      resultsDiv.innerHTML = '<div class="px-3 py-3 text-gray-400 text-sm text-center divide-y">未找到匹配档案</div>';
+      resultsDiv.classList.remove('hidden');
+      return;
+    }
+    resultsDiv.innerHTML = '<div class="divide-y divide-gray-100">' + j.data.items.map(a => `
+      <div onclick="selectMember('${a.id}','${a.name}')"
+        class="px-3 py-2.5 hover:bg-emerald-50 cursor-pointer flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-gray-700">${a.name}</p>
+          <p class="text-xs text-gray-400">${a.gender === 'male' ? '男' : a.gender === 'female' ? '女' : ''} · ${a.phone || ''}</p>
+        </div>
+        <span class="text-xs text-emerald-600">选择</span>
+      </div>`).join('') + '</div>';
+    resultsDiv.classList.remove('hidden');
+  } catch {
+    showToast('搜索失败，请重试');
+  }
 }
 
 function selectMember(id, name) {
   selectedMemberId = id;
   selectedMemberName = name;
   document.getElementById('member-search-results').classList.add('hidden');
-  document.getElementById('selected-member-name').textContent = name + ' (' + id + ')';
+  document.getElementById('selected-member-name').textContent = name;
   document.getElementById('selected-member').classList.remove('hidden');
 }
 
@@ -515,14 +439,33 @@ function clearSelectedMember() {
   document.getElementById('member-search').value = '';
 }
 
-function confirmAddMember() {
+async function confirmAddMember() {
   if (!selectedMemberId) { showToast('请先搜索并选择一名成员'); return; }
   const relation = document.getElementById('member-relation').value;
   if (!relation) { showToast('请选择与户主的关系'); return; }
-  showToast('已成功将 ' + selectedMemberName + ' 添加至家庭\n关系：' + document.getElementById('member-relation').options[document.getElementById('member-relation').selectedIndex].text);
-  document.getElementById('addMemberModal').classList.add('hidden');
-  clearSelectedMember();
-  document.getElementById('member-relation').value = '';
+  try {
+    const r = await fetch(`/tools/archive/families/${familyId}/members`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({archive_id: selectedMemberId, relation}),
+    });
+    const j = await r.json();
+    if (j.success) {
+      showToast(`已成功将 ${selectedMemberName} 添加至家庭`);
+      document.getElementById('addMemberModal').classList.add('hidden');
+      clearSelectedMember();
+      document.getElementById('member-relation').value = '';
+      loadMembers();
+      loadFamilyInfo();
+    } else {
+      showToast(j.error?.message || '添加失败');
+    }
+  } catch {
+    showToast('操作失败，请重试');
+  }
 }
+
+loadFamilyInfo();
+loadMembers();
 </script>
 {% endblock %}

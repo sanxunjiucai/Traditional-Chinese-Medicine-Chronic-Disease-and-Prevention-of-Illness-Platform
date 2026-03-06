@@ -1,0 +1,199 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "followup" %}
+{% block title %}随访处理 - 治未病平台{% endblock %}
+{% block page_title %}随访处理记录{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-4">
+  <!-- 患者概要 -->
+  <div class="bg-white rounded-xl shadow-sm p-5 flex items-center gap-4">
+    <div id="p-avatar" class="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 font-bold text-lg">...</div>
+    <div class="flex-1">
+      <p class="font-semibold text-gray-800"><span id="p-name">加载中...</span></p>
+      <p class="text-sm text-gray-500"><span id="p-plan">-</span> · 随访任务ID: {{ task_id }}</p>
+    </div>
+    <span id="p-status" class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-sm">-</span>
+  </div>
+
+  <!-- 随访结果填写 -->
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <h3 class="font-semibold text-gray-700 mb-4">随访基本信息</h3>
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">随访方式 <span class="text-red-500">*</span></label>
+        <select id="method" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+          <option value="PHONE">电话</option>
+          <option value="VISIT">上门</option>
+          <option value="ONLINE">在线</option>
+          <option value="APP">APP</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">随访时间 <span class="text-red-500">*</span></label>
+        <input type="datetime-local" id="visit-time"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">随访结果</label>
+        <select id="result" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+          <option value="NORMAL">正常</option>
+          <option value="ABNORMAL">异常</option>
+          <option value="FOLLOW_REQUIRED">需要复访</option>
+          <option value="REFERRED">转诊</option>
+          <option value="NO_ANSWER">无人接听</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">下次随访时间</label>
+        <input type="date" id="next-visit"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+      </div>
+    </div>
+  </div>
+
+  <!-- 健康指标 -->
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <h3 class="font-semibold text-gray-700 mb-4">健康指标记录</h3>
+    <div class="grid grid-cols-3 gap-4">
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">收缩压 (mmHg)</label>
+        <input type="number" id="systolic" placeholder="如: 130"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">舒张压 (mmHg)</label>
+        <input type="number" id="diastolic" placeholder="如: 85"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">心率 (次/分)</label>
+        <input type="number" id="heart-rate" placeholder="如: 72"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">空腹血糖 (mmol/L)</label>
+        <input type="number" step="0.1" id="glucose" placeholder="如: 5.6"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">体重 (kg)</label>
+        <input type="number" step="0.1" id="weight" placeholder="如: 68.5"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+      </div>
+    </div>
+  </div>
+
+  <!-- 依从性评估 -->
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <h3 class="font-semibold text-gray-700 mb-4">依从性评估</h3>
+    <div class="grid grid-cols-3 gap-4">
+      <div>
+        <p class="text-sm text-gray-600 mb-2">服药依从性</p>
+        <div class="flex gap-2">
+          <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="med" value="GOOD"> <span class="text-sm">良好</span></label>
+          <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="med" value="FAIR"> <span class="text-sm">一般</span></label>
+          <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="med" value="POOR"> <span class="text-sm">差</span></label>
+        </div>
+      </div>
+      <div>
+        <p class="text-sm text-gray-600 mb-2">饮食依从性</p>
+        <div class="flex gap-2">
+          <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="diet" value="GOOD"> <span class="text-sm">良好</span></label>
+          <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="diet" value="FAIR"> <span class="text-sm">一般</span></label>
+          <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="diet" value="POOR"> <span class="text-sm">差</span></label>
+        </div>
+      </div>
+      <div>
+        <p class="text-sm text-gray-600 mb-2">运动依从性</p>
+        <div class="flex gap-2">
+          <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="exercise" value="GOOD"> <span class="text-sm">良好</span></label>
+          <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="exercise" value="FAIR"> <span class="text-sm">一般</span></label>
+          <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="exercise" value="POOR"> <span class="text-sm">差</span></label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 随访记录 -->
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <h3 class="font-semibold text-gray-700 mb-3">随访记录 <span class="text-red-500">*</span></h3>
+    <textarea id="notes" rows="5" placeholder="请详细记录本次随访情况：患者主诉、症状变化、用药情况、生活方式、下步处置建议等..."
+      class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"></textarea>
+    <div class="mt-3">
+      <label class="block text-sm text-gray-600 mb-1">处置建议</label>
+      <textarea id="recommendation" rows="2" placeholder="本次随访后的处置建议..."
+        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"></textarea>
+    </div>
+  </div>
+
+  <!-- 操作按钮 -->
+  <div class="flex gap-3 justify-between">
+    <a href="/gui/admin/followup/{{ task_id }}"
+      class="px-5 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">取消</a>
+    <div class="flex gap-2">
+      <button onclick="saveRecord('DRAFT')"
+        class="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">暂存</button>
+      <button onclick="saveRecord('SUBMIT')"
+        class="bg-amber-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-amber-700 font-medium">提交随访记录</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const TASK_ID = '{{ task_id }}';
+const STATUS_LABELS = {PENDING:'待随访',DONE:'已完成',MISSED:'已漏访'};
+
+// 加载任务信息
+async function loadTaskInfo() {
+  try {
+    const res = await fetch(`/tools/admin/followup/tasks/${TASK_ID}`);
+    const data = await res.json();
+    if (data.success) {
+      const d = data.data;
+      document.getElementById('p-name').textContent = d.patient_name || '-';
+      document.getElementById('p-plan').textContent = d.task_name || d.plan_name || '-';
+      document.getElementById('p-avatar').textContent = (d.patient_name||'?')[0];
+      const s = document.getElementById('p-status');
+      s.textContent = STATUS_LABELS[d.status] || d.status || '-';
+    }
+  } catch(e) {
+    document.getElementById('p-name').textContent = '患者信息加载失败';
+  }
+}
+loadTaskInfo();
+
+// 默认当前时间
+const now = new Date();
+now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+document.getElementById('visit-time').value = now.toISOString().slice(0, 16);
+
+async function saveRecord(mode) {
+  const notes = document.getElementById('notes').value.trim();
+  if (mode === 'SUBMIT' && !notes) {
+    showToast('请填写随访记录');
+    return;
+  }
+  const body = {
+    task_id: '{{ task_id }}',
+    method: document.getElementById('method').value,
+    visit_time: document.getElementById('visit-time').value,
+    result: document.getElementById('result').value,
+    next_visit: document.getElementById('next-visit').value,
+    indicators: {
+      systolic: document.getElementById('systolic').value,
+      diastolic: document.getElementById('diastolic').value,
+      heart_rate: document.getElementById('heart-rate').value,
+      glucose: document.getElementById('glucose').value,
+      weight: document.getElementById('weight').value,
+    },
+    notes,
+    recommendation: document.getElementById('recommendation').value,
+    status: mode,
+  };
+  showToast(`随访记录${mode==='DRAFT'?'已暂存':'提交成功'}`);
+  if (mode === 'SUBMIT') window.location.href = '/gui/admin/followup/tasks';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,199 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "assessments" %}
+{% block title %}体质评估管理 - 治未病平台{% endblock %}
+{% block page_title %}体质评估管理{% endblock %}
+
+{% block content %}
+<!-- 搜索栏 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <input id="q" type="text" placeholder="患者姓名搜索"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-rose-300">
+  <select id="status" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300">
+    <option value="">全部状态</option>
+    <option value="ANSWERING">作答中</option>
+    <option value="SUBMITTED">已提交</option>
+    <option value="SCORED">已评分</option>
+    <option value="REPORTED">已出报告</option>
+  </select>
+  <select id="body_type" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300">
+    <option value="">全部体质</option>
+    <option value="BALANCED">平和质</option>
+    <option value="QI_DEFICIENCY">气虚质</option>
+    <option value="YANG_DEFICIENCY">阳虚质</option>
+    <option value="YIN_DEFICIENCY">阴虚质</option>
+    <option value="PHLEGM_DAMPNESS">痰湿质</option>
+    <option value="DAMP_HEAT">湿热质</option>
+    <option value="BLOOD_STASIS">血瘀质</option>
+    <option value="QI_STAGNATION">气郁质</option>
+    <option value="SPECIAL_DIATHESIS">特禀质</option>
+  </select>
+  <button onclick="loadAssessments(1)"
+    class="bg-rose-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-rose-700">搜索</button>
+  <div class="ml-auto flex items-center gap-3">
+    <span class="text-gray-400 text-sm">共 <span id="total">-</span> 条记录</span>
+    <a href="/gui/admin/assessments/new"
+      class="bg-rose-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-rose-700">+ 新增评估</a>
+  </div>
+</div>
+
+<!-- 表格 -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-5 py-3 text-left">患者</th>
+        <th class="px-5 py-3 text-left">状态</th>
+        <th class="px-5 py-3 text-left">主体质</th>
+        <th class="px-5 py-3 text-left">兼夹体质</th>
+        <th class="px-5 py-3 text-left">评估时间</th>
+        <th class="px-5 py-3 text-left">出报告时间</th>
+        <th class="px-5 py-3 text-left">操作</th>
+      </tr>
+    </thead>
+    <tbody id="assess-list" class="divide-y divide-gray-100">
+      <tr><td colspan="7" class="px-5 py-8 text-center text-gray-400">加载中...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 分页 -->
+<div id="pagination" class="flex justify-center gap-2 mt-4 hidden"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let currentPage = 1;
+
+const STATUS_LABELS = {
+  ANSWERING: ['作答中', 'bg-teal-100 text-teal-700'],
+  SUBMITTED: ['已提交', 'bg-amber-100 text-amber-700'],
+  SCORED:    ['已评分', 'bg-teal-100 text-teal-700'],
+  REPORTED:  ['已出报告', 'bg-green-100 text-green-700'],
+};
+const BODY_TYPE_LABELS = {
+  BALANCED: '平和质', QI_DEFICIENCY: '气虚质', YANG_DEFICIENCY: '阳虚质',
+  YIN_DEFICIENCY: '阴虚质', PHLEGM_DAMPNESS: '痰湿质', DAMP_HEAT: '湿热质',
+  BLOOD_STASIS: '血瘀质', QI_STAGNATION: '气郁质', SPECIAL_DIATHESIS: '特禀质'
+};
+
+const DEMO_ASSESSMENTS = {
+  total: 5,
+  items: [
+    {id: 'a001', user_name: '李建国', user_phone: '138****0023', status: 'REPORTED',
+     main_type: 'QI_DEFICIENCY', secondary_types: ['YANG_DEFICIENCY'],
+     created_at: '2026-01-15T10:00:00', scored_at: '2026-01-15T14:30:00'},
+    {id: 'a002', user_name: '张淑芬', user_phone: '139****0045', status: 'SCORED',
+     main_type: 'PHLEGM_DAMPNESS', secondary_types: ['DAMP_HEAT'],
+     created_at: '2026-02-20T09:15:00', scored_at: '2026-02-20T11:00:00'},
+    {id: 'a003', user_name: '赵明', user_phone: '136****0067', status: 'ANSWERING',
+     main_type: null, secondary_types: [],
+     created_at: '2026-03-01T14:00:00', scored_at: null},
+    {id: 'a004', user_name: '王晓燕', user_phone: '137****0091', status: 'SUBMITTED',
+     main_type: null, secondary_types: [],
+     created_at: '2026-03-02T16:30:00', scored_at: null},
+    {id: 'a005', user_name: '李明', user_phone: '135****0089', status: 'REPORTED',
+     main_type: 'BALANCED', secondary_types: [],
+     created_at: '2026-01-10T08:00:00', scored_at: '2026-01-10T10:00:00'},
+  ]
+};
+
+function getOpsHtml(a) {
+  const sep = '<span class="mx-1 text-gray-200">|</span>';
+  const parts = [`<a href="/gui/admin/assessments/${a.id}" class="text-rose-600 hover:underline">详情</a>`];
+  if (a.status === 'ANSWERING') {
+    parts.push(`<a href="/gui/admin/assessments/${a.id}/answer" class="text-teal-600 hover:underline">继续作答</a>`);
+  }
+  if (a.status === 'SCORED') {
+    parts.push(`<a href="/gui/admin/assessments/${a.id}/report" class="text-teal-600 hover:underline">出报告</a>`);
+  }
+  if (a.status === 'REPORTED') {
+    parts.push(`<a href="/gui/admin/assessments/${a.id}/report" class="text-green-600 hover:underline">查看报告</a>`);
+  }
+  return parts.join(sep);
+}
+
+async function loadAssessments(page = 1) {
+  currentPage = page;
+  const q = document.getElementById('q').value.trim();
+  const status = document.getElementById('status').value;
+  const body_type = document.getElementById('body_type').value;
+  const params = new URLSearchParams({ page, page_size: 20 });
+  if (q) params.set('q', q);
+  if (status) params.set('status', status);
+  if (body_type) params.set('body_type', body_type);
+
+  let total = 0, items = [];
+  try {
+    const resp = await fetch('/tools/admin/assessments?' + params.toString());
+    const json = await resp.json();
+    if (json.success && json.data.items.length > 0) {
+      total = json.data.total;
+      items = json.data.items;
+    } else {
+      throw new Error('empty');
+    }
+  } catch (e) {
+    const all = DEMO_ASSESSMENTS.items.filter(a => {
+      if (q && !a.user_name.includes(q)) return false;
+      if (status && a.status !== status) return false;
+      if (body_type && a.main_type !== body_type) return false;
+      return true;
+    });
+    total = all.length;
+    items = all.slice((page - 1) * 20, page * 20);
+  }
+
+  document.getElementById('total').textContent = total;
+  const tbody = document.getElementById('assess-list');
+
+  if (items.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="px-5 py-8 text-center text-gray-400">暂无数据</td></tr>';
+    document.getElementById('pagination').classList.add('hidden');
+    return;
+  }
+
+  tbody.innerHTML = items.map(a => {
+    const [statusLabel, statusClass] = STATUS_LABELS[a.status] || [a.status, 'bg-gray-100 text-gray-600'];
+    const mainType = a.main_type ? (BODY_TYPE_LABELS[a.main_type] || a.main_type) : '-';
+    const secondaryTypes = (a.secondary_types || []).map(t => BODY_TYPE_LABELS[t] || t).join('、') || '-';
+    return `
+      <tr class="hover:bg-gray-50">
+        <td class="px-5 py-3">
+          <p class="font-medium text-gray-800">${a.user_name}</p>
+          <p class="text-gray-400 text-xs">${a.user_phone}</p>
+        </td>
+        <td class="px-5 py-3">
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}">
+            ${statusLabel}
+          </span>
+        </td>
+        <td class="px-5 py-3 font-medium text-rose-700">${mainType}</td>
+        <td class="px-5 py-3 text-gray-600 text-xs">${secondaryTypes}</td>
+        <td class="px-5 py-3 text-gray-500 text-xs">${a.created_at.slice(0, 16).replace('T', ' ')}</td>
+        <td class="px-5 py-3 text-gray-500 text-xs">
+          ${a.scored_at ? a.scored_at.slice(0, 16).replace('T', ' ') : '-'}
+        </td>
+        <td class="px-5 py-3 text-xs whitespace-nowrap">${getOpsHtml(a)}</td>
+      </tr>
+    `;
+  }).join('');
+
+  const totalPages = Math.ceil(total / 20);
+  renderPagination(totalPages, currentPage, loadAssessments);
+}
+
+function renderPagination(totalPages, currentPage, cb) {
+  const el = document.getElementById('pagination');
+  if (totalPages <= 1) { el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  let html = '';
+  for (let i = 1; i <= totalPages; i++) {
+    html += `<button onclick="${cb.name}(${i})"
+      class="px-3 py-1 rounded-lg text-sm ${i === currentPage ? 'bg-rose-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}">${i}</button>`;
+  }
+  el.innerHTML = html;
+}
+
+loadAssessments(1);
+</script>
+{% endblock %}

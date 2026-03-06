@@ -1,0 +1,310 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "scale_library" %}
+{% block title %}版本历史 - 治未病平台{% endblock %}
+{% block page_title %}量表版本历史{% endblock %}
+
+{% block extra_head %}
+<style>
+  .timeline-line { position: absolute; left: 19px; top: 40px; bottom: 0; width: 2px; background: #e5e7eb; }
+  .diff-add { background: #f0fdf4; color: #16a34a; }
+  .diff-del { background: #fef2f2; color: #dc2626; }
+  .diff-mod { background: #fffbeb; color: #d97706; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 面包屑 -->
+<div class="mb-4 flex items-center gap-2 text-sm text-gray-500">
+  <a href="/gui/admin/scales" class="hover:text-green-600">量表库</a>
+  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+  </svg>
+  <span id="bc-scale-name" class="hover:text-green-600 cursor-pointer">PHQ-9 抑郁症筛查量表</span>
+  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+  </svg>
+  <span class="text-gray-700 font-medium">版本历史</span>
+</div>
+
+<!-- 量表基本信息卡 -->
+<div class="bg-white rounded-xl shadow-sm p-5 mb-4">
+  <div class="flex items-start justify-between">
+    <div class="flex items-center gap-4">
+      <div class="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
+        <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+      </div>
+      <div>
+        <h3 class="font-semibold text-gray-800 text-lg">PHQ-9 抑郁症筛查量表</h3>
+        <div class="flex items-center gap-3 mt-1">
+          <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">心理健康</span>
+          <span class="text-xs text-gray-400">PHQ-9 · 9题 · 国际通用</span>
+        </div>
+      </div>
+    </div>
+    <div class="text-right">
+      <div class="flex items-center gap-2 justify-end">
+        <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">启用中</span>
+        <span class="text-sm font-semibold text-gray-700">v2.3</span>
+        <span class="text-xs bg-green-100 text-green-700 border border-green-200 px-2 py-0.5 rounded-full">当前版本</span>
+      </div>
+      <p class="text-xs text-gray-400 mt-1">最后修改：李明医生 · 2026-02-15 14:32</p>
+    </div>
+  </div>
+  <div class="grid grid-cols-4 gap-4 mt-4 pt-4 border-t border-gray-50">
+    <div class="text-center">
+      <p class="text-lg font-bold text-gray-800">8</p>
+      <p class="text-xs text-gray-400">历史版本</p>
+    </div>
+    <div class="text-center">
+      <p class="text-lg font-bold text-gray-800">9</p>
+      <p class="text-xs text-gray-400">当前题目数</p>
+    </div>
+    <div class="text-center">
+      <p class="text-lg font-bold text-gray-800">1,248</p>
+      <p class="text-xs text-gray-400">累计作答次数</p>
+    </div>
+    <div class="text-center">
+      <p class="text-lg font-bold text-gray-800">2022-03</p>
+      <p class="text-xs text-gray-400">首次发布</p>
+    </div>
+  </div>
+</div>
+
+<!-- 版本对比面板（默认隐藏） -->
+<div id="compare-panel" class="hidden bg-white rounded-xl shadow-sm p-5 mb-4 border border-blue-100">
+  <div class="flex items-center justify-between mb-4">
+    <h4 class="font-semibold text-gray-800 flex items-center gap-2">
+      <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+      </svg>
+      版本对比：<span id="compare-from" class="text-blue-600">v1.2</span> vs <span id="compare-to" class="text-green-600">v2.3（当前）</span>
+    </h4>
+    <button onclick="document.getElementById('compare-panel').classList.add('hidden')"
+      class="text-gray-400 hover:text-gray-600">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
+  </div>
+  <div id="compare-content" class="grid grid-cols-2 gap-4">
+    <!-- 由 JS 填充 -->
+  </div>
+</div>
+
+<!-- 版本时间轴 -->
+<div class="bg-white rounded-xl shadow-sm p-6">
+  <h3 class="font-semibold text-gray-700 mb-6">版本时间轴</h3>
+  <div class="relative" id="timeline">
+    <div class="timeline-line"></div>
+    <!-- 由 JS 渲染 -->
+  </div>
+</div>
+
+<div id="toast" class="fixed top-4 right-4 z-[100] hidden">
+  <div class="bg-gray-800 text-white px-4 py-2.5 rounded-lg text-sm shadow-lg flex items-center gap-2">
+    <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+    </svg>
+    <span id="toast-msg"></span>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const DEMO_VERSIONS = [
+  {
+    ver: 'v2.3', date: '2026-02-15', author: '李明医生', isCurrent: true,
+    summary: '修订选项文字描述，优化语言表述规范',
+    changes: [
+      { type: 'mod', text: '第3题：将"睡眠困难（如难以入睡、半夜醒来或早醒）"改为"入睡困难、睡眠浅或早醒"' },
+      { type: 'mod', text: '第7题：将"注意力难以集中，如看报或看电视"更新为"注意力难以集中于阅读、工作或交谈"' },
+      { type: 'mod', text: '计分说明文字更新，增加"临界范围（5-9分）建议观察随访"的提示' },
+    ]
+  },
+  {
+    ver: 'v2.2', date: '2025-11-03', author: '王芳医生', isCurrent: false,
+    summary: '新增繁体中文版本支持，调整计分阈值说明',
+    changes: [
+      { type: 'add', text: '新增繁体中文版题目及选项（适用于港澳台地区）' },
+      { type: 'mod', text: '计分说明：将轻度阈值修订为 5-9 分（原 5-8 分），与最新临床指南保持一致' },
+    ]
+  },
+  {
+    ver: 'v2.1', date: '2025-07-20', author: '系统管理员', isCurrent: false,
+    summary: '增加老年版适配说明，修复计分逻辑 Bug',
+    changes: [
+      { type: 'add', text: '量表页眉增加"适用于18岁以上成年人"的注释说明' },
+      { type: 'add', text: '新增老年版填写指引（字号放大、示例说明）' },
+      { type: 'mod', text: '修复第9题（关于死亡或伤害自己的想法）计分权重异常的问题' },
+    ]
+  },
+  {
+    ver: 'v2.0', date: '2025-03-12', author: '张伟主任', isCurrent: false,
+    summary: '大版本升级：引入 DSM-5 最新标准，重新验证信效度',
+    changes: [
+      { type: 'mod', text: '量表描述更新，引用2023年DSM-5-TR版本标准' },
+      { type: 'add', text: '新增功能性损害评估题（第10题，补充题，不计入总分）' },
+      { type: 'mod', text: '全部9道题目的选项文字进行了系统性优化' },
+      { type: 'del', text: '移除旧版额外说明页（已合并至报告模板中）' },
+    ]
+  },
+  {
+    ver: 'v1.3', date: '2024-08-05', author: '李明医生', isCurrent: false,
+    summary: '增加中医特色补充题，加入舌苔、睡眠时段描述',
+    changes: [
+      { type: 'add', text: '附加题A：近2周是否有口苦、口黏腻感（用于中医体质辅助判断，不计入PHQ-9总分）' },
+      { type: 'add', text: '附加题B：入睡时间通常在几点？（用于与睡眠量表联动分析）' },
+    ]
+  },
+  {
+    ver: 'v1.2', date: '2024-02-18', author: '系统管理员', isCurrent: false,
+    summary: '修正翻译错误，优化移动端填写体验',
+    changes: [
+      { type: 'mod', text: '第2题：修正"兴趣"的翻译，与原版 Anhedonia 含义更贴近' },
+      { type: 'mod', text: '移动端单选选项调整为竖排，减少横向滑动' },
+    ]
+  },
+  {
+    ver: 'v1.1', date: '2023-09-10', author: '王芳医生', isCurrent: false,
+    summary: '初次适配平台格式，调整量表样式与评分显示',
+    changes: [
+      { type: 'add', text: '接入平台评分自动计算模块' },
+      { type: 'add', text: '完成后自动生成结果报告（含严重程度标签）' },
+      { type: 'mod', text: '量表介绍文字与知情同意说明更新' },
+    ]
+  },
+  {
+    ver: 'v1.0', date: '2022-03-01', author: '张伟主任', isCurrent: false,
+    summary: '首次发布，完成PHQ-9量表的初始导入与配置',
+    changes: [
+      { type: 'add', text: '导入 PHQ-9 全部 9 道题目（中文简化版）' },
+      { type: 'add', text: '配置计分规则：4个选项（0-3分），总分 0-27 分' },
+      { type: 'add', text: '配置严重程度分级：0-4无/5-9轻度/10-14中度/15-19中重度/20-27重度' },
+    ]
+  },
+];
+
+const TYPE_CONFIG = {
+  add: { label: '新增', cls: 'diff-add', icon: '+' },
+  del: { label: '删除', cls: 'diff-del', icon: '-' },
+  mod: { label: '修改', cls: 'diff-mod', icon: '~' },
+};
+
+let expandedVersions = new Set();
+
+function renderTimeline() {
+  const container = document.getElementById('timeline');
+  container.innerHTML = '<div class="timeline-line"></div>';
+
+  DEMO_VERSIONS.forEach((v, idx) => {
+    const isExpanded = expandedVersions.has(v.ver);
+    const dotClass = v.isCurrent ? 'bg-green-500 ring-4 ring-green-100' : 'bg-gray-300';
+
+    const changesHtml = v.changes.map(c => {
+      const tc = TYPE_CONFIG[c.type];
+      return `<div class="flex items-start gap-2 px-3 py-2 rounded-lg ${tc.cls} mb-1.5">
+        <span class="font-mono text-xs font-bold flex-shrink-0 mt-0.5">${tc.icon}</span>
+        <span class="text-xs">${c.text}</span>
+      </div>`;
+    }).join('');
+
+    const card = document.createElement('div');
+    card.className = 'relative pl-12 pb-8' + (idx === DEMO_VERSIONS.length - 1 ? ' pb-0' : '');
+    card.innerHTML = `
+      <div class="absolute left-3.5 top-4 w-4 h-4 rounded-full ${dotClass} flex-shrink-0 -translate-x-1/2 z-10 border-2 border-white"></div>
+      <div class="bg-white border ${v.isCurrent ? 'border-green-200' : 'border-gray-100'} rounded-xl p-4 shadow-sm hover:shadow-md transition">
+        <div class="flex items-start justify-between mb-2">
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-gray-800 text-base">${v.ver}</span>
+            ${v.isCurrent ? '<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">当前版本</span>' : ''}
+          </div>
+          <div class="flex items-center gap-2">
+            ${!v.isCurrent ? `
+            <button onclick="compareVersion('${v.ver}')"
+              class="text-xs text-blue-500 hover:text-blue-700 px-2 py-1 rounded border border-blue-200 hover:bg-blue-50">与当前对比</button>
+            <button onclick="restoreVersion('${v.ver}')"
+              class="text-xs text-amber-500 hover:text-amber-700 px-2 py-1 rounded border border-amber-200 hover:bg-amber-50">恢复此版本</button>
+            ` : ''}
+            <button onclick="toggleExpand('${v.ver}')"
+              class="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
+              <svg class="w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24" id="chevron-${v.ver.replace('.', '_')}">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+              ${isExpanded ? '收起' : '查看变更'}
+            </button>
+          </div>
+        </div>
+        <p class="text-xs text-gray-400 mb-2">${v.date} · ${v.author}</p>
+        <p class="text-sm text-gray-600">${v.summary}</p>
+        <div id="changes-${v.ver.replace('.', '_')}" class="${isExpanded ? '' : 'hidden'} mt-3 pt-3 border-t border-gray-100">
+          <p class="text-xs font-medium text-gray-500 mb-2">变更详情（${v.changes.length} 项）</p>
+          ${changesHtml}
+        </div>
+      </div>`;
+    container.appendChild(card);
+  });
+}
+
+function toggleExpand(ver) {
+  const key = ver.replace('.', '_');
+  const el = document.getElementById('changes-' + key);
+  if (expandedVersions.has(ver)) {
+    expandedVersions.delete(ver);
+  } else {
+    expandedVersions.add(ver);
+  }
+  renderTimeline();
+}
+
+function compareVersion(fromVer) {
+  const panel = document.getElementById('compare-panel');
+  document.getElementById('compare-from').textContent = fromVer;
+  const fromV = DEMO_VERSIONS.find(v => v.ver === fromVer);
+  const toV = DEMO_VERSIONS[0]; // current
+
+  panel.classList.remove('hidden');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  const content = document.getElementById('compare-content');
+  const renderSide = (v, label, labelCls) => `
+    <div>
+      <div class="flex items-center gap-2 mb-3">
+        <span class="font-semibold text-gray-700">${v.ver}</span>
+        <span class="text-xs ${labelCls} px-2 py-0.5 rounded-full">${label}</span>
+        <span class="text-xs text-gray-400">${v.date} · ${v.author}</span>
+      </div>
+      <div class="space-y-1.5">
+        ${v.changes.map(c => {
+          const tc = TYPE_CONFIG[c.type];
+          return `<div class="flex items-start gap-2 px-3 py-2 rounded-lg ${tc.cls}">
+            <span class="font-mono text-xs font-bold flex-shrink-0 mt-0.5">${tc.icon}</span>
+            <span class="text-xs">${c.text}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+
+  content.innerHTML =
+    renderSide(fromV, '旧版本', 'bg-gray-100 text-gray-600') +
+    renderSide(toV, '当前版本', 'bg-green-100 text-green-700');
+}
+
+function restoreVersion(ver) {
+  if (confirm(`确定要将量表恢复至 ${ver} 版本吗？恢复后将生成新的版本记录。`)) {
+    showToast(`已提交恢复至 ${ver} 的申请，待管理员审核`);
+  }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  t.classList.remove('hidden');
+  setTimeout(() => t.classList.add('hidden'), 3500);
+}
+
+renderTimeline();
+</script>
+{% endblock %}

@@ -1,0 +1,522 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "followup" %}
+{% block title %}随访计划制定 - 治未病平台{% endblock %}
+{% block page_title %}随访计划制定{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-5">
+
+  <!-- 步骤指示器 -->
+  <div class="bg-white rounded-xl shadow-sm px-6 py-4">
+    <div class="flex items-center">
+      <!-- Step 1 -->
+      <div id="step-indicator-1" class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-full bg-amber-600 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+          1
+        </div>
+        <span class="text-sm font-medium text-amber-600">选择患者</span>
+      </div>
+      <!-- Connector -->
+      <div class="flex-1 mx-4 h-0.5 bg-gray-200 relative">
+        <div id="step-connector" class="absolute inset-0 bg-amber-600 transition-all duration-300" style="width:0%"></div>
+      </div>
+      <!-- Step 2 -->
+      <div id="step-indicator-2" class="flex items-center gap-2">
+        <div id="step2-circle"
+          class="w-8 h-8 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center text-sm font-bold flex-shrink-0 transition-colors duration-300">
+          2
+        </div>
+        <span id="step2-label" class="text-sm font-medium text-gray-400 transition-colors duration-300">配置计划</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- =============================== -->
+  <!-- Step 1 — 选择患者 -->
+  <!-- =============================== -->
+  <div id="step1">
+
+    <!-- 单人 / 批量 切换 -->
+    <div class="bg-white rounded-xl shadow-sm p-6">
+      <div class="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit mb-5">
+        <button id="tab-single" onclick="switchTab('single')"
+          class="px-5 py-1.5 rounded-md text-sm font-medium bg-white text-amber-600 shadow-sm transition-all">
+          单人
+        </button>
+        <button id="tab-batch" onclick="switchTab('batch')"
+          class="px-5 py-1.5 rounded-md text-sm font-medium text-gray-500 transition-all">
+          批量
+        </button>
+      </div>
+
+      <!-- 单人面板 -->
+      <div id="panel-single">
+        <div class="relative">
+          <label class="block text-sm text-gray-600 mb-1">患者搜索</label>
+          <div class="relative">
+            <input type="text" id="patient-search" placeholder="点击或输入姓名/手机号搜索..."
+              onfocus="searchPatient('')" oninput="searchPatient(this.value)"
+              autocomplete="off"
+              class="w-full border border-gray-200 rounded-lg pl-4 pr-10 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+            <svg class="w-4 h-4 text-gray-400 absolute right-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+          </div>
+          <!-- 搜索结果下拉 -->
+          <div id="search-dropdown" class="hidden absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+          </div>
+        </div>
+
+        <!-- 已选患者卡片 -->
+        <div id="selected-patient-card" class="hidden mt-4 border border-amber-200 rounded-xl p-4 bg-amber-50">
+          <div class="flex items-start justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-sm flex-shrink-0" id="patient-avatar">张</div>
+              <div>
+                <p class="font-semibold text-gray-800 text-sm" id="patient-name-display">张三</p>
+                <p class="text-xs text-gray-500 mt-0.5" id="patient-archive-no">档案号：GZ2024001</p>
+              </div>
+            </div>
+            <button onclick="clearSelectedPatient()" class="text-gray-400 hover:text-gray-600 text-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <span class="text-xs bg-white border border-amber-200 text-amber-700 px-2 py-0.5 rounded-full" id="patient-constitution"></span>
+            <span class="text-xs bg-white border border-gray-200 text-gray-600 px-2 py-0.5 rounded-full" id="patient-diseases"></span>
+          </div>
+        </div>
+        <p class="text-xs text-gray-400 mt-2">请先搜索并选择一名患者</p>
+      </div>
+
+      <!-- 批量面板 -->
+      <div id="panel-batch" class="hidden">
+        <p class="text-sm text-gray-600 mb-3">设置筛选条件，系统自动匹配符合条件的患者：</p>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">档案类型（可多选）</label>
+            <div class="flex flex-wrap gap-3">
+              <label class="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" name="batch-archive" value="NORMAL" class="rounded accent-amber-600" checked>
+                <span class="text-sm text-gray-700">普通</span>
+              </label>
+              <label class="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" name="batch-archive" value="ELDERLY" class="rounded accent-amber-600">
+                <span class="text-sm text-gray-700">老年人</span>
+              </label>
+              <label class="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" name="batch-archive" value="KEY_FOCUS" class="rounded accent-amber-600">
+                <span class="text-sm text-gray-700">重点关注</span>
+              </label>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">疾病类型</label>
+            <input type="text" id="batch-disease" placeholder="如：高血压（留空不限）"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+          </div>
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">体质类型</label>
+            <select id="batch-constitution"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+              <option value="">不限体质</option>
+              <option value="QI_XU">气虚质</option>
+              <option value="YANG_XU">阳虚质</option>
+              <option value="YIN_XU">阴虚质</option>
+              <option value="TAN_SHI">痰湿质</option>
+              <option value="SHI_RE">湿热质</option>
+              <option value="QI_YU">气郁质</option>
+              <option value="TE_BING">特禀质</option>
+              <option value="XUE_YU">血瘀质</option>
+              <option value="PING_HE">平和质</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">年龄范围</label>
+            <div class="flex gap-2 items-center">
+              <input type="number" id="batch-age-min" placeholder="最低" min="0" max="120"
+                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+              <span class="text-gray-400 flex-shrink-0">~</span>
+              <input type="number" id="batch-age-max" placeholder="最高" min="0" max="120"
+                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+              <span class="text-sm text-gray-400 flex-shrink-0">岁</span>
+            </div>
+          </div>
+          <div class="col-span-2">
+            <label class="block text-sm text-gray-600 mb-1">责任医生</label>
+            <input type="text" id="batch-doctor" placeholder="留空不限（输入医生姓名）"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+          </div>
+        </div>
+        <div class="mt-4 flex items-center gap-3">
+          <button onclick="batchQuery()"
+            class="bg-amber-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-amber-700 transition-colors">
+            查询匹配患者
+          </button>
+          <div id="batch-result" class="hidden items-center gap-2">
+            <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+            <span class="text-sm text-gray-700">共匹配 <strong class="text-amber-600">48</strong> 名患者，符合制定条件</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 下一步按钮 -->
+    <div class="flex justify-end">
+      <button onclick="goStep2()"
+        class="bg-amber-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors flex items-center gap-2">
+        下一步
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- =============================== -->
+  <!-- Step 2 — 配置计划 -->
+  <!-- =============================== -->
+  <div id="step2" class="hidden space-y-4">
+
+    <div class="bg-white rounded-xl shadow-sm p-6">
+      <h3 class="font-semibold text-gray-700 mb-4 flex items-center gap-2">
+        <span class="w-1 h-4 bg-amber-600 rounded-full inline-block"></span>
+        计划基本信息
+      </h3>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">计划名称 <span class="text-red-500">*</span></label>
+          <input type="text" id="plan-name"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+        </div>
+
+        <!-- 规则选择 / 自定义切换 -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-sm text-gray-600">随访规则</label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="custom-toggle" onchange="toggleCustom(this.checked)"
+                class="rounded accent-amber-600">
+              <span class="text-sm text-gray-600">自定义配置</span>
+            </label>
+          </div>
+          <select id="plan-rule" onchange="onRuleChange()"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+            <option value="">-- 请选择随访规则 --</option>
+            <option value="1">高血压月度随访（每月·电话）</option>
+            <option value="2">糖尿病月度随访（每月·在线）</option>
+            <option value="3">重点人群双周随访（每两周·上门）</option>
+            <option value="4">预警后随访（一次·电话）</option>
+          </select>
+        </div>
+
+        <!-- 自定义配置区（默认隐藏） -->
+        <div id="custom-fields" class="hidden border border-amber-200 rounded-xl p-4 bg-amber-50 space-y-3">
+          <p class="text-xs text-amber-700 font-medium">自定义配置（优先级高于规则）</p>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">随访频率</label>
+              <select id="custom-freq" onchange="calcEstTasks()"
+                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+                <option value="DAILY">每日</option>
+                <option value="TWICE_WEEK">每周2次</option>
+                <option value="WEEKLY">每周</option>
+                <option value="BIWEEKLY">每两周</option>
+                <option value="MONTHLY" selected>每月</option>
+                <option value="QUARTERLY">每季度</option>
+                <option value="ONCE">一次</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">随访方式</label>
+              <select id="custom-method"
+                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+                <option value="PHONE">电话</option>
+                <option value="ONLINE">在线</option>
+                <option value="APP">APP</option>
+                <option value="VISIT">上门</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">随访周期</label>
+              <div class="flex items-center gap-2">
+                <input type="number" id="custom-cycle" value="12" min="1" onchange="calcEstTasks()"
+                  class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+                <span class="text-sm text-gray-500 whitespace-nowrap">周</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">开始日期</label>
+            <input type="date" id="plan-start-date"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+          </div>
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">执行医生</label>
+            <input type="text" id="plan-doctor" placeholder="请输入执行医生姓名"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">备注</label>
+          <textarea id="plan-remark" rows="2" placeholder="计划备注说明..."
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 resize-none"></textarea>
+        </div>
+
+        <!-- 预计任务数（只读） -->
+        <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-center gap-3">
+          <svg class="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+          </svg>
+          <div>
+            <p class="text-xs text-amber-700">预计生成随访任务</p>
+            <p class="text-sm font-semibold text-amber-800 mt-0.5">
+              <span id="est-task-count">3</span> 条
+              <span id="est-task-desc" class="font-normal text-amber-600 ml-1">（每月 × 12周 ≈ 3次）</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 按钮行 -->
+    <div class="flex items-center justify-between">
+      <button onclick="goStep1()"
+        class="px-5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+        上一步
+      </button>
+      <button onclick="submitPlan()"
+        class="bg-amber-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors">
+        提交制定
+      </button>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ── 全局状态 ──
+let currentTab = 'single';
+let selectedPatient = null;
+let batchQueried = false;
+
+// 真实患者数据（从API加载）
+let _allPatients = null;
+async function loadAllPatients() {
+  if (_allPatients !== null) return _allPatients;
+  try {
+    const res = await fetch('/tools/archive/archives?page_size=100');
+    const data = await res.json();
+    _allPatients = (data.success && data.data?.items) ? data.data.items : [];
+  } catch { _allPatients = []; }
+  return _allPatients;
+}
+
+// ── 步骤控制 ──
+function goStep2() {
+  if (currentTab === 'single' && !selectedPatient) {
+    showToast('请先搜索并选择一名患者');
+    return;
+  }
+  if (currentTab === 'batch' && !batchQueried) {
+    showToast('请先点击「查询匹配患者」确认批量范围');
+    return;
+  }
+  // 切换步骤
+  document.getElementById('step1').classList.add('hidden');
+  document.getElementById('step2').classList.remove('hidden');
+  // 更新步骤指示器
+  document.getElementById('step2-circle').classList.remove('bg-gray-200', 'text-gray-400');
+  document.getElementById('step2-circle').classList.add('bg-amber-600', 'text-white');
+  document.getElementById('step2-label').classList.remove('text-gray-400');
+  document.getElementById('step2-label').classList.add('text-amber-600', 'font-semibold');
+  document.getElementById('step-connector').style.width = '100%';
+  // 预填计划名称
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  if (currentTab === 'single' && selectedPatient) {
+    document.getElementById('plan-name').value = selectedPatient.name + ' 随访计划';
+  } else {
+    document.getElementById('plan-name').value = '批量随访计划 ' + today;
+  }
+  // 预填开始日期
+  document.getElementById('plan-start-date').value = new Date().toISOString().slice(0, 10);
+  // 预填执行医生
+  document.getElementById('plan-doctor').value = '李医生';
+}
+
+function goStep1() {
+  document.getElementById('step2').classList.add('hidden');
+  document.getElementById('step1').classList.remove('hidden');
+  document.getElementById('step2-circle').classList.add('bg-gray-200', 'text-gray-400');
+  document.getElementById('step2-circle').classList.remove('bg-amber-600', 'text-white');
+  document.getElementById('step2-label').classList.add('text-gray-400');
+  document.getElementById('step2-label').classList.remove('text-amber-600', 'font-semibold');
+  document.getElementById('step-connector').style.width = '0%';
+}
+
+// ── 单人/批量切换 ──
+function switchTab(tab) {
+  currentTab = tab;
+  if (tab === 'single') {
+    document.getElementById('tab-single').classList.add('bg-white', 'text-amber-600', 'shadow-sm');
+    document.getElementById('tab-single').classList.remove('text-gray-500');
+    document.getElementById('tab-batch').classList.remove('bg-white', 'text-amber-600', 'shadow-sm');
+    document.getElementById('tab-batch').classList.add('text-gray-500');
+    document.getElementById('panel-single').classList.remove('hidden');
+    document.getElementById('panel-batch').classList.add('hidden');
+  } else {
+    document.getElementById('tab-batch').classList.add('bg-white', 'text-amber-600', 'shadow-sm');
+    document.getElementById('tab-batch').classList.remove('text-gray-500');
+    document.getElementById('tab-single').classList.remove('bg-white', 'text-amber-600', 'shadow-sm');
+    document.getElementById('tab-single').classList.add('text-gray-500');
+    document.getElementById('panel-batch').classList.remove('hidden');
+    document.getElementById('panel-single').classList.add('hidden');
+  }
+}
+
+// ── 患者搜索 ──
+let searchTimer = null;
+function searchPatient(val) {
+  clearTimeout(searchTimer);
+  const dropdown = document.getElementById('search-dropdown');
+  searchTimer = setTimeout(async () => {
+    const patients = await loadAllPatients();
+    const q = (val || '').trim();
+    const results = q
+      ? patients.filter(p => p.name.includes(q) || (p.phone||'').includes(q))
+      : patients;
+    if (results.length === 0) {
+      dropdown.innerHTML = '<div class="px-4 py-3 text-sm text-gray-400">未找到匹配患者</div>';
+    } else {
+      dropdown.innerHTML = results.slice(0, 30).map(p => {
+        const age = p.birth_date ? Math.floor((Date.now() - new Date(p.birth_date)) / 31557600000) + '岁' : '';
+        return `<div class="px-4 py-2.5 hover:bg-amber-50 cursor-pointer flex items-center gap-3 border-b border-gray-50 last:border-0"
+          onclick='selectPatientObj(${JSON.stringify({id:p.id,name:p.name,phone:p.phone||'',age}).replace(/'/g,"&#39;")})'>
+          <div class="w-7 h-7 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold flex-shrink-0">
+            ${p.name[0]}
+          </div>
+          <div>
+            <p class="text-sm font-medium text-gray-800">${p.name}</p>
+            <p class="text-xs text-gray-500">${age} · ${p.phone||''}</p>
+          </div>
+        </div>`;
+      }).join('');
+    }
+    dropdown.classList.remove('hidden');
+  }, 200);
+}
+
+function selectPatientObj(p) {
+  selectedPatient = p;
+  document.getElementById('search-dropdown').classList.add('hidden');
+  document.getElementById('patient-search').value = p.name;
+  document.getElementById('patient-avatar').textContent = p.name[0];
+  document.getElementById('patient-name-display').textContent = p.name;
+  document.getElementById('patient-archive-no').textContent = p.age + (p.phone ? ' · ' + p.phone : '');
+  document.getElementById('patient-constitution').textContent = '';
+  document.getElementById('patient-diseases').textContent = '';
+  document.getElementById('selected-patient-card').classList.remove('hidden');
+}
+
+function clearSelectedPatient() {
+  selectedPatient = null;
+  document.getElementById('patient-search').value = '';
+  document.getElementById('selected-patient-card').classList.add('hidden');
+}
+
+// 点击外部关闭搜索下拉
+document.addEventListener('click', e => {
+  if (!e.target.closest('#patient-search') && !e.target.closest('#search-dropdown')) {
+    document.getElementById('search-dropdown').classList.add('hidden');
+  }
+});
+
+// ── 批量查询 ──
+function batchQuery() {
+  batchQueried = true;
+  const resultDiv = document.getElementById('batch-result');
+  resultDiv.classList.remove('hidden');
+  resultDiv.style.display = 'flex';
+}
+
+// ── 自定义配置切换 ──
+function toggleCustom(checked) {
+  const fields = document.getElementById('custom-fields');
+  const ruleSelect = document.getElementById('plan-rule');
+  if (checked) {
+    fields.classList.remove('hidden');
+    ruleSelect.disabled = true;
+    ruleSelect.classList.add('opacity-40');
+  } else {
+    fields.classList.add('hidden');
+    ruleSelect.disabled = false;
+    ruleSelect.classList.remove('opacity-40');
+  }
+  calcEstTasks();
+}
+
+// ── 规则变更 -> 更新预计任务数 ──
+const RULE_PRESET = {
+  '1': { freq: 'MONTHLY', cycle: 12 },
+  '2': { freq: 'MONTHLY', cycle: 12 },
+  '3': { freq: 'BIWEEKLY', cycle: 12 },
+  '4': { freq: 'ONCE', cycle: 1 },
+};
+
+function onRuleChange() {
+  calcEstTasks();
+}
+
+function calcEstTasks() {
+  const isCustom = document.getElementById('custom-toggle').checked;
+  let freq, cycle;
+  if (isCustom) {
+    freq = document.getElementById('custom-freq').value;
+    cycle = parseInt(document.getElementById('custom-cycle').value) || 12;
+  } else {
+    const ruleId = document.getElementById('plan-rule').value;
+    const preset = RULE_PRESET[ruleId];
+    if (!preset) {
+      document.getElementById('est-task-count').textContent = '—';
+      document.getElementById('est-task-desc').textContent = '（请选择规则）';
+      return;
+    }
+    freq = preset.freq;
+    cycle = preset.cycle;
+  }
+  const freqLabels = { DAILY: '每日', TWICE_WEEK: '每周2次', WEEKLY: '每周', BIWEEKLY: '每两周', MONTHLY: '每月', QUARTERLY: '每季度', ONCE: '一次' };
+  const perWeekMap = { DAILY: 7, TWICE_WEEK: 2, WEEKLY: 1, BIWEEKLY: 0.5, MONTHLY: 0.25, QUARTERLY: 0.077, ONCE: 0 };
+  const rate = perWeekMap[freq] || 0;
+  let count = freq === 'ONCE' ? 1 : Math.round(rate * cycle);
+  if (count < 1) count = 1;
+  document.getElementById('est-task-count').textContent = count;
+  document.getElementById('est-task-desc').textContent = `（${freqLabels[freq]} × ${cycle}周 ≈ ${count}次）`;
+}
+
+// ── 提交 ──
+function submitPlan() {
+  const name = document.getElementById('plan-name').value.trim();
+  if (!name) { showToast('请填写计划名称'); return; }
+  const ruleId = document.getElementById('plan-rule').value;
+  const isCustom = document.getElementById('custom-toggle').checked;
+  if (!ruleId && !isCustom) { showToast('请选择随访规则或开启自定义配置'); return; }
+  const startDate = document.getElementById('plan-start-date').value;
+  if (!startDate) { showToast('请选择开始日期'); return; }
+  showToast('随访计划制定成功');
+  window.location.href = '/gui/admin/followup/tasks';
+}
+</script>
+{% endblock %}

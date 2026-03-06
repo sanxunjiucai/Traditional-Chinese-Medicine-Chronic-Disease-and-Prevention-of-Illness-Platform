@@ -40,7 +40,37 @@ async def patient_root_redirect():
 async def h5_home(request: Request, access_token: str | None = Cookie(default=None)):
     if not _is_logged_in(access_token):
         return RedirectResponse(url="/login")
-    return templates.TemplateResponse("patient/home.html", {"request": request})
+    return RedirectResponse(url="/h5/plan", status_code=302)
+
+
+# ── 方案 Tab ──
+
+@router.get("/h5/plan", response_class=HTMLResponse)
+async def h5_plan(request: Request, access_token: str | None = Cookie(default=None)):
+    if not _is_logged_in(access_token):
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("patient/plan.html", {"request": request})
+
+
+@router.get("/h5/plan/detail", response_class=HTMLResponse)
+async def h5_plan_detail_v2(request: Request, access_token: str | None = Cookie(default=None)):
+    if not _is_logged_in(access_token):
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("patient/plan_detail_v2.html", {"request": request})
+
+
+@router.get("/h5/plan/history", response_class=HTMLResponse)
+async def h5_plan_history(request: Request, access_token: str | None = Cookie(default=None)):
+    if not _is_logged_in(access_token):
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("patient/plan_history.html", {"request": request})
+
+
+@router.get("/h5/plan/documents", response_class=HTMLResponse)
+async def h5_plan_documents(request: Request, access_token: str | None = Cookie(default=None)):
+    if not _is_logged_in(access_token):
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("patient/plan_documents.html", {"request": request})
 
 
 @router.get("/h5/profile", response_class=HTMLResponse)
@@ -94,7 +124,16 @@ async def h5_constitution_result(
 async def h5_followup(request: Request, access_token: str | None = Cookie(default=None)):
     if not _is_logged_in(access_token):
         return RedirectResponse(url="/login")
-    return templates.TemplateResponse("patient/followup.html", {"request": request})
+    return templates.TemplateResponse("patient/followup_main.html", {"request": request})
+
+
+# ── 我的 Tab ──
+
+@router.get("/h5/me", response_class=HTMLResponse)
+async def h5_me(request: Request, access_token: str | None = Cookie(default=None)):
+    if not _is_logged_in(access_token):
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("patient/me.html", {"request": request})
 
 
 @router.get("/h5/recommendation", response_class=HTMLResponse)
@@ -120,4 +159,84 @@ async def h5_content_detail(
     return templates.TemplateResponse(
         "patient/content_detail.html",
         {"request": request, "content_id": content_id},
+    )
+
+
+# ── 通知中心 ──
+
+@router.get("/h5/notifications", response_class=HTMLResponse)
+async def h5_notifications(request: Request, access_token: str | None = Cookie(default=None)):
+    if not _is_logged_in(access_token):
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("patient/notification_list.html", {"request": request})
+
+
+# ── 在线咨询 ──
+
+@router.get("/h5/consultation/new", response_class=HTMLResponse)
+async def h5_consultation_new(request: Request, access_token: str | None = Cookie(default=None)):
+    if not _is_logged_in(access_token):
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("patient/consultation_new.html", {"request": request})
+
+
+@router.get("/h5/consultation/{consult_id}", response_class=HTMLResponse)
+async def h5_consultation_detail(
+    consult_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    if not _is_logged_in(access_token):
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "patient/consultation_detail.html",
+        {"request": request, "consult_id": consult_id},
+    )
+
+
+# ── 我的调理方案 ──
+
+@router.get("/h5/care-plan", response_class=HTMLResponse)
+async def h5_care_plan(request: Request, access_token: str | None = Cookie(default=None)):
+    if not _is_logged_in(access_token):
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("patient/care_plan.html", {"request": request})
+
+
+# ── 打卡 Tab ──
+
+@router.get("/h5/checkin", response_class=HTMLResponse)
+async def h5_checkin(request: Request, access_token: str | None = Cookie(default=None)):
+    if not _is_logged_in(access_token):
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("patient/checkin_main.html", {"request": request})
+
+
+# ── 复诊/随访提醒 ──
+
+@router.get("/h5/reminders", response_class=HTMLResponse)
+async def h5_reminders(request: Request, access_token: str | None = Cookie(default=None)):
+    if not _is_logged_in(access_token):
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("patient/reminders.html", {"request": request})
+
+
+# ── 复诊预约 ──
+
+@router.get("/h5/appointment", response_class=HTMLResponse)
+async def h5_appointment(request: Request, access_token: str | None = Cookie(default=None)):
+    if not _is_logged_in(access_token):
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("patient/appointment.html", {"request": request})
+
+
+# ── 调理方案详情 ──
+
+@router.get("/h5/plan/{plan_id}", response_class=HTMLResponse)
+async def h5_plan_detail(
+    plan_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    if not _is_logged_in(access_token):
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "patient/plan_detail.html",
+        {"request": request, "plan_id": plan_id},
     )

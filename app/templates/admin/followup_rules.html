@@ -1,0 +1,228 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "followup" %}
+{% block title %}随访规则配置 - 治未病平台{% endblock %}
+{% block page_title %}随访规则配置{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <input id="q" type="text" placeholder="规则名称搜索"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-amber-300">
+  <select id="status-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+    <option value="">全部状态</option>
+    <option value="1">已启用</option>
+    <option value="0">已停用</option>
+  </select>
+  <button onclick="loadRules()" class="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-700">搜索</button>
+  <div class="ml-auto">
+    <button onclick="showNewRuleModal()" class="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-700">+ 新建规则</button>
+  </div>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-5 py-3 text-left">规则名称</th>
+        <th class="px-5 py-3 text-left">触发条件</th>
+        <th class="px-5 py-3 text-left">随访频率</th>
+        <th class="px-5 py-3 text-left">适用范围</th>
+        <th class="px-5 py-3 text-left">状态</th>
+        <th class="px-5 py-3 text-left">操作</th>
+      </tr>
+    </thead>
+    <tbody id="rules-list" class="divide-y divide-gray-100">
+    </tbody>
+  </table>
+</div>
+
+<!-- 新建规则弹窗 -->
+<div id="rule-modal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50"
+  onclick="if(event.target===this)closeModal()">
+  <div class="bg-white rounded-xl p-6 w-[560px] shadow-xl max-h-[90vh] overflow-y-auto">
+    <h3 class="font-semibold text-gray-800 mb-4">新建随访规则</h3>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">规则名称 <span class="text-red-500">*</span></label>
+        <input type="text" id="rule-name" placeholder="规则名称"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">触发条件</label>
+          <select id="rule-trigger" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+            <option value="NEW_ARCHIVE">新建档案</option>
+            <option value="DISEASE_ADDED">新增慢病</option>
+            <option value="ALERT_TRIGGERED">触发预警</option>
+            <option value="ASSESS_COMPLETED">评估完成</option>
+            <option value="MANUAL">手动创建</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">随访频率</label>
+          <select id="rule-freq" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+            <option value="DAILY">每日</option>
+            <option value="WEEKLY">每周</option>
+            <option value="BIWEEKLY">每两周</option>
+            <option value="MONTHLY" selected>每月</option>
+            <option value="QUARTERLY">每季度</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">随访方式</label>
+          <select id="rule-method" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+            <option value="PHONE">电话</option>
+            <option value="ONLINE">在线</option>
+            <option value="APP">APP</option>
+            <option value="VISIT">上门</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">适用档案类型</label>
+          <select id="rule-archive-type" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+            <option value="">全部</option>
+            <option value="NORMAL">普通档案</option>
+            <option value="ELDERLY">老年人</option>
+            <option value="KEY_FOCUS">重点关注</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">规则说明</label>
+        <textarea id="rule-desc" rows="2" placeholder="规则适用说明..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"></textarea>
+      </div>
+    </div>
+    <div class="flex gap-2 justify-end mt-5">
+      <button onclick="closeModal()" class="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600">取消</button>
+      <button onclick="saveRule()" class="bg-amber-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-amber-700">保存</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const TRIGGER_LABELS = {NEW_ARCHIVE:'新建档案',DISEASE_ADDED:'新增慢病',ALERT_TRIGGERED:'触发预警',ASSESS_COMPLETED:'评估完成',MANUAL:'手动创建'};
+const FREQ_LABELS = {DAILY:'每日',WEEKLY:'每周',BIWEEKLY:'每两周',MONTHLY:'每月',QUARTERLY:'每季度'};
+const METHOD_LABELS = {PHONE:'电话',ONLINE:'在线',APP:'APP',VISIT:'上门'};
+
+let editingRuleId = null;
+
+function renderRows(rules) {
+  const tbody = document.getElementById('rules-list');
+  if (!rules.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-400 py-10">暂无规则，点击「新建规则」创建</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rules.map(r => `
+    <tr class="hover:bg-gray-50">
+      <td class="px-5 py-3 font-medium text-gray-800">${r.name}</td>
+      <td class="px-5 py-3 text-gray-600">${TRIGGER_LABELS[r.trigger] || r.trigger}</td>
+      <td class="px-5 py-3 text-gray-600">${FREQ_LABELS[r.frequency] || r.frequency}</td>
+      <td class="px-5 py-3 text-gray-500">${r.archive_type_filter || '全部'}</td>
+      <td class="px-5 py-3">
+        <span class="px-2 py-0.5 rounded-full text-xs ${r.is_active?'bg-green-100 text-green-700':'bg-gray-100 text-gray-500'}">
+          ${r.is_active?'已启用':'已停用'}
+        </span>
+      </td>
+      <td class="px-5 py-3 flex gap-2">
+        <button onclick="editRule(${r.id})" class="text-amber-600 hover:underline text-xs">编辑</button>
+        <button onclick="toggleRule(${r.id},${r.is_active})" class="text-gray-500 hover:underline text-xs">${r.is_active?'停用':'启用'}</button>
+      </td>
+    </tr>`).join('');
+}
+
+async function loadRules() {
+  const q = document.getElementById('q').value.trim();
+  const statusVal = document.getElementById('status-filter').value;
+  const params = new URLSearchParams({ page: 1, page_size: 50 });
+  if (statusVal !== '') params.set('is_active', statusVal === '1' ? 'true' : 'false');
+  try {
+    const resp = await fetch('/tools/followup-rules/rules?' + params);
+    const d = await resp.json();
+    if (d.success) {
+      let items = d.data?.items || [];
+      if (q) items = items.filter(r => r.name.includes(q));
+      renderRows(items);
+      return;
+    }
+  } catch (_) {}
+  // Demo fallback
+  renderRows([
+    {id:1,name:'高血压患者月度随访',trigger:'DISEASE_ADDED',frequency:'MONTHLY',method:'PHONE',archive_type_filter:'',is_active:true},
+    {id:2,name:'预警后72小时随访',trigger:'ALERT_TRIGGERED',frequency:'DAILY',method:'PHONE',archive_type_filter:'',is_active:true},
+    {id:3,name:'老年人季度评估随访',trigger:'NEW_ARCHIVE',frequency:'QUARTERLY',method:'VISIT',archive_type_filter:'ELDERLY',is_active:false},
+  ]);
+}
+
+function showNewRuleModal(data) {
+  editingRuleId = data?.id ?? null;
+  document.querySelector('#rule-modal h3').textContent = editingRuleId ? '编辑随访规则' : '新建随访规则';
+  document.getElementById('rule-name').value = data?.name || '';
+  document.getElementById('rule-trigger').value = data?.trigger || 'NEW_ARCHIVE';
+  document.getElementById('rule-freq').value = data?.frequency || 'MONTHLY';
+  document.getElementById('rule-method').value = data?.method || 'PHONE';
+  document.getElementById('rule-archive-type').value = data?.archive_type_filter || '';
+  document.getElementById('rule-desc').value = data?.description || '';
+  document.getElementById('rule-modal').classList.remove('hidden');
+  document.getElementById('rule-modal').style.display = 'flex';
+}
+function closeModal() {
+  const m = document.getElementById('rule-modal');
+  m.classList.add('hidden'); m.style.display = '';
+  editingRuleId = null;
+}
+
+async function saveRule() {
+  const name = document.getElementById('rule-name').value.trim();
+  if (!name) { showToast('请填写规则名称'); return; }
+  const body = {
+    name,
+    trigger: document.getElementById('rule-trigger').value,
+    frequency: document.getElementById('rule-freq').value,
+    method: document.getElementById('rule-method').value,
+    archive_type_filter: document.getElementById('rule-archive-type').value || null,
+    description: document.getElementById('rule-desc').value.trim(),
+  };
+  try {
+    const method = editingRuleId ? 'PATCH' : 'POST';
+    const url = editingRuleId ? `/tools/followup-rules/rules/${editingRuleId}` : '/tools/followup-rules/rules';
+    const resp = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const d = await resp.json();
+    if (d.success) {
+      showToast(editingRuleId ? '规则已更新' : '规则已创建');
+      closeModal();
+      loadRules();
+      return;
+    }
+    showToast('保存失败：' + (d.error?.message || '未知错误'));
+  } catch (_) {
+    showToast('规则保存成功（演示）');
+    closeModal();
+  }
+}
+
+async function editRule(id) {
+  try {
+    const resp = await fetch(`/tools/followup-rules/rules/${id}`);
+    const d = await resp.json();
+    if (d.success) { showNewRuleModal(d.data); return; }
+  } catch (_) {}
+  showNewRuleModal({ id });
+}
+
+async function toggleRule(id, current) {
+  try {
+    const resp = await fetch(`/tools/followup-rules/rules/${id}/status`, {
+      method: 'PATCH', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ is_active: !current }),
+    });
+    const d = await resp.json();
+    if (d.success) { showToast(current ? '规则已停用' : '规则已启用'); loadRules(); return; }
+  } catch (_) {}
+  showToast(current ? '停用成功（演示）' : '启用成功（演示）');
+}
+
+loadRules();
+</script>
+{% endblock %}

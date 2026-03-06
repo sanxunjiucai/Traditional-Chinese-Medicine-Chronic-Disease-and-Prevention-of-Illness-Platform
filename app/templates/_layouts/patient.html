@@ -6,58 +6,313 @@
   <title>{% block title %}治未病平台{% endblock %}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
-    .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 16px); }
-    .nav-tab.active { color: #16a34a; }
-    .nav-tab.active svg { stroke: #16a34a; }
+    /* ========= 设计系统 CSS 变量 — 葫芦养生风格 ========= */
+    :root {
+      --bg:             #F5F2EC;
+      --surface:        #FFFFFF;
+      --surface-warm:   #FDFCF9;
+      --primary:        #4E7A61;
+      --primary-hover:  #3F6A52;
+      --primary-light:  #EBF2ED;
+      --primary-muted:  #D4E5D9;
+      --accent:         #B8885E;
+      --accent-light:   #F7EEE4;
+      --accent-dark:    #9A6E42;
+      --text:           #28231E;
+      --text-secondary: #6A6258;
+      --text-muted:     #9A9188;
+      --border:         #E4DDD4;
+      --border-light:   #EDE8E2;
+      --error:          #D95C4A;
+      --error-light:    #FEF2F0;
+      --warn-light:     #FFFBEB;
+      --teal:           #E8F4F1;
+      --teal-dark:      #3D7A72;
+      --shadow-xs:      0 1px 4px rgba(68, 60, 48, 0.05);
+      --shadow-sm:      0 2px 12px rgba(68, 60, 48, 0.07);
+      --shadow:         0 4px 24px rgba(68, 60, 48, 0.10);
+      --shadow-card:    0 2px 16px rgba(68, 60, 48, 0.08);
+      --radius-card:    20px;
+      --radius-btn:     14px;
+      --radius-input:   13px;
+      --radius-chip:    99px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC",
+        "Noto Sans SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      margin: 0;
+    }
+
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 12px); }
+
+    /* ========= 底部导航 ========= */
+    .nav-tab {
+      color: var(--text-muted);
+      transition: color 0.2s;
+      text-decoration: none;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 16px 6px;
+      min-width: 60px;
+      gap: 2px;
+    }
+    .nav-tab.active { color: var(--primary); }
+    .nav-tab .nav-icon { transition: all 0.2s; }
+    .nav-tab.active .nav-icon { transform: scale(1.05); }
+    .nav-tab .nav-label { font-size: 10px; font-weight: 500; margin-top: 2px; }
+
+    /* ========= 卡片 ========= */
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-card);
+      overflow: hidden;
+    }
+
+    /* ========= 输入框 ========= */
+    .input-field {
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-input);
+      padding: 13px 16px;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      width: 100%;
+      background: var(--surface-warm);
+      color: var(--text);
+      font-family: inherit;
+    }
+    .input-field:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(78, 122, 97, 0.12);
+    }
+    .input-field::placeholder { color: var(--text-muted); }
+
+    /* ========= 按钮 ========= */
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      border-radius: var(--radius-btn);
+      padding: 13px 20px;
+      font-size: 15px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      font-family: inherit;
+      display: block;
+      width: 100%;
+      text-align: center;
+    }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--primary);
+      border: 1.5px solid var(--primary);
+      border-radius: var(--radius-btn);
+      padding: 13px 20px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+      font-family: inherit;
+      display: block;
+      width: 100%;
+      text-align: center;
+    }
+    .btn-outline:hover { background: var(--primary-light); }
+    .btn-outline:active { transform: scale(0.98); }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-btn);
+      padding: 13px 20px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      font-family: inherit;
+      display: block;
+      width: 100%;
+      text-align: center;
+    }
+    .btn-ghost:hover { border-color: var(--primary-muted); background: var(--primary-light); }
+
+    /* ========= Skeleton ========= */
+    @keyframes shimmer {
+      0%   { background-position: -200% 0; }
+      100% { background-position:  200% 0; }
+    }
+    .skeleton {
+      background: linear-gradient(90deg, #EDE9E2 25%, #E5DFD6 50%, #EDE9E2 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.8s ease-in-out infinite;
+      border-radius: 10px;
+    }
+
+    /* ========= 动画 ========= */
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to   { transform: translateY(0); }
+    }
+    .slide-up { animation: slideUp 0.32s cubic-bezier(0.32, 0.72, 0, 1); }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+    /* ========= 标签/芯片 ========= */
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: var(--radius-chip);
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .chip-green  { background: var(--primary-light); color: var(--primary); }
+    .chip-amber  { background: var(--accent-light);  color: var(--accent); }
+    .chip-gray   { background: #F0EBE4;               color: var(--text-muted); }
+    .chip-red    { background: var(--error-light);    color: var(--error); }
+
+    .divider { border: none; border-top: 1px solid var(--border-light); }
+
+    .tap-card { transition: transform 0.15s, box-shadow 0.15s; cursor: pointer; }
+    .tap-card:hover { transform: translateY(-2px); box-shadow: var(--shadow) !important; }
+    .tap-card:active { transform: scale(0.98); }
+
+    /* ========= 滚动条隐藏 ========= */
+    .hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+
+    /* ========= 减少动效 ========= */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    {% block extra_css %}{% endblock %}
   </style>
   {% block extra_head %}{% endblock %}
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body>
 
-  <!-- 顶部标题栏 -->
-  <header class="bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
+  <!-- 顶部品牌栏 -->
+  <header style="
+    padding: 14px 20px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  ">
     {% block header_left %}
-    <div class="w-8"></div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,#4E7A61,#6B9E7E);display:flex;align-items:center;justify-content:center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+          <path d="M8 14c0-2 1.5-3 4-3s4 1 4 3"/>
+          <circle cx="12" cy="8" r="2"/>
+        </svg>
+      </div>
+      <span style="font-size:18px;font-weight:700;color:var(--text);letter-spacing:-0.02em;">治未病养生</span>
+    </div>
     {% endblock %}
-    <h1 class="text-base font-semibold text-gray-800">{% block page_title %}治未病平台{% endblock %}</h1>
     {% block header_right %}
-    <div class="w-8"></div>
+    <a href="/h5/notifications" style="
+      text-decoration:none;
+      position:relative;
+      width:36px;height:36px;
+      display:flex;align-items:center;justify-content:center;
+      border-radius:12px;
+      background:var(--surface);
+      box-shadow:var(--shadow-xs);
+    ">
+      <svg width="18" height="18" fill="none" stroke="var(--text-secondary)" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+      <span id="hdr-notif-dot" style="display:none;position:absolute;top:7px;right:7px;width:7px;height:7px;background:#D95C4A;border-radius:50%;"></span>
+    </a>
     {% endblock %}
   </header>
 
   <!-- 主内容区 -->
-  <main class="pb-20 min-h-screen">
+  <main style="padding-bottom: 76px; min-height: 100vh;">
     {% block content %}{% endblock %}
   </main>
 
   <!-- 底部导航栏 -->
-  <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 safe-bottom z-10">
-    <div class="flex justify-around">
-      <a href="/h5/home" class="nav-tab flex flex-col items-center py-2 px-4 text-gray-500 {% if active_tab == 'home' %}active{% endif %}">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-        </svg>
-        <span class="text-xs mt-0.5">首页</span>
+  <nav style="
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(255,255,255,0.96);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(228,221,212,0.6);
+    z-index: 50;
+  " class="safe-bottom">
+    <div style="display: flex; justify-content: space-around; max-width:480px; margin:0 auto;">
+
+      <!-- 首页 -->
+      <a href="/h5/plan" class="nav-tab {% if active_tab == 'plan' %}active{% endif %}">
+        <div class="nav-icon" style="width:26px;height:26px;">
+          <svg width="26" height="26" fill="{% if active_tab == 'plan' %}var(--primary){% else %}none{% endif %}" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/>
+          </svg>
+        </div>
+        <span class="nav-label">首页</span>
       </a>
-      <a href="/h5/indicators" class="nav-tab flex flex-col items-center py-2 px-4 text-gray-500 {% if active_tab == 'indicators' %}active{% endif %}">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-        </svg>
-        <span class="text-xs mt-0.5">指标</span>
+
+      <!-- 打卡 -->
+      <a href="/h5/checkin" class="nav-tab {% if active_tab == 'checkin' %}active{% endif %}" style="position:relative;">
+        <div class="nav-icon" style="width:26px;height:26px;">
+          <svg width="26" height="26" fill="{% if active_tab == 'checkin' %}var(--primary){% else %}none{% endif %}" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+        </div>
+        <span id="nav-checkin-badge" style="display:none;position:absolute;top:4px;right:12px;width:7px;height:7px;border-radius:50%;background:#D95C4A;"></span>
+        <span class="nav-label">打卡</span>
       </a>
-      <a href="/h5/constitution" class="nav-tab flex flex-col items-center py-2 px-4 text-gray-500 {% if active_tab == 'constitution' %}active{% endif %}">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
-        </svg>
-        <span class="text-xs mt-0.5">体质</span>
+
+      <!-- 随访 -->
+      <a href="/h5/followup" class="nav-tab {% if active_tab == 'followup' %}active{% endif %}">
+        <div class="nav-icon" style="width:26px;height:26px;">
+          <svg width="26" height="26" fill="{% if active_tab == 'followup' %}var(--primary){% else %}none{% endif %}" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+        </div>
+        <span class="nav-label">随访</span>
       </a>
-      <a href="/h5/content" class="nav-tab flex flex-col items-center py-2 px-4 text-gray-500 {% if active_tab == 'content' %}active{% endif %}">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
-        </svg>
-        <span class="text-xs mt-0.5">知识</span>
+
+      <!-- 我的 -->
+      <a href="/h5/me" class="nav-tab {% if active_tab == 'me' %}active{% endif %}">
+        <div class="nav-icon" style="width:26px;height:26px;">
+          <svg width="26" height="26" fill="{% if active_tab == 'me' %}var(--primary){% else %}none{% endif %}" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+        <span class="nav-label">我的</span>
       </a>
+
     </div>
   </nav>
 

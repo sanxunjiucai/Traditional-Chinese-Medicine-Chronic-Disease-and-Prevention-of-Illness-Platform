@@ -1,0 +1,353 @@
+{% extends "_layouts/admin.html" %}
+{% block title %}居民区域分布统计{% endblock %}
+{% block page_title %}居民区域分布统计{% endblock %}
+{% set active_nav = "stats" %}
+
+{% block extra_head %}
+<style>
+  .kpi-card { transition: box-shadow 0.15s; }
+  .kpi-card:hover { box-shadow: 0 4px 20px rgba(78,122,97,0.15); }
+  .progress-bar { height:8px; border-radius:4px; background:#EDE8E2; overflow:hidden; }
+  .progress-fill { height:100%; border-radius:4px; transition:width 0.5s ease; }
+  .rank-bar { height:20px; border-radius:3px; transition:width 0.6s ease; }
+  .bar-fill-blue { background:linear-gradient(90deg,#4E7A61,#6A9E7F); }
+  .bar-fill-purple { background:linear-gradient(90deg,#B8885E,#D4A882); }
+  .bar-fill-green { background:linear-gradient(90deg,#059669,#34d399); }
+  .bar-fill-orange { background:linear-gradient(90deg,#ea580c,#fb923c); }
+  .bar-fill-red { background:linear-gradient(90deg,#dc2626,#f87171); }
+  .expand-btn { cursor:pointer; user-select:none; }
+  .sub-row { background:#FAF8F4; }
+  .sub-row td:first-child { padding-left:2.5rem; }
+  .svg-line { fill:none; stroke:#4E7A61; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; }
+  .svg-area { fill:url(#areaGrad); opacity:0.3; }
+  .svg-dot { fill:#4E7A61; }
+  .svg-dot-label { font-size:10px; fill:#3F6A52; font-weight:600; }
+  .grid-line { stroke:#EDE8E2; stroke-width:1; }
+  .axis-label { font-size:10px; fill:#B0A89E; }
+  .chart-bar-vert { transition:height 0.5s ease; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 顶部筛选栏 -->
+<div class="flex flex-wrap items-center gap-3 mb-5 bg-white rounded-xl px-5 py-4 shadow-sm">
+  <span class="text-sm font-medium text-gray-600">时间维度</span>
+  <div class="flex border border-gray-200 rounded-lg overflow-hidden">
+    <button id="dim-year" onclick="setDim('year')"
+      class="px-4 py-1.5 text-sm text-white font-medium" style="background:#4E7A61">年</button>
+    <button id="dim-month" onclick="setDim('month')"
+      class="px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-50">月</button>
+  </div>
+  <select id="year-select" onchange="refresh()"
+    class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-jade-300">
+    <option value="2026">2026年</option>
+    <option value="2025" selected>2025年</option>
+    <option value="2024">2024年</option>
+  </select>
+  <select id="month-select" onchange="refresh()" style="display:none"
+    class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-jade-300">
+    <option value="3">3月</option><option value="2">2月</option><option value="1">1月</option>
+    <option value="12">12月</option><option value="11">11月</option>
+  </select>
+  <select id="archive-type" onchange="refresh()"
+    class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-jade-300">
+    <option value="all">全部档案</option>
+    <option value="elderly">老年人</option>
+    <option value="hypertension">高血压</option>
+    <option value="diabetes">糖尿病</option>
+  </select>
+  <span class="text-xs text-gray-400 ml-auto">数据更新：2026-03-03</span>
+</div>
+
+<!-- KPI 卡片 -->
+<div class="grid grid-cols-4 gap-4 mb-5">
+  <div class="kpi-card bg-white rounded-xl p-5 shadow-sm border-t-4" style="border-top-color:#4E7A61">
+    <div class="text-3xl font-bold text-gray-900">18,642</div>
+    <div class="text-sm text-gray-500 mt-1">总居民数</div>
+    <div class="text-xs mt-2" style="color:#4E7A61">↑ 3.2% 较上期</div>
+  </div>
+  <div class="kpi-card bg-white rounded-xl p-5 shadow-sm border-t-4 border-green-500">
+    <div class="text-3xl font-bold text-gray-900">386</div>
+    <div class="text-sm text-gray-500 mt-1">本期新增</div>
+    <div class="text-xs text-green-600 mt-2">↑ 12.5% 较上期</div>
+  </div>
+  <div class="kpi-card bg-white rounded-xl p-5 shadow-sm border-t-4" style="border-top-color:#B8885E">
+    <div class="text-3xl font-bold text-gray-900">14,218</div>
+    <div class="text-sm text-gray-500 mt-1">活跃居民</div>
+    <div class="text-xs mt-2" style="color:#B8885E">活跃率 76.3%</div>
+  </div>
+  <div class="kpi-card bg-white rounded-xl p-5 shadow-sm border-t-4 border-red-500">
+    <div class="text-3xl font-bold text-gray-900">23.7%</div>
+    <div class="text-sm text-gray-500 mt-1">重点关注比例</div>
+    <div class="text-xs text-red-600 mt-2">↑ 1.4pp 较上期</div>
+  </div>
+</div>
+
+<!-- 主体区域：左60% 右40% -->
+<div class="flex gap-4">
+  <!-- 左侧：区域分布表格 -->
+  <div class="flex-none w-3/5 bg-white rounded-xl shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+      <span class="font-semibold text-gray-800">区域分布明细</span>
+      <div class="flex gap-2">
+        <button onclick="expandAll()" class="text-xs hover:underline" style="color:#4E7A61">展开全部</button>
+        <span class="text-gray-300">|</span>
+        <button onclick="collapseAll()" class="text-xs text-gray-500 hover:underline">收起全部</button>
+      </div>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b border-gray-200">
+          <tr>
+            <th class="text-left px-4 py-3 text-gray-500 font-medium w-36">地区/街道</th>
+            <th class="text-right px-3 py-3 text-gray-500 font-medium">居民总数</th>
+            <th class="text-right px-3 py-3 text-gray-500 font-medium">老年人</th>
+            <th class="text-right px-3 py-3 text-gray-500 font-medium">高血压</th>
+            <th class="text-right px-3 py-3 text-gray-500 font-medium">糖尿病</th>
+            <th class="text-right px-3 py-3 text-gray-500 font-medium">重点关注</th>
+            <th class="px-3 py-3 text-gray-500 font-medium w-28">覆盖率</th>
+          </tr>
+        </thead>
+        <tbody id="region-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 右侧：图表区域 -->
+  <div class="flex-1 flex flex-col gap-4">
+    <!-- 区域排行榜 -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <div class="font-semibold text-gray-800 text-sm mb-4">Top 5 区域排行</div>
+      <div class="space-y-3" id="rank-chart"></div>
+    </div>
+
+    <!-- 档案类型分布 -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <div class="font-semibold text-gray-800 text-sm mb-4">档案类型分布</div>
+      <div id="type-chart" class="flex items-end gap-3 h-28 justify-around px-2"></div>
+      <div id="type-labels" class="flex justify-around mt-2 text-xs text-gray-500 px-2"></div>
+    </div>
+
+    <!-- 月度新增趋势（SVG折线图） -->
+    <div class="bg-white rounded-xl shadow-sm p-5 flex-1">
+      <div class="font-semibold text-gray-800 text-sm mb-3">近6月新增趋势</div>
+      <svg id="trend-svg" width="100%" viewBox="0 0 320 130" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#4E7A61" stop-opacity="0.5"/>
+            <stop offset="100%" stop-color="#4E7A61" stop-opacity="0.02"/>
+          </linearGradient>
+        </defs>
+        <!-- 网格线 -->
+        <line x1="40" y1="15" x2="310" y2="15" class="grid-line"/>
+        <line x1="40" y1="40" x2="310" y2="40" class="grid-line"/>
+        <line x1="40" y1="65" x2="310" y2="65" class="grid-line"/>
+        <line x1="40" y1="90" x2="310" y2="90" class="grid-line"/>
+        <line x1="40" y1="108" x2="310" y2="108" class="grid-line"/>
+        <!-- Y轴标签 -->
+        <text x="35" y="18" class="axis-label" text-anchor="end">500</text>
+        <text x="35" y="43" class="axis-label" text-anchor="end">400</text>
+        <text x="35" y="68" class="axis-label" text-anchor="end">300</text>
+        <text x="35" y="93" class="axis-label" text-anchor="end">200</text>
+        <text x="35" y="111" class="axis-label" text-anchor="end">100</text>
+        <!-- 面积填充 -->
+        <path class="svg-area" d="M54,63 L108,50 L162,68 L216,35 L270,28 L310,20 L310,108 L54,108 Z"/>
+        <!-- 折线 -->
+        <polyline class="svg-line" points="54,63 108,50 162,68 216,35 270,28 310,20"/>
+        <!-- 数据点 -->
+        <circle cx="54"  cy="63"  r="4" class="svg-dot"/><text x="54"  y="55"  class="svg-dot-label" text-anchor="middle">286</text>
+        <circle cx="108" cy="50"  r="4" class="svg-dot"/><text x="108" y="42"  class="svg-dot-label" text-anchor="middle">318</text>
+        <circle cx="162" cy="68"  r="4" class="svg-dot"/><text x="162" y="60"  class="svg-dot-label" text-anchor="middle">268</text>
+        <circle cx="216" cy="35"  r="4" class="svg-dot"/><text x="216" y="27"  class="svg-dot-label" text-anchor="middle">398</text>
+        <circle cx="270" cy="28"  r="4" class="svg-dot"/><text x="270" y="20"  class="svg-dot-label" text-anchor="middle">422</text>
+        <circle cx="310" cy="20"  r="4" fill="#3F6A52"/><text x="310" y="12"   class="svg-dot-label" text-anchor="middle" fill="#3F6A52" font-weight="700">386</text>
+        <!-- X轴月份 -->
+        <text x="54"  y="122" class="axis-label" text-anchor="middle">10月</text>
+        <text x="108" y="122" class="axis-label" text-anchor="middle">11月</text>
+        <text x="162" y="122" class="axis-label" text-anchor="middle">12月</text>
+        <text x="216" y="122" class="axis-label" text-anchor="middle">1月</text>
+        <text x="270" y="122" class="axis-label" text-anchor="middle">2月</text>
+        <text x="310" y="122" class="axis-label" text-anchor="middle">3月</text>
+      </svg>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ── Demo 数据 ──
+const REGION_DATA = [
+  { id:'A', name:'浦东新区', total:4821, elderly:1823, hypertension:1642, diabetes:986, key:1142, coverage:88, subs:[
+    { name:'陆家嘴街道', total:1280, elderly:482, hypertension:438, diabetes:261, key:304, coverage:91 },
+    { name:'张江镇',     total:986,  elderly:372, hypertension:335, diabetes:201, key:234, coverage:86 },
+    { name:'南汇新城',   total:1125, elderly:425, hypertension:382, diabetes:229, key:267, coverage:89 },
+    { name:'惠南镇',     total:1430, elderly:544, hypertension:487, diabetes:295, key:337, coverage:87 },
+  ]},
+  { id:'B', name:'黄浦区', total:3654, elderly:1423, hypertension:1241, diabetes:745, key:866, coverage:85, subs:[
+    { name:'外滩街道',   total:856,  elderly:334, hypertension:291, elderly2:175, key:203, coverage:87 },
+    { name:'豫园街道',   total:924,  elderly:360, hypertension:313, diabetes:188, key:219, coverage:84 },
+    { name:'半淞园路街道',total:1045, elderly:407, hypertension:355, diabetes:213, key:248, coverage:86 },
+    { name:'南京东路街道',total:829,  elderly:322, hypertension:282, diabetes:169, key:196, coverage:84 },
+  ]},
+  { id:'C', name:'静安区', total:2983, elderly:1162, hypertension:1014, diabetes:608, key:707, coverage:82, subs:[
+    { name:'静安寺街道', total:762,  elderly:297, hypertension:259, diabetes:155, key:181, coverage:84 },
+    { name:'曹家渡街道', total:841,  elderly:327, hypertension:237, diabetes:142, key:199, coverage:81 },
+    { name:'彭浦新村街道',total:1038, elderly:404, hypertension:352, diabetes:211, key:246, coverage:82 },
+    { name:'共和新路街道', total:342, elderly:134, hypertension:166, diabetes:100, key:81, coverage:80 },
+  ]},
+  { id:'D', name:'虹口区', total:2547, elderly:992, hypertension:867, diabetes:520, key:604, coverage:79, subs:[
+    { name:'四川北路街道', total:698, elderly:272, hypertension:238, diabetes:143, key:166, coverage:81 },
+    { name:'欧阳路街道',  total:621,  elderly:242, hypertension:207, diabetes:124, key:144, coverage:78 },
+    { name:'广中路街道',  total:724,  elderly:282, hypertension:246, diabetes:148, key:172, coverage:80 },
+    { name:'凉城新村街道', total:504, elderly:196, hypertension:176, diabetes:105, key:122, coverage:77 },
+  ]},
+  { id:'E', name:'杨浦区', total:2218, elderly:863, hypertension:754, diabetes:452, key:526, coverage:76, subs:[
+    { name:'控江路街道',  total:614,  elderly:239, hypertension:204, diabetes:122, key:142, coverage:78 },
+    { name:'五角场街道',  total:742,  elderly:289, hypertension:252, diabetes:151, key:176, coverage:77 },
+    { name:'定海路街道',  total:540,  elderly:210, hypertension:184, diabetes:110, key:128, coverage:75 },
+    { name:'大桥街道',    total:322,  elderly:125, hypertension:114, diabetes:69,  key:80, coverage:74 },
+  ]},
+  { id:'F', name:'长宁区', total:1896, elderly:738, hypertension:645, diabetes:387, key:450, coverage:80, subs:[
+    { name:'新华路街道',  total:512,  elderly:199, hypertension:174, diabetes:105, key:122, coverage:83 },
+    { name:'程家桥街道',  total:648,  elderly:252, hypertension:220, diabetes:132, key:153, coverage:79 },
+    { name:'天山路街道',  total:736,  elderly:287, hypertension:251, diabetes:150, key:175, coverage:79 },
+  ]},
+  { id:'G', name:'徐汇区', total:1523, elderly:593, hypertension:518, diabetes:311, key:361, coverage:77, subs:[
+    { name:'天平路街道',  total:486,  elderly:189, hypertension:165, diabetes:99,  key:115, coverage:79 },
+    { name:'湖南路街道',  total:528,  elderly:206, hypertension:180, diabetes:108, key:125, coverage:77 },
+    { name:'枫林路街道',  total:509,  elderly:198, hypertension:173, diabetes:104, key:121, coverage:76 },
+  ]},
+  { id:'H', name:'普陀区', total:1000, elderly:389, hypertension:341, diabetes:205, key:238, coverage:73, subs:[
+    { name:'长风新村街道', total:356, elderly:139, hypertension:122, diabetes:73,  key:85, coverage:75 },
+    { name:'曹杨新村街道', total:398, elderly:155, hypertension:135, diabetes:81,  key:94, coverage:73 },
+    { name:'甘泉路街道',   total:246, elderly:95,  hypertension:84,  diabetes:51,  key:59, coverage:71 },
+  ]},
+];
+
+const TYPE_CHART_DATA = [
+  { label:'普通',   value:6820, color:'#4E7A61' },
+  { label:'老年人', value:6983, color:'#B8885E' },
+  { label:'女性',   value:4125, color:'#C87A5A' },
+  { label:'儿童',   value:1278, color:'#5070A8' },
+  { label:'重点关注',value:4419, color:'#ef4444' },
+];
+
+let expandedGroups = {};
+
+function setDim(d) {
+  ['year','month'].forEach(id => {
+    const btn = document.getElementById('dim-'+id);
+    if (d === id) {
+      btn.className = 'px-4 py-1.5 text-sm text-white font-medium';
+      btn.style.background = '#4E7A61';
+    } else {
+      btn.className = 'px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-50';
+      btn.style.background = '';
+    }
+  });
+  document.getElementById('month-select').style.display = d === 'month' ? '' : 'none';
+}
+
+function refresh() { renderRegion(); }
+
+function renderRegion() {
+  const maxTotal = Math.max(...REGION_DATA.map(r => r.total));
+  let html = '';
+  REGION_DATA.forEach(r => {
+    const expanded = !!expandedGroups[r.id];
+    const pct = Math.round(r.coverage);
+    const coverColor = pct >= 85 ? '#059669' : pct >= 75 ? '#4E7A61' : '#f59e0b';
+    html += `
+      <tr class="border-b border-gray-100 hover:bg-jade-50/30 transition-colors">
+        <td class="px-4 py-3">
+          <button class="expand-btn flex items-center gap-1.5 font-semibold text-gray-800 text-sm" onclick="toggleGroup('${r.id}')">
+            <svg class="w-3.5 h-3.5 text-gray-400 transition-transform ${expanded ? 'rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+            ${r.name}
+          </button>
+        </td>
+        <td class="px-3 py-3 text-right font-semibold text-gray-900">${r.total.toLocaleString()}</td>
+        <td class="px-3 py-3 text-right text-gray-600">${r.elderly.toLocaleString()}</td>
+        <td class="px-3 py-3 text-right text-gray-600">${r.hypertension.toLocaleString()}</td>
+        <td class="px-3 py-3 text-right text-gray-600">${r.diabetes.toLocaleString()}</td>
+        <td class="px-3 py-3 text-right text-red-600 font-medium">${r.key.toLocaleString()}</td>
+        <td class="px-3 py-3">
+          <div class="flex items-center gap-2">
+            <div class="progress-bar flex-1">
+              <div class="progress-fill" style="width:${pct}%;background:${coverColor}"></div>
+            </div>
+            <span class="text-xs text-gray-600 w-8 text-right">${pct}%</span>
+          </div>
+        </td>
+      </tr>`;
+    if (expanded && r.subs) {
+      r.subs.forEach(s => {
+        const sPct = s.coverage;
+        const scColor = sPct >= 85 ? '#059669' : sPct >= 75 ? '#4E7A61' : '#f59e0b';
+        html += `
+          <tr class="sub-row border-b border-gray-50 hover:bg-jade-50/20 transition-colors">
+            <td class="px-4 py-2.5 pl-10 text-gray-600 text-xs">${s.name}</td>
+            <td class="px-3 py-2.5 text-right text-gray-700 text-xs">${s.total.toLocaleString()}</td>
+            <td class="px-3 py-2.5 text-right text-gray-500 text-xs">${s.elderly.toLocaleString()}</td>
+            <td class="px-3 py-2.5 text-right text-gray-500 text-xs">${(s.hypertension||s.elderly2||'—').toLocaleString ? (s.hypertension||s.elderly2||0).toLocaleString() : '—'}</td>
+            <td class="px-3 py-2.5 text-right text-gray-500 text-xs">${(s.diabetes||0).toLocaleString()}</td>
+            <td class="px-3 py-2.5 text-right text-red-500 text-xs">${s.key.toLocaleString()}</td>
+            <td class="px-3 py-2.5">
+              <div class="flex items-center gap-2">
+                <div class="progress-bar flex-1" style="height:6px">
+                  <div class="progress-fill" style="width:${sPct}%;background:${scColor};height:6px"></div>
+                </div>
+                <span class="text-xs text-gray-500 w-8 text-right">${sPct}%</span>
+              </div>
+            </td>
+          </tr>`;
+      });
+    }
+  });
+  document.getElementById('region-tbody').innerHTML = html;
+}
+
+function toggleGroup(id) {
+  expandedGroups[id] = !expandedGroups[id];
+  renderRegion();
+}
+function expandAll() { REGION_DATA.forEach(r => expandedGroups[r.id] = true); renderRegion(); }
+function collapseAll() { expandedGroups = {}; renderRegion(); }
+
+function renderRankChart() {
+  const top5 = [...REGION_DATA].sort((a,b) => b.total - a.total).slice(0,5);
+  const max = top5[0].total;
+  const colors = ['bar-fill-blue','bar-fill-purple','bar-fill-green','bar-fill-orange','bar-fill-red'];
+  document.getElementById('rank-chart').innerHTML = top5.map((r,i) => `
+    <div class="flex items-center gap-2">
+      <div class="w-5 h-5 flex items-center justify-center text-xs font-bold rounded" style="${i===0?'background:#4E7A61;color:#fff':i===1?'background:#B8885E;color:#fff':i===2?'background:#059669;color:#fff':'background:#e5e7eb;color:#4b5563'}">${i+1}</div>
+      <div class="text-xs text-gray-600 w-14 flex-shrink-0">${r.name}</div>
+      <div class="flex-1">
+        <div class="rank-bar ${colors[i]}" style="width:${Math.round(r.total/max*100)}%"></div>
+      </div>
+      <div class="text-xs font-semibold text-gray-700 w-14 text-right">${r.total.toLocaleString()}</div>
+    </div>`).join('');
+}
+
+function renderTypeChart() {
+  const maxVal = Math.max(...TYPE_CHART_DATA.map(t => t.value));
+  const barH = 80;
+  document.getElementById('type-chart').innerHTML = TYPE_CHART_DATA.map(t => {
+    const h = Math.round(t.value / maxVal * barH);
+    return `<div class="flex flex-col items-center gap-1">
+      <div class="text-xs font-semibold" style="color:${t.color}">${(t.value/1000).toFixed(1)}k</div>
+      <div class="w-10 rounded-t-md" style="height:${h}px;background:${t.color};opacity:0.85"></div>
+    </div>`;
+  }).join('');
+  document.getElementById('type-labels').innerHTML = TYPE_CHART_DATA.map(t =>
+    `<div class="text-center">${t.label}</div>`
+  ).join('');
+}
+
+renderRegion();
+renderRankChart();
+renderTypeChart();
+</script>
+{% endblock %}

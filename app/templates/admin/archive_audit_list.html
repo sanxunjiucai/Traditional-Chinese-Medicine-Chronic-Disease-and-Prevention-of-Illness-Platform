@@ -1,0 +1,242 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "archive_audit" %}
+{% block title %}档案审核 - 治未病平台{% endblock %}
+{% block page_title %}档案审核管理{% endblock %}
+
+{% block content %}
+<!-- 统计卡片 -->
+<div class="grid grid-cols-4 gap-4 mb-4">
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-xs text-gray-400">待审核</p>
+    <p class="text-2xl font-bold text-amber-500 mt-1">7</p>
+    <p class="text-xs text-amber-500 mt-0.5">需要处理</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-xs text-gray-400">今日审核</p>
+    <p class="text-2xl font-bold text-green-600 mt-1">12</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-xs text-gray-400">本月通过</p>
+    <p class="text-2xl font-bold text-gray-700 mt-1">98</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-xs text-gray-400">本月驳回</p>
+    <p class="text-2xl font-bold text-red-500 mt-1">4</p>
+  </div>
+</div>
+
+<!-- Tab 切换 -->
+<div class="flex gap-1 bg-white rounded-xl shadow-sm p-1 mb-4 w-fit">
+  <button id="tab-audit" onclick="switchTab('audit')"
+    class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-amber-500 text-white">审核队列</button>
+  <button id="tab-changelog" onclick="switchTab('changelog')"
+    class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors text-gray-600 hover:bg-gray-100">修改记录查询</button>
+</div>
+
+<!-- ── 审核队列 ── -->
+<div id="panel-audit">
+  <!-- 筛选栏 -->
+  <div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+    <input id="q" type="text" placeholder="患者姓名/档案号/操作人"
+      class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-52 focus:outline-none focus:ring-2 focus:ring-amber-300">
+    <select id="status-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+      <option value="">全部状态</option>
+      <option value="PENDING" selected>待审核</option>
+      <option value="APPROVED">已通过</option>
+      <option value="REJECTED">已驳回</option>
+    </select>
+    <select id="type-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+      <option value="">全部变更类型</option>
+      <option value="CREATE">新建档案</option>
+      <option value="EDIT">修改信息</option>
+      <option value="DELETE">删除操作</option>
+      <option value="TRANSFER">档案移交</option>
+    </select>
+    <input type="date" id="date-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+    <button onclick="loadList()" class="bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600">查询</button>
+  </div>
+
+  <!-- 列表 -->
+  <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+        <tr>
+          <th class="px-5 py-3 text-left">患者</th>
+          <th class="px-5 py-3 text-left">变更类型</th>
+          <th class="px-5 py-3 text-left">变更摘要</th>
+          <th class="px-5 py-3 text-left">操作人</th>
+          <th class="px-5 py-3 text-left">提交时间</th>
+          <th class="px-5 py-3 text-left">状态</th>
+          <th class="px-5 py-3 text-left">操作</th>
+        </tr>
+      </thead>
+      <tbody id="list-body" class="divide-y divide-gray-100"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── 修改记录查询 ── -->
+<div id="panel-changelog" class="hidden">
+  <!-- 筛选栏 -->
+  <div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+    <input id="clog-q" type="text" placeholder="患者姓名/档案号"
+      class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-44 focus:outline-none focus:ring-2 focus:ring-amber-300">
+    <select id="clog-field" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+      <option value="">全部字段</option>
+      <option value="phone">联系电话</option>
+      <option value="address">家庭住址</option>
+      <option value="doctor">责任医生</option>
+      <option value="org">管辖机构</option>
+      <option value="disease">疾病标签</option>
+      <option value="birthday">出生日期</option>
+    </select>
+    <input type="date" id="clog-date-from" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+    <span class="text-gray-400 text-sm">~</span>
+    <input type="date" id="clog-date-to" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+    <button onclick="loadChangelog()" class="bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600">查询</button>
+    <span id="clog-total" class="text-sm text-gray-400 ml-auto"></span>
+  </div>
+
+  <!-- 修改记录列表 -->
+  <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+        <tr>
+          <th class="px-5 py-3 text-left">患者</th>
+          <th class="px-5 py-3 text-left">修改字段</th>
+          <th class="px-5 py-3 text-left">修改前</th>
+          <th class="px-5 py-3 text-left">修改后</th>
+          <th class="px-5 py-3 text-left">操作人</th>
+          <th class="px-5 py-3 text-left">修改时间</th>
+          <th class="px-5 py-3 text-left">来源</th>
+        </tr>
+      </thead>
+      <tbody id="clog-body" class="divide-y divide-gray-100"></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const STATUS_MAP = {
+  PENDING:  {label:'待审核',cls:'bg-amber-100 text-amber-700'},
+  APPROVED: {label:'已通过',cls:'bg-green-100 text-green-700'},
+  REJECTED: {label:'已驳回',cls:'bg-red-100 text-red-700'},
+};
+const TYPE_MAP = {CREATE:'新建档案',EDIT:'修改信息',DELETE:'删除操作',TRANSFER:'档案移交'};
+
+const demoData = [
+  {id:'1',name:'吴建民',archive:'A10134',type:'EDIT',summary:'修改联系电话、家庭住址',operator:'李医生',time:'2026-03-03 09:15',status:'PENDING'},
+  {id:'2',name:'周淑清',archive:'A10156',type:'CREATE',summary:'新建老年人档案',operator:'张护士',time:'2026-03-03 08:40',status:'PENDING'},
+  {id:'3',name:'钱大明',archive:'A10098',type:'TRANSFER',summary:'档案移交给王医生',operator:'李医生',time:'2026-03-02 16:30',status:'PENDING'},
+  {id:'4',name:'孙美玲',archive:'A10067',type:'EDIT',summary:'更新体质类型、责任医生',operator:'陈医生',time:'2026-03-02 14:20',status:'APPROVED'},
+  {id:'5',name:'赵志强',archive:'A10023',type:'EDIT',summary:'修改出生日期',operator:'张医生',time:'2026-03-01 11:05',status:'REJECTED'},
+];
+
+const demoChangelog = [
+  {id:'c1',name:'吴建民',archive:'A10134',field:'联系电话',before:'13812345678',after:'13987654321',operator:'李医生',time:'2026-03-03 09:12',source:'手动编辑'},
+  {id:'c2',name:'吴建民',archive:'A10134',field:'家庭住址',before:'上海市浦东新区张江路',after:'上海市浦东新区陆家嘴路',operator:'李医生',time:'2026-03-03 09:12',source:'手动编辑'},
+  {id:'c3',name:'孙美玲',archive:'A10067',field:'责任医生',before:'陈医生',after:'王医生',operator:'系统管理员',time:'2026-03-02 14:20',source:'批量调整'},
+  {id:'c4',name:'孙美玲',archive:'A10067',field:'体质类型',before:'平和质',after:'气虚质',operator:'陈医生',time:'2026-03-02 14:18',source:'评估更新'},
+  {id:'c5',name:'赵志强',archive:'A10023',field:'出生日期',before:'1968-05-12',after:'1968-05-21',operator:'张医生',time:'2026-03-01 11:03',source:'手动编辑'},
+  {id:'c6',name:'李建国',archive:'A10023',field:'疾病标签',before:'高血压',after:'高血压; 糖尿病',operator:'张医生',time:'2026-02-28 15:30',source:'标签管理'},
+];
+
+function switchTab(tab) {
+  document.getElementById('panel-audit').classList.toggle('hidden', tab !== 'audit');
+  document.getElementById('panel-changelog').classList.toggle('hidden', tab !== 'changelog');
+  const tabs = ['audit','changelog'];
+  tabs.forEach(t => {
+    const btn = document.getElementById('tab-' + t);
+    btn.classList.toggle('bg-amber-500', t === tab);
+    btn.classList.toggle('text-white', t === tab);
+    btn.classList.toggle('text-gray-600', t !== tab);
+    btn.classList.toggle('hover:bg-gray-100', t !== tab);
+  });
+  if (tab === 'audit') loadList();
+  else loadChangelog();
+}
+
+async function loadList() {
+  let items = demoData;
+  try {
+    const resp = await fetch('/tools/audit?action=ARCHIVE_EDIT&page_size=20');
+    const d = await resp.json();
+    if (d.success && d.data.total > 0) {
+      items = d.data.items.map(l => ({
+        id: l.id, name: l.resource_id?.slice(0, 6) || '档案', archive: l.resource_id || '-',
+        type: 'EDIT', summary: l.summary || (l.action + ' 档案'),
+        operator: l.user_email || l.user_id?.slice(0, 8) || '系统',
+        time: (l.created_at || '').slice(0, 16).replace('T', ' '),
+        status: 'APPROVED',
+      }));
+    }
+  } catch (_) {}
+  document.getElementById('list-body').innerHTML = items.map(r => {
+    const s = STATUS_MAP[r.status] || STATUS_MAP.PENDING;
+    const t = TYPE_MAP[r.type] || r.type;
+    return `<tr class="hover:bg-gray-50">
+      <td class="px-5 py-3">
+        <p class="font-medium text-gray-800">${r.name}</p>
+        <p class="text-xs text-gray-400">${r.archive}</p>
+      </td>
+      <td class="px-5 py-3 text-gray-600">${t}</td>
+      <td class="px-5 py-3 text-gray-500 text-xs max-w-[200px] truncate">${r.summary}</td>
+      <td class="px-5 py-3 text-gray-500">${r.operator}</td>
+      <td class="px-5 py-3 text-gray-400 text-xs">${r.time}</td>
+      <td class="px-5 py-3"><span class="px-2 py-0.5 rounded-full text-xs font-medium ${s.cls}">${s.label}</span></td>
+      <td class="px-5 py-3">
+        <div class="flex gap-2">
+          ${r.status === 'PENDING' ? `<a href="/gui/admin/archives/audit/${r.id}" class="text-amber-600 hover:underline text-xs">审核</a>` : ''}
+          <a href="/gui/admin/archives/audit/${r.id}" class="text-gray-500 hover:underline text-xs">查看</a>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function loadChangelog() {
+  const q = document.getElementById('clog-q').value.trim().toLowerCase();
+  let items = demoChangelog;
+  try {
+    const resp = await fetch('/tools/audit?page_size=30');
+    const d = await resp.json();
+    if (d.success && d.data.total > 0) {
+      items = d.data.items
+        .filter(l => l.before_snapshot || l.after_snapshot)
+        .map(l => {
+          const before = l.before_snapshot || {};
+          const after = l.after_snapshot || {};
+          const changedKeys = [...new Set([...Object.keys(before), ...Object.keys(after)])];
+          return changedKeys.map(k => ({
+            id: l.id + '_' + k, name: l.resource_id?.slice(0, 8) || '档案',
+            archive: l.resource_id || '-', field: k,
+            before: before[k] ?? '-', after: after[k] ?? '-',
+            operator: l.user_email || '系统',
+            time: (l.created_at || '').slice(0, 16).replace('T', ' '),
+            source: '手动操作',
+          }));
+        }).flat();
+    }
+  } catch (_) {}
+  if (q) items = items.filter(c => c.name.toLowerCase().includes(q) || c.archive.toLowerCase().includes(q));
+  document.getElementById('clog-total').textContent = `共 ${items.length} 条`;
+  document.getElementById('clog-body').innerHTML = items.map(c => `
+    <tr class="hover:bg-gray-50">
+      <td class="px-5 py-3">
+        <p class="font-medium text-gray-800">${c.name}</p>
+        <p class="text-xs text-gray-400">${c.archive}</p>
+      </td>
+      <td class="px-5 py-3"><span class="px-2 py-0.5 rounded text-xs" style="background:#EBF2ED;color:#4E7A61;">${c.field}</span></td>
+      <td class="px-5 py-3 text-gray-400 text-xs line-through">${c.before}</td>
+      <td class="px-5 py-3 text-gray-700 text-xs font-medium">${c.after}</td>
+      <td class="px-5 py-3 text-gray-500 text-xs">${c.operator}</td>
+      <td class="px-5 py-3 text-gray-400 text-xs">${c.time}</td>
+      <td class="px-5 py-3 text-gray-400 text-xs">${c.source}</td>
+    </tr>`).join('') || '<tr><td colspan="7" class="px-5 py-8 text-center text-gray-400">暂无修改记录</td></tr>';
+}
+
+loadList();
+</script>
+{% endblock %}

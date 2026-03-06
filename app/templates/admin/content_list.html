@@ -4,9 +4,9 @@
 
 {% block content %}
 <!-- 操作栏 -->
-<div class="flex items-center space-x-3 mb-5">
+<div class="flex items-center gap-3 mb-5">
   <select id="filter-status" onchange="load()"
-    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-white">
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light bg-white">
     <option value="">全部状态</option>
     <option value="DRAFT">草稿</option>
     <option value="PENDING_REVIEW">待审核</option>
@@ -89,7 +89,7 @@ async function load() {
 }
 
 function buildActions(c) {
-  let html = `<a href="/gui/admin/content/${c.id}/edit" class="text-blue-500 hover:underline">编辑</a>`;
+  let html = `<a href="/gui/admin/content/${c.id}/edit" class="hover:underline" style="color:#4E7A61;">编辑</a>`;
   if (c.status === 'DRAFT') {
     html += ` <button onclick="submitReview('${c.id}')" class="text-yellow-600 hover:underline">提交审核</button>`;
   } else if (c.status === 'PENDING_REVIEW') {

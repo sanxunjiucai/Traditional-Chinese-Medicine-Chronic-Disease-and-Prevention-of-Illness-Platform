@@ -1,0 +1,152 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "assessments" %}
+{% block title %}健康评估管理 - 治未病平台{% endblock %}
+{% block page_title %}健康评估管理{% endblock %}
+
+{% block content %}
+<!-- 操作栏 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4">
+  <div class="flex flex-wrap gap-3 items-center mb-3">
+    <input id="q" type="text" placeholder="患者姓名/手机号"
+      class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-teal-300">
+    <select id="status" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300">
+      <option value="">全部状态</option>
+      <option value="DRAFT">草稿</option>
+      <option value="SUBMITTED">已提交</option>
+      <option value="REPORTED">已出报告</option>
+    </select>
+    <button onclick="loadList(1)"
+      class="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-teal-700">搜索</button>
+    <div class="ml-auto flex gap-2">
+      <span class="text-gray-400 text-sm self-center">共 <span id="total">-</span> 条</span>
+      <a href="/gui/admin/health-assess/comprehensive/new"
+        class="flex items-center gap-1 border border-teal-600 text-teal-600 px-4 py-2 rounded-lg text-sm hover:bg-teal-50">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6M3 20h18M5 20V10a2 2 0 012-2h10a2 2 0 012 2v10"/>
+        </svg>
+        生成综合报告
+      </a>
+      <a href="/gui/admin/health-assess/new"
+        class="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-teal-700">+ 新增健康评估</a>
+    </div>
+  </div>
+  <!-- 时间筛选 -->
+  <div class="flex flex-wrap gap-3 items-center">
+    <span class="text-xs text-gray-500">评估时间：</span>
+    <input id="date-from" type="date" class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300">
+    <span class="text-gray-400">~</span>
+    <input id="date-to" type="date" class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300">
+  </div>
+</div>
+
+<!-- 表格 -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-5 py-3 text-left">患者</th>
+        <th class="px-5 py-3 text-left">评估类型</th>
+        <th class="px-5 py-3 text-left">状态</th>
+        <th class="px-5 py-3 text-left">总分</th>
+        <th class="px-5 py-3 text-left">评估时间</th>
+        <th class="px-5 py-3 text-left">操作</th>
+      </tr>
+    </thead>
+    <tbody id="assess-list" class="divide-y divide-gray-100">
+      <tr><td colspan="6" class="px-5 py-8 text-center text-gray-400">加载中...</td></tr>
+    </tbody>
+  </table>
+</div>
+<div id="pagination" class="flex justify-center gap-2 mt-4 hidden"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let currentPage = 1;
+const STATUS_LABELS = {'DRAFT':'草稿','SUBMITTED':'已提交','REPORTED':'已出报告'};
+const STATUS_COLORS = {'DRAFT':'bg-gray-100 text-gray-600','SUBMITTED':'bg-teal-100 text-teal-700','REPORTED':'bg-green-100 text-green-700'};
+
+const DEMO_LIST = {
+  total: 4,
+  items: [
+    {id:'h001', patient_name:'李建国', assess_type:'PHQ-9 抑郁症筛查', status:'REPORTED', total_score:12, created_at:'2026-02-15T10:00:00'},
+    {id:'h002', patient_name:'张淑芬', assess_type:'GAD-7 焦虑症筛查', status:'SUBMITTED', total_score:9, created_at:'2026-02-20T09:15:00'},
+    {id:'h003', patient_name:'赵明',   assess_type:'ADL 日常生活能力', status:'REPORTED', total_score:85, created_at:'2026-03-01T14:00:00'},
+    {id:'h004', patient_name:'王晓燕', assess_type:'MMSE 认知评估',    status:'DRAFT',    total_score:null, created_at:'2026-03-02T16:30:00'},
+  ]
+};
+
+function renderRows(items) {
+  return items.map(r => `
+    <tr class="hover:bg-gray-50">
+      <td class="px-5 py-3 font-medium text-gray-800">${r.patient_name||'—'}</td>
+      <td class="px-5 py-3 text-gray-600">${r.assess_type||'综合健康评估'}</td>
+      <td class="px-5 py-3"><span class="px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[r.status]||'bg-gray-100 text-gray-600'}">${STATUS_LABELS[r.status]||r.status}</span></td>
+      <td class="px-5 py-3 font-semibold text-teal-600">${r.total_score != null ? r.total_score : '—'}</td>
+      <td class="px-5 py-3 text-gray-500">${r.created_at?new Date(r.created_at).toLocaleDateString('zh-CN'):'-'}</td>
+      <td class="px-5 py-3 text-xs">
+        <div class="flex gap-2 flex-wrap">
+          <a href="/gui/admin/health-assess/${r.id}" class="text-teal-600 hover:underline">详情</a>
+          ${r.status==='SUBMITTED'?`<a href="/gui/admin/health-assess/${r.id}/review" class="text-orange-500 hover:underline">审核</a>`:''}
+          ${r.status==='REPORTED'?`<a href="/gui/admin/health-assess/${r.id}/report-detail" class="text-green-600 hover:underline">查看报告</a>`:''}
+          ${r.status==='REPORTED'?`<a href="/gui/admin/health-assess/comprehensive/new?base=${r.id}" class="text-teal-600 hover:underline">纳入综合报告</a>`:''}
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+async function loadList(page=1) {
+  currentPage = page;
+  const q = document.getElementById('q').value;
+  const status = document.getElementById('status').value;
+  const dateFrom = document.getElementById('date-from').value;
+  const dateTo = document.getElementById('date-to').value;
+  const params = new URLSearchParams({page, page_size:20});
+  if (q) params.append('q', q);
+  if (status) params.append('status', status);
+  if (dateFrom) params.append('date_from', dateFrom);
+  if (dateTo) params.append('date_to', dateTo);
+
+  const tbody = document.getElementById('assess-list');
+  let items = [], total = 0;
+  try {
+    const res = await fetch(`/tools/admin/health-assess?${params}`);
+    const data = await res.json();
+    if (data.success && data.data.items.length > 0) {
+      items = data.data.items;
+      total = data.data.total;
+    } else {
+      throw new Error('empty');
+    }
+  } catch(e) {
+    const all = DEMO_LIST.items.filter(r => {
+      if (q && !r.patient_name.includes(q)) return false;
+      if (status && r.status !== status) return false;
+      return true;
+    });
+    total = all.length;
+    items = all.slice((page-1)*20, page*20);
+  }
+
+  document.getElementById('total').textContent = total;
+  if (!items.length) { tbody.innerHTML = '<tr><td colspan="6" class="px-5 py-8 text-center text-gray-400">暂无数据</td></tr>'; return; }
+  tbody.innerHTML = renderRows(items);
+
+  // 分页
+  const totalPages = Math.max(1, Math.ceil(total / 20));
+  const pag = document.getElementById('pagination');
+  if (totalPages > 1) {
+    pag.classList.remove('hidden');
+    pag.innerHTML = `
+      ${page > 1 ? `<button onclick="loadList(${page-1})" class="px-3 py-1.5 rounded-lg border text-xs hover:bg-teal-50">上一页</button>` : ''}
+      <span class="text-xs text-gray-500">第 ${page}/${totalPages} 页</span>
+      ${page < totalPages ? `<button onclick="loadList(${page+1})" class="px-3 py-1.5 rounded-lg border text-xs hover:bg-teal-50">下一页</button>` : ''}
+    `;
+  } else {
+    pag.classList.add('hidden');
+  }
+}
+
+loadList();
+</script>
+{% endblock %}

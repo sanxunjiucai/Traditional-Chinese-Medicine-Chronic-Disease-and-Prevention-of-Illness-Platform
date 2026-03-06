@@ -1,0 +1,453 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "health_education" %}
+{% block title %}宣教计划执行管理 - 治未病平台{% endblock %}
+{% block page_title %}宣教计划执行管理{% endblock %}
+
+{% block content %}
+<!-- 面包屑 -->
+<nav class="flex items-center gap-1.5 text-sm mb-4">
+  <a href="/gui/admin/health-education" class="text-gray-500 hover:text-[#4E7A61]">健康宣教</a>
+  <svg class="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+  </svg>
+  <span class="text-gray-700 font-medium">宣教计划执行管理</span>
+</nav>
+<div class="flex gap-6">
+
+  <!-- ══════════ 左侧（3/5） ══════════ -->
+  <div class="flex-1 min-w-0 space-y-5">
+
+    <!-- 卡片1：宣教记录概要 -->
+    <div class="bg-white rounded-xl shadow-sm p-6">
+      <div class="mb-4">
+        <h2 class="text-xl font-bold text-gray-800 mb-2">气虚质患者春季养生宣教</h2>
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="px-2.5 py-0.5 rounded-full text-xs font-medium" style="background:#EBF2ED;color:#4E7A61;border:1px solid #C8DDD0;">体质调养</span>
+          <span class="px-2.5 py-0.5 rounded-full text-xs font-medium" style="background:#EBF2ED;color:#4E7A61;border:1px solid #C8DDD0;">节气宣教</span>
+          <span class="px-2.5 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium border border-green-200">已发送</span>
+          <span class="text-xs text-gray-400 ml-1">record_id: {{ record_id }}</span>
+        </div>
+      </div>
+
+      <!-- 信息格 -->
+      <div class="grid grid-cols-3 gap-3">
+        <div class="rounded-lg p-3" style="background:#EBF2ED;border:1px solid #C8DDD0;">
+          <p class="text-xs mb-1" style="color:#4E7A61;">目标患者数</p>
+          <p class="text-xl font-bold" style="color:#3F6A52;">38</p>
+          <p class="text-xs" style="color:#6A9A78;">人</p>
+        </div>
+        <div class="bg-green-50 rounded-lg p-3 border border-green-100">
+          <p class="text-xs text-green-500 mb-1">已读数</p>
+          <p class="text-xl font-bold text-green-700">25</p>
+          <p class="text-xs text-green-400">人</p>
+        </div>
+        <div class="rounded-lg p-3" style="background:#FEF3C7;border:1px solid #FDE68A;">
+          <p class="text-xs text-amber-500 mb-1">回执数</p>
+          <p class="text-xl font-bold text-amber-700">18</p>
+          <p class="text-xs text-amber-400">人</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3">
+          <p class="text-xs text-gray-400 mb-1">发送时间</p>
+          <p class="text-sm font-semibold text-gray-700">2026-03-01 09:00</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3">
+          <p class="text-xs text-gray-400 mb-1">发送方式</p>
+          <div class="flex flex-wrap gap-1 mt-0.5">
+            <span class="px-1.5 py-0.5 rounded text-xs" style="background:#EBF2ED;color:#4E7A61;">微信推送</span>
+            <span class="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">短信</span>
+          </div>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3">
+          <p class="text-xs text-gray-400 mb-1">截止日期</p>
+          <p class="text-sm font-semibold text-gray-700">2026-03-10</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 卡片2：发送进度 -->
+    <div class="bg-white rounded-xl shadow-sm p-6">
+      <h3 class="font-semibold text-gray-700 mb-5">发送进度</h3>
+
+      <!-- 进度条 -->
+      <div class="mb-5 space-y-3">
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-xs text-gray-500">已读 / 已发送</span>
+            <span class="text-xs font-semibold text-green-600">25 / 38 人</span>
+          </div>
+          <div class="w-full rounded-full h-3 overflow-hidden" style="background:#EDE8E2;">
+            <div class="h-full rounded-full" style="width:65.8%;background:linear-gradient(90deg,#6A9A78 0%,#4E7A61 100%);"></div>
+          </div>
+          <p class="text-xs text-gray-400 mt-1">已读率 65.8%</p>
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-xs text-gray-500">已回执 / 已发送</span>
+            <span class="text-xs font-semibold text-amber-600">18 / 38 人</span>
+          </div>
+          <div class="w-full rounded-full h-3 overflow-hidden" style="background:#EDE8E2;">
+            <div class="h-full rounded-full" style="width:47.4%;background:linear-gradient(90deg,#D4A054 0%,#B8885E 100%);"></div>
+          </div>
+          <p class="text-xs text-gray-400 mt-1">回执率 47.4%</p>
+        </div>
+      </div>
+
+      <!-- 3 个指标 -->
+      <div class="grid grid-cols-3 gap-4">
+        <div class="text-center p-4 rounded-xl" style="background:#EBF2ED;border:1px solid #C8DDD0;">
+          <div class="relative w-16 h-16 mx-auto mb-2">
+            <svg class="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="15.9" fill="none" stroke="#C8DDD0" stroke-width="3"/>
+              <circle cx="18" cy="18" r="15.9" fill="none" stroke="#4E7A61" stroke-width="3"
+                stroke-dasharray="100 100" stroke-dashoffset="0"
+                style="stroke-dasharray: 100; stroke-dashoffset: 0"/>
+            </svg>
+            <span class="absolute inset-0 flex items-center justify-center text-sm font-bold" style="color:#4E7A61;">100%</span>
+          </div>
+          <p class="text-xs font-medium" style="color:#4E7A61;">发送成功率</p>
+          <p class="text-xs mt-0.5" style="color:#6A9A78;">38/38 人</p>
+        </div>
+        <div class="text-center p-4 bg-green-50 rounded-xl border border-green-100">
+          <div class="relative w-16 h-16 mx-auto mb-2">
+            <svg class="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="15.9" fill="none" stroke="#dcfce7" stroke-width="3"/>
+              <circle cx="18" cy="18" r="15.9" fill="none" stroke="#22c55e" stroke-width="3"
+                stroke-dasharray="65.8 34.2" stroke-dashoffset="0"/>
+            </svg>
+            <span class="absolute inset-0 flex items-center justify-center text-sm font-bold text-green-600">65.8%</span>
+          </div>
+          <p class="text-xs text-green-600 font-medium">已读率</p>
+          <p class="text-xs text-green-400 mt-0.5">25/38 人</p>
+        </div>
+        <div class="text-center p-4 rounded-xl" style="background:#FEF3C7;border:1px solid #FDE68A;">
+          <div class="relative w-16 h-16 mx-auto mb-2">
+            <svg class="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="15.9" fill="none" stroke="#FDE68A" stroke-width="3"/>
+              <circle cx="18" cy="18" r="15.9" fill="none" stroke="#B8885E" stroke-width="3"
+                stroke-dasharray="47.4 52.6" stroke-dashoffset="0"/>
+            </svg>
+            <span class="absolute inset-0 flex items-center justify-center text-sm font-bold text-amber-600">47.4%</span>
+          </div>
+          <p class="text-xs text-amber-600 font-medium">回执率</p>
+          <p class="text-xs text-amber-400 mt-0.5">18/38 人</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 卡片3：内容预览（分节折叠） -->
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-100">
+        <h3 class="font-semibold text-gray-700">宣教内容预览</h3>
+        <p class="text-xs text-gray-400 mt-0.5">点击节标题可展开/收起内容</p>
+      </div>
+      <div class="divide-y divide-gray-100">
+
+        <!-- 第1节：饮食调养（默认展开） -->
+        <div>
+          <button onclick="toggleSection('section-1', this)"
+            class="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors text-left">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0" style="background:#EBF2ED;color:#4E7A61;">1</span>
+              <span class="font-medium text-gray-700">饮食调养</span>
+            </div>
+            <svg id="section-1-icon" class="w-4 h-4 text-gray-400 transform rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+          <div id="section-1" class="px-6 pb-5">
+            <div class="rounded-lg p-4" style="background:#EBF2ED;border:1px solid #C8DDD0;">
+              <p class="text-sm text-gray-700 leading-relaxed">
+                气虚质人群春季饮食应以补气健脾为主，宜食用以下食物：<br>
+                <strong style="color:#3F6A52;">推荐食物：</strong>黄芪、党参、山药、大枣、莲子、糯米、鸡肉、鲫鱼等。<br>
+                <strong style="color:#3F6A52;">饮食原则：</strong>定时定量，宜温热，忌生冷寒凉；细嚼慢咽，勿过饱；烹饪方式以蒸、煮、炖为宜。<br>
+                <strong class="text-red-600">忌食：</strong>生冷瓜果、油腻辛辣、冷饮冷食，以免损伤脾胃阳气。
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 第2节：起居调摄（默认收起） -->
+        <div>
+          <button onclick="toggleSection('section-2', this)"
+            class="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors text-left">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-green-100 text-green-700 text-xs font-bold flex items-center justify-center flex-shrink-0">2</span>
+              <span class="font-medium text-gray-700">起居调摄</span>
+            </div>
+            <svg id="section-2-icon" class="w-4 h-4 text-gray-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+          <div id="section-2" class="hidden px-6 pb-5">
+            <div class="bg-green-50 rounded-lg p-4 border border-green-100">
+              <p class="text-sm text-gray-700 leading-relaxed">
+                春季气虚质人群应注重以下起居调摄：<br>
+                <strong class="text-green-700">睡眠：</strong>早睡早起，保证7-8小时充足睡眠，午休20-30分钟有助恢复精力。<br>
+                <strong class="text-green-700">穿衣：</strong>春捂秋冻，注意背部、腹部保暖，避免受风寒。<br>
+                <strong class="text-green-700">劳逸：</strong>避免过劳，工作1小时休息10分钟；适当晒太阳以补阳气，每日20-30分钟为宜。
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 第3节：运动保健（默认收起） -->
+        <div>
+          <button onclick="toggleSection('section-3', this)"
+            class="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors text-left">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-orange-100 text-orange-700 text-xs font-bold flex items-center justify-center flex-shrink-0">3</span>
+              <span class="font-medium text-gray-700">运动保健</span>
+            </div>
+            <svg id="section-3-icon" class="w-4 h-4 text-gray-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+          <div id="section-3" class="hidden px-6 pb-5">
+            <div class="bg-orange-50 rounded-lg p-4 border border-orange-100">
+              <p class="text-sm text-gray-700 leading-relaxed">
+                气虚质人群适合以下运动方式：<br>
+                <strong class="text-orange-700">推荐运动：</strong>太极拳、八段锦、五禽戏、散步等舒缓运动。<br>
+                <strong class="text-orange-700">运动强度：</strong>以微微出汗为度，避免大汗淋漓；每次20-40分钟，每周3-5次。<br>
+                <strong class="text-orange-700">注意事项：</strong>运动后注意保暖，不可受风；感冒发热时停止运动；运动前后适量饮温水。
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 第4节：穴位保健（默认收起） -->
+        <div>
+          <button onclick="toggleSection('section-4', this)"
+            class="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors text-left">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0" style="background:#FEF3C7;color:#B8885E;">4</span>
+              <span class="font-medium text-gray-700">穴位保健</span>
+            </div>
+            <svg id="section-4-icon" class="w-4 h-4 text-gray-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+          <div id="section-4" class="hidden px-6 pb-5">
+            <div class="rounded-lg p-4" style="background:#FEF9F0;border:1px solid #F0D9B8;">
+              <p class="text-sm text-gray-700 leading-relaxed">
+                气虚质调理推荐以下穴位按摩：<br>
+                <strong style="color:#B8885E;">足三里：</strong>位于小腿外侧，每日按揉5分钟，补中益气、强健脾胃。<br>
+                <strong style="color:#B8885E;">气海穴：</strong>脐下1.5寸，每日顺时针按摩3分钟，补气益元。<br>
+                <strong style="color:#B8885E;">关元穴：</strong>脐下3寸，艾灸或按揉，温补元气；每周艾灸1-2次，每次15分钟。<br>
+                <strong style="color:#B8885E;">操作方法：</strong>用拇指指腹按压穴位，力度适中，以局部酸胀感为宜。
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════ 右侧（2/5） ══════════ -->
+  <div class="w-72 flex-shrink-0 space-y-5">
+
+    <!-- 右侧卡片1：快速操作 -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-4">快速操作</h3>
+      <div class="space-y-2.5">
+        <button onclick="resend()"
+          class="w-full flex items-center gap-2 px-4 py-2.5 text-white rounded-lg text-sm transition-colors" style="background:#4E7A61;" onmouseover="this.style.background='#3F6A52'" onmouseout="this.style.background='#4E7A61'">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+          </svg>
+          再次发送
+        </button>
+        <button onclick="sendReminder()"
+          class="w-full flex items-center gap-2 px-4 py-2.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-sm hover:bg-amber-100 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+          </svg>
+          发送提醒
+        </button>
+        <button onclick="exportReport()"
+          class="w-full flex items-center gap-2 px-4 py-2.5 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-sm hover:bg-gray-100 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          导出报告
+        </button>
+      </div>
+    </div>
+
+    <!-- 右侧卡片2：患者阅读状态 -->
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="font-semibold text-gray-700 text-sm">患者阅读状态</h3>
+        <span class="text-xs text-gray-400">显示前 8 条</span>
+      </div>
+      <div class="divide-y divide-gray-100">
+
+        <!-- 5 名已读患者 -->
+        <div class="px-5 py-3 flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-700">李建国</p>
+            <p class="text-xs text-gray-400">微信 · 03-01 09:12</p>
+          </div>
+          <div class="text-right">
+            <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">已读</span>
+            <p class="text-xs text-gray-400 mt-0.5">03-01 09:35</p>
+          </div>
+        </div>
+        <div class="px-5 py-3 flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-700">李淑华</p>
+            <p class="text-xs text-gray-400">微信 · 03-01 09:12</p>
+          </div>
+          <div class="text-right">
+            <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">已读</span>
+            <p class="text-xs text-gray-400 mt-0.5">03-01 10:02</p>
+          </div>
+        </div>
+        <div class="px-5 py-3 flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-700">张志远</p>
+            <p class="text-xs text-gray-400">短信 · 03-01 09:15</p>
+          </div>
+          <div class="text-right">
+            <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">已读</span>
+            <p class="text-xs text-gray-400 mt-0.5">03-02 08:20</p>
+          </div>
+        </div>
+        <div class="px-5 py-3 flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-700">陈秀英</p>
+            <p class="text-xs text-gray-400">微信 · 03-01 09:12</p>
+          </div>
+          <div class="text-right">
+            <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">已读</span>
+            <p class="text-xs text-gray-400 mt-0.5">03-01 11:45</p>
+          </div>
+        </div>
+        <div class="px-5 py-3 flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-700">王大明</p>
+            <p class="text-xs text-gray-400">微信 · 03-01 09:12</p>
+          </div>
+          <div class="text-right">
+            <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">已读</span>
+            <p class="text-xs text-gray-400 mt-0.5">03-03 14:10</p>
+          </div>
+        </div>
+
+        <!-- 3 名未读患者 -->
+        <div class="px-5 py-3 flex items-center justify-between bg-gray-50/50">
+          <div>
+            <p class="text-sm font-medium text-gray-600">赵小红</p>
+            <p class="text-xs text-gray-400">短信 · 03-01 09:15</p>
+          </div>
+          <div class="text-right">
+            <span class="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full text-xs">未读</span>
+            <p class="text-xs text-gray-300 mt-0.5">--</p>
+          </div>
+        </div>
+        <div class="px-5 py-3 flex items-center justify-between bg-gray-50/50">
+          <div>
+            <p class="text-sm font-medium text-gray-600">孙立国</p>
+            <p class="text-xs text-gray-400">微信 · 03-01 09:12</p>
+          </div>
+          <div class="text-right">
+            <span class="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full text-xs">未读</span>
+            <p class="text-xs text-gray-300 mt-0.5">--</p>
+          </div>
+        </div>
+        <div class="px-5 py-3 flex items-center justify-between bg-gray-50/50">
+          <div>
+            <p class="text-sm font-medium text-gray-600">林美华</p>
+            <p class="text-xs text-gray-400">短信 · 03-01 09:15</p>
+          </div>
+          <div class="text-right">
+            <span class="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full text-xs">未读</span>
+            <p class="text-xs text-gray-300 mt-0.5">--</p>
+          </div>
+        </div>
+      </div>
+      <div class="px-5 py-3 border-t border-gray-100">
+        <button onclick="showToast('查看全部患者阅读状态：共 38 名患者')"
+          class="text-xs hover:underline" style="color:#4E7A61;">查看全部 38 名患者 →</button>
+      </div>
+    </div>
+
+    <!-- 右侧卡片3：计划调整记录（时间轴） -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-4">计划调整记录</h3>
+      <div class="space-y-0">
+        <div class="flex gap-3">
+          <div class="flex flex-col items-center flex-shrink-0">
+            <div class="w-2 h-2 rounded-full mt-1" style="background:#4E7A61;"></div>
+            <div class="w-px flex-1 bg-gray-200 mt-1 min-h-4"></div>
+          </div>
+          <div class="pb-4 flex-1 min-w-0">
+            <p class="text-xs text-gray-400">2026-03-02 10:30</p>
+            <p class="text-sm font-medium text-gray-700 mt-0.5">补发通知</p>
+            <p class="text-xs text-gray-500 mt-0.5">对短信发送失败的 3 名患者补发微信推送，操作人：王医生</p>
+          </div>
+        </div>
+        <div class="flex gap-3">
+          <div class="flex flex-col items-center flex-shrink-0">
+            <div class="w-2 h-2 rounded-full bg-amber-400 mt-1"></div>
+            <div class="w-px flex-1 bg-gray-200 mt-1 min-h-4"></div>
+          </div>
+          <div class="pb-4 flex-1 min-w-0">
+            <p class="text-xs text-gray-400">2026-03-01 14:00</p>
+            <p class="text-sm font-medium text-gray-700 mt-0.5">调整发送范围</p>
+            <p class="text-xs text-gray-500 mt-0.5">将阳虚质患者从受众中排除，聚焦气虚质人群，共调整 8 人</p>
+          </div>
+        </div>
+        <div class="flex gap-3">
+          <div class="flex flex-col items-center flex-shrink-0">
+            <div class="w-2 h-2 rounded-full mt-1" style="background:#B8885E;"></div>
+          </div>
+          <div class="pb-0 flex-1 min-w-0">
+            <p class="text-xs text-gray-400">2026-02-28 16:20</p>
+            <p class="text-sm font-medium text-gray-700 mt-0.5">更换内容版本</p>
+            <p class="text-xs text-gray-500 mt-0.5">将通用版本替换为春季专项版，新增穴位保健章节，操作人：管理员</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function toggleSection(id, btn) {
+  const section = document.getElementById(id);
+  const icon = document.getElementById(id + '-icon');
+  const isHidden = section.classList.contains('hidden');
+  if (isHidden) {
+    section.classList.remove('hidden');
+    icon.classList.add('rotate-180');
+  } else {
+    section.classList.add('hidden');
+    icon.classList.remove('rotate-180');
+  }
+}
+
+function resend() {
+  if (confirm('确认再次发送此宣教内容？\n将向全部 38 名目标患者重新发送。')) {
+    showToast('再次发送成功\n已向 38 名患者重新推送宣教内容，预计 1-2 分钟内完成送达。');
+  }
+}
+
+function sendReminder() {
+  if (confirm('确认向 13 名未读患者发送阅读提醒？')) {
+    showToast('提醒发送成功\n已向 13 名未读患者发送阅读提醒，发送方式：微信+短信。');
+  }
+}
+
+function exportReport() {
+  showToast('宣教执行报告导出中\n\n报告内容：\n· 发送统计：38人，成功率100%\n· 已读统计：25人，已读率65.8%\n· 回执统计：18人，回执率47.4%\n\nPDF 文件将在 3 秒内下载。');
+}
+</script>
+{% endblock %}

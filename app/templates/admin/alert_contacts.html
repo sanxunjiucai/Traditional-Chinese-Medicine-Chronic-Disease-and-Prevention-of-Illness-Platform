@@ -1,0 +1,504 @@
+{% extends "_layouts/admin.html" %}
+{% block title %}危急值联系人管理{% endblock %}
+{% block page_title %}危急值联系人管理{% endblock %}
+{% set active_nav = "alerts" %}
+
+{% block extra_head %}
+<style>
+  .priority-badge-1 { background:#fef2f2; color:#dc2626; font-weight:700; }
+  .priority-badge-2 { background:#fff7ed; color:#ea580c; font-weight:600; }
+  .priority-badge-3 { background:#fefce8; color:#ca8a04; font-weight:500; }
+  .priority-badge-4 { background:#f0fdf4; color:#16a34a; }
+  .priority-badge-5 { background:#f8fafc; color:#94a3b8; }
+  .notify-icon { display:inline-flex; align-items:center; justify-content:center;
+    width:24px; height:24px; border-radius:6px; font-size:12px; }
+  .modal-overlay { background:rgba(0,0,0,0.45); }
+  #modal { max-height:92vh; overflow-y:auto; }
+  .patient-card { border-left:3px solid #dc2626; }
+  input[type=search]::-webkit-search-cancel-button { cursor:pointer; }
+  tr.selected-row { background:#fff5f5; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 顶部操作栏 -->
+<div class="flex flex-wrap items-center gap-3 mb-5">
+  <div class="relative flex-1 min-w-48">
+    <svg class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
+    </svg>
+    <input type="search" id="search-input" placeholder="搜索患者或联系人姓名..."
+      class="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-300 bg-white"
+      oninput="filterContacts()">
+  </div>
+  <select id="filter-relation" onchange="filterContacts()"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-300">
+    <option value="">全部关系</option>
+    <option value="配偶">配偶</option>
+    <option value="子女">子女</option>
+    <option value="父母">父母</option>
+    <option value="监护人">监护人</option>
+    <option value="紧急联系人">紧急联系人</option>
+    <option value="责任医生">责任医生</option>
+  </select>
+  <select id="filter-status" onchange="filterContacts()"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-300">
+    <option value="">全部状态</option>
+    <option value="active">启用中</option>
+    <option value="inactive">已停用</option>
+  </select>
+  <button onclick="openModal(null)"
+    class="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+    </svg>
+    新增联系人
+  </button>
+</div>
+
+<!-- 统计摘要 -->
+<div class="grid grid-cols-4 gap-4 mb-5">
+  <div class="bg-white rounded-xl p-4 shadow-sm border-l-4 border-red-500">
+    <div class="text-2xl font-bold text-gray-800" id="stat-total">15</div>
+    <div class="text-xs text-gray-500 mt-0.5">联系人总数</div>
+  </div>
+  <div class="bg-white rounded-xl p-4 shadow-sm border-l-4 border-orange-400">
+    <div class="text-2xl font-bold text-gray-800" id="stat-p1">4</div>
+    <div class="text-xs text-gray-500 mt-0.5">最高优先级（P1）</div>
+  </div>
+  <div class="bg-white rounded-xl p-4 shadow-sm border-l-4 border-green-500">
+    <div class="text-2xl font-bold text-gray-800" id="stat-active">13</div>
+    <div class="text-xs text-gray-500 mt-0.5">启用中</div>
+  </div>
+  <div class="bg-white rounded-xl p-4 shadow-sm" style="border-left:4px solid #7A9E8A">
+    <div class="text-2xl font-bold text-gray-800" id="stat-patients">12</div>
+    <div class="text-xs text-gray-500 mt-0.5">已覆盖患者</div>
+  </div>
+</div>
+
+<!-- 联系人表格 -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+    <span class="text-sm font-medium text-gray-700">联系人列表</span>
+    <span id="result-count" class="text-xs text-gray-400"></span>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 border-b border-gray-200">
+        <tr>
+          <th class="text-left px-4 py-3 text-gray-500 font-medium">患者姓名</th>
+          <th class="text-left px-4 py-3 text-gray-500 font-medium">联系人姓名</th>
+          <th class="text-left px-4 py-3 text-gray-500 font-medium">关系</th>
+          <th class="text-left px-4 py-3 text-gray-500 font-medium">联系方式</th>
+          <th class="text-left px-4 py-3 text-gray-500 font-medium">通知方式</th>
+          <th class="text-left px-4 py-3 text-gray-500 font-medium">优先级</th>
+          <th class="text-left px-4 py-3 text-gray-500 font-medium">有效期</th>
+          <th class="text-left px-4 py-3 text-gray-500 font-medium">状态</th>
+          <th class="text-left px-4 py-3 text-gray-500 font-medium">操作</th>
+        </tr>
+      </thead>
+      <tbody id="contacts-tbody">
+        <tr><td colspan="9" class="text-center py-10 text-gray-400">加载中...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- 新增/编辑弹窗 -->
+<div id="modal-overlay" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center hidden">
+  <div id="modal" class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 p-0 overflow-hidden">
+    <!-- 弹窗头部 -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-red-50">
+      <h3 id="modal-title" class="text-base font-semibold text-red-700">新增危急值联系人</h3>
+      <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <!-- 弹窗内容 -->
+    <div class="px-6 py-5 space-y-4">
+      <!-- 关联患者 -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">关联患者 <span class="text-red-500">*</span></label>
+        <div class="relative">
+          <input type="search" id="patient-search" placeholder="输入患者姓名或手机号搜索..."
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+            oninput="searchPatient(this.value)">
+          <div id="patient-dropdown" class="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 hidden max-h-40 overflow-y-auto"></div>
+        </div>
+        <div id="patient-card" class="hidden mt-2 p-3 bg-red-50 rounded-lg patient-card">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 bg-red-100 rounded-full flex items-center justify-center text-red-600 font-bold text-sm" id="pc-avatar"></div>
+            <div>
+              <div class="font-medium text-gray-800 text-sm" id="pc-name"></div>
+              <div class="text-xs text-gray-500" id="pc-info"></div>
+            </div>
+          </div>
+        </div>
+        <input type="hidden" id="selected-patient-id">
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <!-- 联系人姓名 -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">联系人姓名 <span class="text-red-500">*</span></label>
+          <input type="text" id="contact-name" placeholder="请输入联系人姓名"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300">
+        </div>
+        <!-- 关系 -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">联系关系 <span class="text-red-500">*</span></label>
+          <select id="contact-relation"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 bg-white">
+            <option value="">请选择</option>
+            <option value="配偶">配偶</option>
+            <option value="子女">子女</option>
+            <option value="父母">父母</option>
+            <option value="监护人">监护人</option>
+            <option value="紧急联系人">紧急联系人</option>
+            <option value="责任医生">责任医生</option>
+          </select>
+        </div>
+        <!-- 手机号 -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">手机号 <span class="text-red-500">*</span></label>
+          <input type="tel" id="contact-phone" placeholder="请输入手机号"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300">
+        </div>
+        <!-- 微信号 -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">微信号 <span class="text-gray-400 text-xs">（可选）</span></label>
+          <input type="text" id="contact-wechat" placeholder="请输入微信号"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300">
+        </div>
+      </div>
+
+      <!-- 通知方式 -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">通知方式 <span class="text-red-500">*</span></label>
+        <div class="flex flex-wrap gap-3">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" name="notify" value="phone" class="rounded text-red-600 focus:ring-red-300">
+            <span class="text-sm">📞 电话</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" name="notify" value="sms" class="rounded text-red-600 focus:ring-red-300">
+            <span class="text-sm">💬 短信</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" name="notify" value="system" class="rounded text-red-600 focus:ring-red-300">
+            <span class="text-sm">🔔 站内消息</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" name="notify" value="wechat" class="rounded text-red-600 focus:ring-red-300">
+            <span class="text-sm">💚 微信</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <!-- 优先级 -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">优先级 <span class="text-xs text-gray-400">（1=最高）</span></label>
+          <select id="contact-priority"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 bg-white">
+            <option value="1">P1 - 最高优先</option>
+            <option value="2">P2 - 高优先</option>
+            <option value="3" selected>P3 - 普通</option>
+            <option value="4">P4 - 低优先</option>
+            <option value="5">P5 - 最低</option>
+          </select>
+        </div>
+        <!-- 状态 -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">状态</label>
+          <select id="contact-status"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 bg-white">
+            <option value="active">启用</option>
+            <option value="inactive">停用</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 有效时间 -->
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">有效开始日期 <span class="text-xs text-gray-400">（空=长期）</span></label>
+          <input type="date" id="valid-from"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">有效结束日期 <span class="text-xs text-gray-400">（空=长期）</span></label>
+          <input type="date" id="valid-until"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300">
+        </div>
+      </div>
+
+      <!-- 备注 -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">备注</label>
+        <textarea id="contact-note" rows="2" placeholder="其他补充说明..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"></textarea>
+      </div>
+    </div>
+    <!-- 弹窗底部 -->
+    <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50">
+      <button onclick="closeModal()"
+        class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">
+        取消
+      </button>
+      <button onclick="saveContact()"
+        class="px-6 py-2 text-sm bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors">
+        保存联系人
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Demo 数据 ──
+const DEMO_CONTACTS = [
+  { id:1, patientId:101, patientName:'李建国', patientAge:'68岁', patientDiag:'高血压III级', contactName:'李晓梅', relation:'配偶', phone:'13801234001', wechat:'lixm2024', notify:['phone','sms'], priority:1, status:'active', validFrom:'', validUntil:'', note:'主要联系人，24小时可联' },
+  { id:2, patientId:101, patientName:'李建国', patientAge:'68岁', patientDiag:'高血压III级', contactName:'李强', relation:'子女', phone:'13801234002', wechat:'', notify:['sms','system'], priority:2, status:'active', validFrom:'', validUntil:'', note:'' },
+  { id:3, patientId:102, patientName:'王秀英', patientAge:'72岁', patientDiag:'2型糖尿病', contactName:'王建华', relation:'子女', phone:'13902345001', wechat:'wjh_wx', notify:['phone','sms','wechat'], priority:1, status:'active', validFrom:'', validUntil:'2026-12-31', note:'工作日9-18可接电话' },
+  { id:4, patientId:103, patientName:'张福林', patientAge:'75岁', patientDiag:'慢性心衰', contactName:'张小红', relation:'子女', phone:'13703456001', wechat:'', notify:['phone'], priority:1, status:'active', validFrom:'', validUntil:'', note:'急救首选联系人' },
+  { id:5, patientId:103, patientName:'张福林', patientAge:'75岁', patientDiag:'慢性心衰', contactName:'刘医生', relation:'责任医生', phone:'13703456002', wechat:'', notify:['system','sms'], priority:2, status:'active', validFrom:'', validUntil:'', note:'心内科主治医生' },
+  { id:6, patientId:104, patientName:'陈桂芳', patientAge:'65岁', patientDiag:'高血压合并糖尿病', contactName:'陈明', relation:'子女', phone:'13604567001', wechat:'chenming88', notify:['phone','sms','system'], priority:1, status:'active', validFrom:'', validUntil:'', note:'' },
+  { id:7, patientId:105, patientName:'刘大山', patientAge:'80岁', patientDiag:'脑梗后遗症', contactName:'刘翠花', relation:'配偶', phone:'13505678001', wechat:'', notify:['phone'], priority:1, status:'active', validFrom:'', validUntil:'', note:'老人自己不便接听，请联系家属' },
+  { id:8, patientId:105, patientName:'刘大山', patientAge:'80岁', patientDiag:'脑梗后遗症', contactName:'社区护工', relation:'监护人', phone:'13505678002', wechat:'', notify:['sms'], priority:3, status:'active', validFrom:'2025-01-01', validUntil:'2026-06-30', note:'日间护理人员' },
+  { id:9, patientId:106, patientName:'赵玉兰', patientAge:'70岁', patientDiag:'慢性肾病IV期', contactName:'赵国强', relation:'子女', phone:'13406789001', wechat:'zgq_doctor', notify:['phone','wechat'], priority:1, status:'active', validFrom:'', validUntil:'', note:'本身也是医生，可沟通病情' },
+  { id:10, patientId:107, patientName:'孙志远', patientAge:'58岁', patientDiag:'冠心病', contactName:'孙丽', relation:'配偶', phone:'13907890001', wechat:'sunli_wx', notify:['phone','sms','system','wechat'], priority:1, status:'active', validFrom:'', validUntil:'', note:'全渠道通知' },
+  { id:11, patientId:108, patientName:'钱桂英', patientAge:'77岁', patientDiag:'2型糖尿病', contactName:'钱伟', relation:'子女', phone:'13108901001', wechat:'', notify:['sms'], priority:2, status:'inactive', validFrom:'', validUntil:'2025-12-31', note:'联系人已换，旧记录停用' },
+  { id:12, patientId:108, patientName:'钱桂英', patientAge:'77岁', patientDiag:'2型糖尿病', contactName:'钱莹', relation:'子女', phone:'13208901002', wechat:'qy2025', notify:['phone','sms'], priority:1, status:'active', validFrom:'2026-01-01', validUntil:'', note:'新增紧急联系人' },
+  { id:13, patientId:109, patientName:'周翠萍', patientAge:'66岁', patientDiag:'高血压II级', contactName:'周鑫', relation:'子女', phone:'13309012001', wechat:'zhouxin99', notify:['phone','wechat'], priority:1, status:'active', validFrom:'', validUntil:'', note:'' },
+  { id:14, patientId:110, patientName:'吴金海', patientAge:'73岁', patientDiag:'慢阻肺', contactName:'吴芳', relation:'配偶', phone:'13009123001', wechat:'', notify:['phone','sms'], priority:1, status:'active', validFrom:'', validUntil:'', note:'家中常备急救包' },
+  { id:15, patientId:111, patientName:'郑淑华', patientAge:'62岁', patientDiag:'高血压合并心衰', contactName:'郑刚', relation:'父母', phone:'13109234001', wechat:'zhenggang_wx', notify:['sms','system'], priority:2, status:'active', validFrom:'', validUntil:'', note:'紧急情况可呼叫邻居赵某' },
+];
+
+const DEMO_PATIENTS = [
+  {id:101, name:'李建国', age:'68岁', diag:'高血压III级', phone:'138****4001'},
+  {id:102, name:'王秀英', age:'72岁', diag:'2型糖尿病', phone:'139****5001'},
+  {id:103, name:'张福林', age:'75岁', diag:'慢性心衰', phone:'137****6001'},
+  {id:104, name:'陈桂芳', age:'65岁', diag:'高血压合并糖尿病', phone:'136****7001'},
+  {id:105, name:'刘大山', age:'80岁', diag:'脑梗后遗症', phone:'135****8001'},
+  {id:106, name:'赵玉兰', age:'70岁', diag:'慢性肾病IV期', phone:'134****9001'},
+  {id:107, name:'孙志远', age:'58岁', diag:'冠心病', phone:'139****0001'},
+  {id:108, name:'钱桂英', age:'77岁', diag:'2型糖尿病', phone:'131****1001'},
+  {id:109, name:'周翠萍', age:'66岁', diag:'高血压II级', phone:'133****2001'},
+  {id:110, name:'吴金海', age:'73岁', diag:'慢阻肺', phone:'130****3001'},
+  {id:111, name:'郑淑华', age:'62岁', diag:'高血压合并心衰', phone:'131****4001'},
+];
+
+const NOTIFY_ICONS = { phone:'📞', sms:'💬', system:'🔔', wechat:'💚' };
+const NOTIFY_LABELS = { phone:'电话', sms:'短信', system:'站内', wechat:'微信' };
+const RELATION_COLORS = {
+  配偶: 'bg-pink-100 text-pink-700',
+  子女: '',
+  父母: 'bg-purple-100 text-purple-700',
+  监护人: 'bg-orange-100 text-orange-700',
+  紧急联系人: 'bg-red-100 text-red-700',
+  责任医生: 'bg-green-100 text-green-700',
+};
+const RELATION_STYLES = {
+  子女: 'background:#EBF2ED;color:#4E7A61',
+};
+
+let allContacts = [...DEMO_CONTACTS];
+let editingId = null;
+
+function renderContacts(data) {
+  const tbody = document.getElementById('contacts-tbody');
+  document.getElementById('result-count').textContent = `共 ${data.length} 条`;
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center py-12 text-gray-400">没有找到匹配的联系人</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(c => {
+    const priClass = `priority-badge-${c.priority}`;
+    const notifyHtml = c.notify.map(n =>
+      `<span class="notify-icon bg-gray-100 text-gray-600" title="${NOTIFY_LABELS[n]}">${NOTIFY_ICONS[n]}</span>`
+    ).join('');
+    const relColor = RELATION_COLORS[c.relation] || 'bg-gray-100 text-gray-600';
+    const relStyle = RELATION_STYLES[c.relation] || '';
+    const validText = (c.validFrom || c.validUntil)
+      ? `${c.validFrom||'∞'} ~ ${c.validUntil||'∞'}`
+      : '<span class="text-gray-400">长期有效</span>';
+    const statusHtml = c.status === 'active'
+      ? '<span class="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">启用</span>'
+      : '<span class="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full">停用</span>';
+    return `
+      <tr class="border-b border-gray-50 hover:bg-red-50/30 transition-colors">
+        <td class="px-4 py-3">
+          <a href="/gui/admin/archives/${c.patientId}" class="text-red-600 hover:underline font-medium">${c.patientName}</a>
+          <div class="text-xs text-gray-400">${c.patientAge} · ${c.patientDiag}</div>
+        </td>
+        <td class="px-4 py-3 font-medium text-gray-800">${c.contactName}</td>
+        <td class="px-4 py-3">
+          <span class="text-xs px-2 py-0.5 rounded-full ${relColor}" ${relStyle?`style="${relStyle}"`:''}>${c.relation}</span>
+        </td>
+        <td class="px-4 py-3">
+          <div class="text-gray-800">${c.phone}</div>
+          ${c.wechat ? `<div class="text-xs text-gray-400">微信: ${c.wechat}</div>` : ''}
+        </td>
+        <td class="px-4 py-3">
+          <div class="flex gap-1 flex-wrap">${notifyHtml}</div>
+        </td>
+        <td class="px-4 py-3">
+          <span class="text-xs px-2.5 py-1 rounded-full ${priClass}">P${c.priority}</span>
+        </td>
+        <td class="px-4 py-3 text-xs text-gray-500">${validText}</td>
+        <td class="px-4 py-3">${statusHtml}</td>
+        <td class="px-4 py-3">
+          <div class="flex gap-2">
+            <button onclick="openModal(${c.id})" class="text-xs hover:underline" style="color:#4E7A61">编辑</button>
+            <button onclick="deleteContact(${c.id})" class="text-xs text-red-500 hover:underline">删除</button>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+function filterContacts() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const rel = document.getElementById('filter-relation').value;
+  const st = document.getElementById('filter-status').value;
+  let data = allContacts.filter(c => {
+    const matchQ = !q || c.patientName.includes(q) || c.contactName.includes(q) || c.phone.includes(q);
+    const matchRel = !rel || c.relation === rel;
+    const matchSt = !st || c.status === st;
+    return matchQ && matchRel && matchSt;
+  });
+  renderContacts(data);
+}
+
+function openModal(id) {
+  editingId = id;
+  const modal = document.getElementById('modal-overlay');
+  modal.classList.remove('hidden');
+  if (id) {
+    const c = allContacts.find(x => x.id === id);
+    document.getElementById('modal-title').textContent = '编辑危急值联系人';
+    document.getElementById('patient-search').value = c.patientName;
+    document.getElementById('selected-patient-id').value = c.patientId;
+    document.getElementById('contact-name').value = c.contactName;
+    document.getElementById('contact-relation').value = c.relation;
+    document.getElementById('contact-phone').value = c.phone;
+    document.getElementById('contact-wechat').value = c.wechat || '';
+    document.getElementById('contact-priority').value = c.priority;
+    document.getElementById('contact-status').value = c.status;
+    document.getElementById('valid-from').value = c.validFrom || '';
+    document.getElementById('valid-until').value = c.validUntil || '';
+    document.getElementById('contact-note').value = c.note || '';
+    document.querySelectorAll('input[name="notify"]').forEach(cb => {
+      cb.checked = c.notify.includes(cb.value);
+    });
+    showPatientCard(DEMO_PATIENTS.find(p => p.id === c.patientId));
+  } else {
+    document.getElementById('modal-title').textContent = '新增危急值联系人';
+    document.getElementById('patient-search').value = '';
+    document.getElementById('selected-patient-id').value = '';
+    document.getElementById('contact-name').value = '';
+    document.getElementById('contact-relation').value = '';
+    document.getElementById('contact-phone').value = '';
+    document.getElementById('contact-wechat').value = '';
+    document.getElementById('contact-priority').value = '3';
+    document.getElementById('contact-status').value = 'active';
+    document.getElementById('valid-from').value = '';
+    document.getElementById('valid-until').value = '';
+    document.getElementById('contact-note').value = '';
+    document.querySelectorAll('input[name="notify"]').forEach(cb => cb.checked = false);
+    document.getElementById('patient-card').classList.add('hidden');
+  }
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.add('hidden');
+  document.getElementById('patient-dropdown').classList.add('hidden');
+}
+
+function showPatientCard(p) {
+  if (!p) return;
+  document.getElementById('patient-card').classList.remove('hidden');
+  document.getElementById('pc-avatar').textContent = p.name[0];
+  document.getElementById('pc-name').textContent = p.name;
+  document.getElementById('pc-info').textContent = `${p.age} · ${p.diag} · ${p.phone}`;
+  document.getElementById('selected-patient-id').value = p.id;
+}
+
+function searchPatient(q) {
+  const dd = document.getElementById('patient-dropdown');
+  if (!q.trim()) { dd.classList.add('hidden'); return; }
+  const res = DEMO_PATIENTS.filter(p => p.name.includes(q) || p.phone.includes(q));
+  if (!res.length) { dd.classList.add('hidden'); return; }
+  dd.innerHTML = res.map(p => `
+    <div class="px-3 py-2 hover:bg-red-50 cursor-pointer text-sm" onclick="selectPatient(${p.id})">
+      <span class="font-medium">${p.name}</span>
+      <span class="text-gray-400 text-xs ml-2">${p.age} · ${p.diag}</span>
+    </div>`).join('');
+  dd.classList.remove('hidden');
+}
+
+function selectPatient(id) {
+  const p = DEMO_PATIENTS.find(x => x.id === id);
+  document.getElementById('patient-search').value = p.name;
+  document.getElementById('patient-dropdown').classList.add('hidden');
+  showPatientCard(p);
+}
+
+function saveContact() {
+  const name = document.getElementById('contact-name').value.trim();
+  const phone = document.getElementById('contact-phone').value.trim();
+  const patientId = document.getElementById('selected-patient-id').value;
+  if (!name || !phone || !patientId) {
+    showToast('请填写必填项：关联患者、联系人姓名、手机号');
+    return;
+  }
+  const notify = Array.from(document.querySelectorAll('input[name="notify"]:checked')).map(cb => cb.value);
+  if (!notify.length) { showToast('请至少选择一种通知方式'); return; }
+  const patient = DEMO_PATIENTS.find(p => p.id == patientId);
+  const data = {
+    id: editingId || Date.now(),
+    patientId: +patientId,
+    patientName: patient.name,
+    patientAge: patient.age,
+    patientDiag: patient.diag,
+    contactName: name,
+    relation: document.getElementById('contact-relation').value,
+    phone,
+    wechat: document.getElementById('contact-wechat').value.trim(),
+    notify,
+    priority: +document.getElementById('contact-priority').value,
+    status: document.getElementById('contact-status').value,
+    validFrom: document.getElementById('valid-from').value,
+    validUntil: document.getElementById('valid-until').value,
+    note: document.getElementById('contact-note').value.trim(),
+  };
+  if (editingId) {
+    const idx = allContacts.findIndex(c => c.id === editingId);
+    allContacts[idx] = data;
+  } else {
+    allContacts.unshift(data);
+  }
+  closeModal();
+  filterContacts();
+}
+
+function deleteContact(id) {
+  if (!confirm('确认删除该联系人？')) return;
+  allContacts = allContacts.filter(c => c.id !== id);
+  filterContacts();
+}
+
+// 点击遮罩关闭
+document.getElementById('modal-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// 初始化
+renderContacts(allContacts);
+document.getElementById('result-count').textContent = `共 ${allContacts.length} 条`;
+</script>
+{% endblock %}

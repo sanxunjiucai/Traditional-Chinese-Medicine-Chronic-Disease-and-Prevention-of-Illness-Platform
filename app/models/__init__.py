@@ -26,3 +26,14 @@ from app.models.followup import CheckIn, FollowupPlan, FollowupTask, FollowupTem
 from app.models.alert import AlertEvent, AlertRule  # noqa: F401
 from app.models.content import ContentItem  # noqa: F401
 from app.models.audit import AuditLog  # noqa: F401
+from app.models.intervention import Intervention, InterventionRecord  # noqa: F401
+from app.models.education import EducationRecord, EducationDelivery, EducationTemplate  # noqa: F401
+from app.models.scale import Scale, ScaleQuestion, ScaleRecord  # noqa: F401
+from app.models.followup_rule import FollowupRule  # noqa: F401
+from app.models.label import LabelCategory, Label, PatientLabel  # noqa: F401
+from app.models.notification import Notification  # noqa: F401
+from app.models.consultation import Consultation, ConsultationMessage  # noqa: F401
+from app.models.preventive import (  # noqa: F401
+    LifestyleProfile, TcmTraitAssessment, RiskInference,
+    PreventivePlan, PlanDistribution, PatientIntent, PreventiveFollowUpTask,
+)

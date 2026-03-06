@@ -1,0 +1,280 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "activity_archives" %}
+{% block title %}活动档案详情 - 治未病平台{% endblock %}
+{% block page_title %}活动档案详情{% endblock %}
+
+{% block content %}
+<div class="flex gap-6">
+  <!-- 左侧主体 (2/3) -->
+  <div class="flex-1 min-w-0 space-y-4">
+    <!-- 面包屑 -->
+    <nav class="flex items-center gap-2 text-sm text-gray-500">
+      <a href="/gui/admin/activity-archives" class="hover:underline" onmouseenter="this.style.color='#4E7A61'" onmouseleave="this.style.color=''">活动档案</a>
+      <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+      </svg>
+      <span id="breadcrumb-name" class="text-gray-800 font-medium">加载中...</span>
+    </nav>
+
+    <!-- 规则摘要卡 -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <div class="flex items-start justify-between mb-4">
+        <div>
+          <h2 id="activity-name" class="text-lg font-semibold text-gray-800">-</h2>
+          <p id="activity-rule" class="text-sm text-gray-500 mt-1">-</p>
+        </div>
+        <span id="activity-status" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">启用</span>
+      </div>
+      <div class="grid grid-cols-3 gap-4 text-sm">
+        <div>
+          <p class="text-gray-400 text-xs mb-1">生成周期</p>
+          <p id="activity-cycle" class="font-medium text-gray-700">-</p>
+        </div>
+        <div>
+          <p class="text-gray-400 text-xs mb-1">负责医生</p>
+          <p id="activity-doctor" class="font-medium text-gray-700">-</p>
+        </div>
+        <div>
+          <p class="text-gray-400 text-xs mb-1">适用范围</p>
+          <p id="activity-scope" class="font-medium text-gray-700">-</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 覆盖患者列表 -->
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="font-medium text-gray-800">覆盖患者列表</h3>
+        <span id="patient-count" class="text-sm text-gray-500">共 - 人</span>
+      </div>
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+          <tr>
+            <th class="px-5 py-3 text-left">姓名</th>
+            <th class="px-5 py-3 text-left">年龄</th>
+            <th class="px-5 py-3 text-left">性别</th>
+            <th class="px-5 py-3 text-left">触发指标值</th>
+            <th class="px-5 py-3 text-left">加入时间</th>
+            <th class="px-5 py-3 text-left">操作</th>
+          </tr>
+        </thead>
+        <tbody id="patient-tbody" class="divide-y divide-gray-100">
+          <tr><td colspan="6" class="text-center text-gray-400 py-10">加载中...</td></tr>
+        </tbody>
+      </table>
+      <div id="pagination" class="px-5 py-3 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500"></div>
+    </div>
+  </div>
+
+  <!-- 右侧边栏 (1/3) -->
+  <div class="w-80 flex-shrink-0 space-y-4">
+    <!-- 指标数字卡 -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-medium text-gray-800 mb-4">指标概况</h3>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="rounded-lg p-3" style="background:#EBF2ED;">
+          <p class="text-xs mb-1" style="color:#4E7A61;">总计</p>
+          <p id="kpi-all" class="text-2xl font-bold" style="color:#4E7A61;">-</p>
+        </div>
+        <div class="bg-green-50 rounded-lg p-3">
+          <p class="text-xs text-green-400 mb-1">本周新增</p>
+          <p id="kpi-week" class="text-2xl font-bold text-green-600">-</p>
+        </div>
+        <div class="bg-orange-50 rounded-lg p-3">
+          <p class="text-xs text-orange-400 mb-1">本月新增</p>
+          <p id="kpi-month" class="text-2xl font-bold text-orange-500">-</p>
+        </div>
+        <div class="rounded-lg p-3" style="background:#e8edf5;">
+          <p class="text-xs mb-1" style="color:#5070A8;">已处理</p>
+          <p id="kpi-handled" class="text-2xl font-bold" style="color:#5070A8;">-</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 最近生成记录时间轴 -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-medium text-gray-800 mb-4">最近生成记录</h3>
+      <div id="timeline" class="space-y-4">
+        <p class="text-gray-400 text-sm text-center py-4">加载中...</p>
+      </div>
+      <div class="mt-4 pt-3 border-t border-gray-100 text-center">
+        <a href="/gui/admin/activity-archives/generate-log" class="text-sm hover:underline" style="color:#4E7A61;">查看完整日志</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const ACTIVITY_ID = "{{ activity_id }}";
+
+const DEMO_ACTIVITY = {
+  id: ACTIVITY_ID || 1,
+  name: '近3月血压不达标患者',
+  rule: '血压收缩压 > 160 mmHg，近 30 天触发 ≥ 2 次',
+  cycle: '每日',
+  doctor: '王医生',
+  scope: '重点关注、老年人档案',
+  status: 'ACTIVE',
+};
+
+const DEMO_PATIENTS = [
+  { id: 1,  name: '张三',   age: 68, gender: '男', metric: '收缩压 178 mmHg', joined: '2026-02-01' },
+  { id: 2,  name: '王建国', age: 72, gender: '男', metric: '收缩压 185 mmHg', joined: '2026-02-03' },
+  { id: 3,  name: '赵大军', age: 63, gender: '男', metric: '收缩压 172 mmHg', joined: '2026-02-05' },
+  { id: 4,  name: '吴美玲', age: 70, gender: '女', metric: '收缩压 168 mmHg', joined: '2026-02-08' },
+  { id: 5,  name: '陈永强', age: 74, gender: '男', metric: '收缩压 190 mmHg', joined: '2026-02-10' },
+  { id: 6,  name: '冯秀英', age: 52, gender: '女', metric: '收缩压 165 mmHg', joined: '2026-02-12' },
+  { id: 7,  name: '朱大伟', age: 61, gender: '男', metric: '收缩压 175 mmHg', joined: '2026-02-15' },
+  { id: 8,  name: '刘晓燕', age: 55, gender: '女', metric: '收缩压 163 mmHg', joined: '2026-02-18' },
+  { id: 9,  name: '马秀珍', age: 66, gender: '女', metric: '收缩压 182 mmHg', joined: '2026-02-20' },
+  { id: 10, name: '黄志远', age: 49, gender: '男', metric: '收缩压 170 mmHg', joined: '2026-02-22' },
+  { id: 11, name: '孙建平', age: 65, gender: '男', metric: '收缩压 177 mmHg', joined: '2026-02-25' },
+  { id: 12, name: '李秀梅', age: 71, gender: '女', metric: '收缩压 169 mmHg', joined: '2026-02-28' },
+];
+
+const DEMO_KPI = { all: 47, week: 5, month: 12, handled: 23 };
+
+const DEMO_TIMELINE = [
+  { time: '2026-03-03 06:00', added: 3, removed: 1 },
+  { time: '2026-03-02 06:00', added: 2, removed: 0 },
+  { time: '2026-03-01 06:00', added: 4, removed: 2 },
+  { time: '2026-02-28 06:00', added: 1, removed: 3 },
+  { time: '2026-02-27 06:00', added: 5, removed: 1 },
+];
+
+const pageSize = 10;
+let currentPage = 1;
+
+async function loadActivity() {
+  try {
+    const r = await fetch(`/tools/activity-archives/${ACTIVITY_ID}`);
+    const d = await r.json();
+    if (!d.success) throw new Error();
+    renderActivity(d.data);
+  } catch {
+    renderActivity(DEMO_ACTIVITY);
+  }
+}
+
+function renderActivity(a) {
+  document.getElementById('breadcrumb-name').textContent = a.name;
+  document.getElementById('activity-name').textContent = a.name;
+  document.getElementById('activity-rule').textContent = a.rule;
+  document.getElementById('activity-cycle').textContent = a.cycle;
+  document.getElementById('activity-doctor').textContent = a.doctor;
+  document.getElementById('activity-scope').textContent = a.scope;
+  const badge = document.getElementById('activity-status');
+  badge.textContent = a.status === 'ACTIVE' ? '启用' : '停用';
+  badge.className = `inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${a.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`;
+}
+
+async function loadPatients(page = 1) {
+  currentPage = page;
+  try {
+    const r = await fetch(`/tools/activity-archives/${ACTIVITY_ID}/patients?page=${page}&page_size=${pageSize}`);
+    const d = await r.json();
+    if (!d.success) throw new Error();
+    renderTable(d.items);
+    renderPagination(d.total, page);
+    document.getElementById('patient-count').textContent = `共 ${d.total} 人`;
+  } catch {
+    const start = (page - 1) * pageSize;
+    renderTable(DEMO_PATIENTS.slice(start, start + pageSize));
+    renderPagination(DEMO_PATIENTS.length, page);
+    document.getElementById('patient-count').textContent = `共 ${DEMO_PATIENTS.length} 人`;
+  }
+}
+
+function renderTable(rows) {
+  const tbody = document.getElementById('patient-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-400 py-10">暂无数据</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(p => `
+    <tr class="hover:bg-gray-50 transition-colors">
+      <td class="px-5 py-3 font-medium text-gray-800">${p.name}</td>
+      <td class="px-5 py-3 text-gray-600">${p.age} 岁</td>
+      <td class="px-5 py-3 text-gray-600">${p.gender}</td>
+      <td class="px-5 py-3">
+        <span class="inline-block px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full">${p.metric}</span>
+      </td>
+      <td class="px-5 py-3 text-gray-500 text-xs">${p.joined}</td>
+      <td class="px-5 py-3">
+        <a href="/gui/admin/archives/${p.id}" class="hover:underline text-xs" style="color:#4E7A61;">查看档案</a>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function renderPagination(total, page) {
+  const totalPages = Math.ceil(total / pageSize);
+  document.getElementById('pagination').innerHTML = `
+    <span>共 ${total} 人</span>
+    <div class="flex items-center gap-1">
+      <button onclick="loadPatients(${page-1})" ${page<=1?'disabled':''} class="px-2 py-1 rounded border border-gray-200 text-xs hover:bg-gray-50 disabled:opacity-40">上一页</button>
+      <span class="px-3 text-xs">${page} / ${totalPages||1}</span>
+      <button onclick="loadPatients(${page+1})" ${page>=totalPages?'disabled':''} class="px-2 py-1 rounded border border-gray-200 text-xs hover:bg-gray-50 disabled:opacity-40">下一页</button>
+    </div>
+  `;
+}
+
+async function loadKPI() {
+  try {
+    const r = await fetch(`/tools/activity-archives/${ACTIVITY_ID}/kpi`);
+    const d = await r.json();
+    if (!d.success) throw new Error();
+    document.getElementById('kpi-all').textContent = d.all;
+    document.getElementById('kpi-week').textContent = d.week;
+    document.getElementById('kpi-month').textContent = d.month;
+    document.getElementById('kpi-handled').textContent = d.handled;
+  } catch {
+    document.getElementById('kpi-all').textContent = DEMO_KPI.all;
+    document.getElementById('kpi-week').textContent = DEMO_KPI.week;
+    document.getElementById('kpi-month').textContent = DEMO_KPI.month;
+    document.getElementById('kpi-handled').textContent = DEMO_KPI.handled;
+  }
+}
+
+async function loadTimeline() {
+  try {
+    const r = await fetch(`/tools/activity-archives/${ACTIVITY_ID}/generate-log?limit=5`);
+    const d = await r.json();
+    if (!d.success) throw new Error();
+    renderTimeline(d.items);
+  } catch {
+    renderTimeline(DEMO_TIMELINE);
+  }
+}
+
+function renderTimeline(items) {
+  const container = document.getElementById('timeline');
+  if (!items.length) {
+    container.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">暂无记录</p>';
+    return;
+  }
+  container.innerHTML = items.map((item, i) => `
+    <div class="flex gap-3">
+      <div class="flex flex-col items-center">
+        <div class="w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0" style="background:#4E7A61;"></div>
+        ${i < items.length - 1 ? '<div class="w-px flex-1 bg-gray-200 mt-1"></div>' : ''}
+      </div>
+      <div class="pb-3">
+        <p class="text-xs text-gray-400">${item.time}</p>
+        <p class="text-sm text-gray-700 mt-0.5">
+          <span class="text-green-600 font-medium">+${item.added} 人</span> 新增
+          ${item.removed > 0 ? `，<span class="text-gray-400">-${item.removed} 人</span> 移除` : ''}
+        </p>
+      </div>
+    </div>
+  `).join('');
+}
+
+loadActivity();
+loadPatients(1);
+loadKPI();
+loadTimeline();
+</script>
+{% endblock %}

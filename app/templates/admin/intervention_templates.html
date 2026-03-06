@@ -1,0 +1,175 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "intervention" %}
+{% block title %}干预模板库 - 治未病平台{% endblock %}
+{% block page_title %}中医干预模板库{% endblock %}
+
+{% block content %}
+<!-- 筛选栏 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <input id="q" type="text" placeholder="模板名称/关键词"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-green-300">
+  <select id="type-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+    <option value="">全部类型</option>
+    <option value="ACUPUNCTURE">针灸</option>
+    <option value="MASSAGE">推拿</option>
+    <option value="HERBAL">中药</option>
+    <option value="DIET">食疗</option>
+    <option value="EXERCISE">运动疗法</option>
+    <option value="BATH">药浴</option>
+    <option value="COMBINED">综合干预</option>
+  </select>
+  <select id="scope-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+    <option value="">全部范围</option>
+    <option value="PUBLIC">公开</option>
+    <option value="DEPT">科室</option>
+    <option value="PERSONAL">个人</option>
+  </select>
+  <button onclick="loadTemplates()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">查询</button>
+  <div class="ml-auto">
+    <a href="/gui/admin/intervention/templates/new"
+      class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">+ 新建模板</a>
+  </div>
+</div>
+
+<!-- 模板卡片网格 -->
+<div id="template-grid" class="grid grid-cols-3 gap-4"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const TYPE_LABELS = {
+  ACUPUNCTURE: '针灸',
+  MASSAGE: '推拿',
+  HERBAL: '中药',
+  DIET: '食疗',
+  EXERCISE: '运动疗法',
+  BATH: '药浴',
+  COMBINED: '综合干预'
+};
+const TYPE_COLORS = {
+  ACUPUNCTURE: 'bg-purple-100 text-purple-700',
+  MASSAGE: 'bg-jade-light text-jade',
+  HERBAL: 'bg-green-100 text-green-700',
+  DIET: 'bg-orange-100 text-orange-700',
+  EXERCISE: 'bg-teal-100 text-teal-700',
+  BATH: 'bg-teal-100 text-teal-700',
+  COMBINED: 'bg-amber-100 text-amber-700'
+};
+const SCOPE_LABELS = { PUBLIC: '公开', DEPT: '科室', PERSONAL: '个人' };
+
+const demoTemplates = [
+  {
+    id: '1',
+    name: '气虚体质针灸调理方案',
+    type: 'ACUPUNCTURE',
+    scope: 'PUBLIC',
+    author: '王医生',
+    usedCount: 64,
+    applicable: '气虚质、阳虚质',
+    desc: '以足三里、气海、关元为主穴，配合脾俞、肾俞，益气固本，改善气虚体质乏力、易感冒等症状。'
+  },
+  {
+    id: '2',
+    name: '颈椎病推拿综合治疗',
+    type: 'MASSAGE',
+    scope: 'PUBLIC',
+    author: '李主任',
+    usedCount: 118,
+    applicable: '颈椎病、肩周炎',
+    desc: '采用揉、拿、点、按等手法，配合颈椎定点旋转复位，缓解颈部肌肉紧张，改善局部血液循环。'
+  },
+  {
+    id: '3',
+    name: '高血压中药干预方案',
+    type: 'HERBAL',
+    scope: 'PUBLIC',
+    author: '张医生',
+    usedCount: 87,
+    applicable: '高血压、肝阳上亢',
+    desc: '以天麻钩藤饮为基础方，随症加减，配合菊花、决明子代茶饮，平肝潜阳，降压安神。'
+  },
+  {
+    id: '4',
+    name: '糖尿病食疗调控方案',
+    type: 'DIET',
+    scope: 'DEPT',
+    author: '陈医生',
+    usedCount: 43,
+    applicable: '2型糖尿病、脾虚痰湿',
+    desc: '以低GI食物为核心，搭配山药、苦瓜、黑木耳等药食同源食材，控糖同时兼顾脾胃健运。'
+  },
+  {
+    id: '5',
+    name: '八段锦慢病康复计划',
+    type: 'EXERCISE',
+    scope: 'PUBLIC',
+    author: '王医生',
+    usedCount: 152,
+    applicable: '慢性病、老年体弱',
+    desc: '以传统八段锦为主，辅以五禽戏，每日20分钟，强身健体，疏通经络，适合中老年慢性病患者。'
+  },
+  {
+    id: '6',
+    name: '风湿痹痛药浴综合方案',
+    type: 'BATH',
+    scope: 'PERSONAL',
+    author: '张医生',
+    usedCount: 29,
+    applicable: '风湿性关节炎、寒湿痹证',
+    desc: '以透骨草、威灵仙、艾叶、红花等组方，药浴熏洗配合外敷，祛风散寒除湿，缓解关节疼痛。'
+  }
+];
+
+function loadTemplates() {
+  const q = document.getElementById('q').value.toLowerCase();
+  const typeFilter = document.getElementById('type-filter').value;
+  const scopeFilter = document.getElementById('scope-filter').value;
+
+  const filtered = demoTemplates.filter(t => {
+    const matchQ = !q || t.name.toLowerCase().includes(q) || t.desc.toLowerCase().includes(q);
+    const matchType = !typeFilter || t.type === typeFilter;
+    const matchScope = !scopeFilter || t.scope === scopeFilter;
+    return matchQ && matchType && matchScope;
+  });
+
+  const grid = document.getElementById('template-grid');
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div class="col-span-3 text-center py-12 text-gray-400">暂无匹配的干预模板</div>';
+    return;
+  }
+
+  grid.innerHTML = filtered.map(t => `
+    <div class="bg-white rounded-xl shadow-sm p-5 hover:shadow-md transition-shadow">
+      <div class="flex items-start justify-between mb-3">
+        <span class="px-2 py-0.5 rounded-full text-xs font-medium ${TYPE_COLORS[t.type]}">${TYPE_LABELS[t.type]}</span>
+        <span class="text-xs text-gray-400">${SCOPE_LABELS[t.scope]}</span>
+      </div>
+      <h3 class="font-semibold text-gray-800 mb-2">${t.name}</h3>
+      <p class="text-xs text-gray-500 mb-2 line-clamp-2">${t.desc}</p>
+      <p class="text-xs text-gray-400 mb-3">适用：${t.applicable}</p>
+      <div class="flex items-center justify-between text-xs text-gray-400 mb-4">
+        <span>by ${t.author}</span>
+        <span>使用 ${t.usedCount} 次</span>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="useTemplate('${t.id}')"
+          class="flex-1 bg-green-600 text-white py-1.5 rounded-lg text-xs hover:bg-green-700">使用模板</button>
+        <a href="/gui/admin/intervention/templates/${t.id}/edit"
+          class="px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50">编辑</a>
+        <button onclick="copyTemplate('${t.id}')"
+          class="px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50">复制</button>
+      </div>
+    </div>`).join('');
+}
+
+function useTemplate(id) {
+  window.location.href = '/gui/admin/intervention/new';
+}
+
+function copyTemplate(id) {
+  showToast('已复制为个人模板');
+}
+
+loadTemplates();
+</script>
+{% endblock %}

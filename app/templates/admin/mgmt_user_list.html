@@ -1,0 +1,267 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "mgmt_users" %}
+{% block title %}系统用户管理 - 治未病平台{% endblock %}
+{% block page_title %}系统用户管理{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+
+  <!-- KPI 卡片 -->
+  <div class="grid grid-cols-3 gap-4">
+    <div class="bg-white rounded-xl shadow-sm px-5 py-4 flex items-center gap-4">
+      <div class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style="background:#EBF2ED;">
+        <svg class="w-6 h-6" style="color:#4E7A61;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+      </div>
+      <div>
+        <p class="text-xs text-gray-400 mb-0.5">系统账号总数</p>
+        <p class="text-2xl font-bold text-gray-800" id="kpi-total">20</p>
+      </div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm px-5 py-4 flex items-center gap-4">
+      <div class="w-11 h-11 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
+        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+      </div>
+      <div>
+        <p class="text-xs text-gray-400 mb-0.5">活跃账号</p>
+        <p class="text-2xl font-bold text-gray-800" id="kpi-active">17</p>
+      </div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm px-5 py-4 flex items-center gap-4">
+      <div class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style="background:#EBF2ED;">
+        <svg class="w-6 h-6" style="color:#4E7A61;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+      </div>
+      <div>
+        <p class="text-xs text-gray-400 mb-0.5">今日登录</p>
+        <p class="text-2xl font-bold text-gray-800" id="kpi-today">8</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 操作栏 -->
+  <div class="bg-white rounded-xl shadow-sm px-5 py-4">
+    <div class="flex flex-wrap items-center gap-3">
+      <div class="relative flex-1 min-w-48">
+        <svg class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        <input id="search-input" type="text" placeholder="搜索姓名 / 手机号 / 工号..."
+          class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-jade-light"
+          oninput="applyFilters()">
+      </div>
+      <select id="filter-role" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light" onchange="applyFilters()">
+        <option value="">全部角色</option>
+        <option value="ADMIN">管理员</option>
+        <option value="PROFESSIONAL">专业医生</option>
+        <option value="NURSE">护士</option>
+        <option value="USER">普通用户</option>
+      </select>
+      <select id="filter-status" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light" onchange="applyFilters()">
+        <option value="">全部状态</option>
+        <option value="active">启用</option>
+        <option value="disabled">停用</option>
+      </select>
+      <a href="/gui/admin/mgmt/users/new"
+        class="flex items-center gap-1.5 text-white px-4 py-2 rounded-lg text-sm transition-colors ml-auto" style="background:#4E7A61;" onmouseover="this.style.background='#3F6A52'" onmouseout="this.style.background='#4E7A61'">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        新建用户
+      </a>
+    </div>
+  </div>
+
+  <!-- 用户表格 -->
+  <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+        <tr>
+          <th class="px-4 py-3 text-left">用户</th>
+          <th class="px-4 py-3 text-left">工号</th>
+          <th class="px-4 py-3 text-left">角色</th>
+          <th class="px-4 py-3 text-left">手机号</th>
+          <th class="px-4 py-3 text-left">机构 / 科室</th>
+          <th class="px-4 py-3 text-left">最后登录</th>
+          <th class="px-4 py-3 text-left">状态</th>
+          <th class="px-4 py-3 text-left">操作</th>
+        </tr>
+      </thead>
+      <tbody id="user-table-body" class="divide-y divide-gray-100">
+        <tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">加载中...</td></tr>
+      </tbody>
+    </table>
+    <!-- 分页 -->
+    <div class="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
+      <span class="text-xs text-gray-400" id="page-info">共 20 条记录</span>
+      <div class="flex items-center gap-1" id="pagination"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div id="toast" class="hidden fixed bottom-5 right-5 z-50 bg-gray-800 text-white text-sm px-4 py-2.5 rounded-lg shadow-lg"></div>
+
+<script>
+const ROLE_META = {
+  ADMIN:        { label: '管理员',   color: 'bg-[#EEF2F7] text-[#5070A8]' },
+  PROFESSIONAL: { label: '专业医生', color: 'bg-jade-light text-jade' },
+  NURSE:        { label: '护士',     color: 'bg-pink-100 text-pink-700' },
+  USER:         { label: '普通用户', color: 'bg-gray-100 text-gray-600' },
+};
+
+const AVATAR_COLORS = {
+  ADMIN:        'bg-[#5070A8]',
+  PROFESSIONAL: 'bg-jade',
+  NURSE:        'bg-pink-500',
+  USER:         'bg-gray-400',
+};
+
+
+const PAGE_SIZE = 10;
+let currentPage = 1;
+let totalCount = 0;
+
+function maskPhone(p) {
+  if (!p) return '-';
+  return p.slice(0, 3) + '****' + p.slice(7);
+}
+
+function rolesBadges(roles) {
+  return (roles || []).map(r => {
+    const m = ROLE_META[r] || { label: r, color: 'bg-gray-100 text-gray-600' };
+    return `<span class="inline-block px-2 py-0.5 rounded-full text-xs font-medium ${m.color}">${m.label}</span>`;
+  }).join(' ');
+}
+
+function avatarHtml(user) {
+  const primaryRole = (user.roles || [user.role])[0] || 'USER';
+  const colorClass = AVATAR_COLORS[primaryRole] || 'bg-gray-400';
+  return `<div class="w-8 h-8 rounded-full ${colorClass} flex items-center justify-center text-white text-xs font-bold flex-shrink-0">${(user.name||'?')[0]}</div>`;
+}
+
+async function load() {
+  const q = document.getElementById('search-input').value.trim();
+  const roleF = document.getElementById('filter-role').value;
+  const statusF = document.getElementById('filter-status').value;
+  const params = new URLSearchParams({ page: currentPage, page_size: PAGE_SIZE });
+  if (q) params.set('q', q);
+  if (roleF) params.set('role', roleF);
+  if (statusF) params.set('is_active', statusF === 'active' ? 'true' : 'false');
+
+  const resp = await fetch('/tools/admin/users?' + params);
+  const json = await resp.json();
+  if (!json.success) { showToast('加载失败：' + (json.error?.message || '')); return; }
+
+  const d = json.data;
+  totalCount = d.total;
+  renderTable(d.items);
+  renderPagination(d.total);
+  document.getElementById('page-info').textContent = `共 ${d.total} 条记录`;
+}
+
+function renderTable(items) {
+  const tbody = document.getElementById('user-table-body');
+  if (!items || items.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">暂无匹配数据</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(u => {
+    const roles = u.roles || (u.role ? [u.role] : []);
+    const isActive = u.is_active !== false;
+    const orgDept = [u.org, u.dept].filter(Boolean).join(' / ') || '-';
+    return `
+    <tr class="hover:bg-gray-50 transition-colors">
+      <td class="px-4 py-3">
+        <div class="flex items-center gap-2.5">
+          ${avatarHtml(u)}
+          <span class="font-medium text-gray-800">${u.name}</span>
+        </div>
+      </td>
+      <td class="px-4 py-3 text-gray-500">${u.emp_no || '-'}</td>
+      <td class="px-4 py-3"><div class="flex flex-wrap gap-1">${rolesBadges(roles)}</div></td>
+      <td class="px-4 py-3 text-gray-600 font-mono text-xs">${maskPhone(u.phone)}</td>
+      <td class="px-4 py-3 text-gray-600">${orgDept}</td>
+      <td class="px-4 py-3 text-gray-500 text-xs">${u.last_login ? u.last_login.slice(0,16).replace('T',' ') : '-'}</td>
+      <td class="px-4 py-3">
+        ${isActive
+          ? '<span class="inline-flex items-center gap-1 text-green-600 text-xs"><span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span>启用</span>'
+          : '<span class="inline-flex items-center gap-1 text-gray-400 text-xs"><span class="w-1.5 h-1.5 rounded-full bg-gray-300 inline-block"></span>停用</span>'}
+      </td>
+      <td class="px-4 py-3">
+        <div class="flex items-center gap-2">
+          <a href="/gui/admin/mgmt/users/${u.id}/edit" class="text-xs font-medium" style="color:#4E7A61;">编辑</a>
+          <button onclick="resetPassword('${u.id}','${u.name}')" class="text-amber-500 hover:text-amber-700 text-xs font-medium">重置密码</button>
+          <button onclick="toggleStatus('${u.id}','${u.name}',${isActive})"
+            class="text-xs font-medium ${isActive ? 'text-red-400 hover:text-red-600' : 'text-green-500 hover:text-green-700'}">
+            ${isActive ? '停用' : '启用'}
+          </button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderPagination(total) {
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const container = document.getElementById('pagination');
+  let html = `<button onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}
+    class="px-2 py-1 text-xs rounded border border-gray-200 text-gray-500 disabled:opacity-40 hover:bg-gray-50">上一页</button>`;
+  for (let i = 1; i <= totalPages; i++) {
+    html += `<button onclick="goPage(${i})"
+      class="w-7 h-7 text-xs rounded ${i === currentPage ? 'text-white' : 'border border-gray-200 text-gray-600 hover:bg-gray-50'}" style="${i === currentPage ? 'background:#4E7A61;' : ''}">${i}</button>`;
+  }
+  html += `<button onclick="goPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}
+    class="px-2 py-1 text-xs rounded border border-gray-200 text-gray-500 disabled:opacity-40 hover:bg-gray-50">下一页</button>`;
+  container.innerHTML = html;
+}
+
+function goPage(p) {
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  if (p < 1 || p > totalPages) return;
+  currentPage = p;
+  load();
+}
+
+function applyFilters() {
+  currentPage = 1;
+  load();
+}
+
+function showToast(msg, duration = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  setTimeout(() => t.classList.add('hidden'), duration);
+}
+
+function resetPassword(id, name) {
+  if (!confirm(`确认重置「${name}」的密码？重置后将发送临时密码至其手机。`)) return;
+  showToast(`已重置「${name}」的密码，临时密码已发送。`);
+}
+
+async function toggleStatus(id, name, isActive) {
+  const action = isActive ? '停用' : '启用';
+  if (!confirm(`确认${action}账号「${name}」？`)) return;
+  const resp = await fetch(`/tools/admin/users/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ is_active: !isActive }),
+  });
+  const json = await resp.json();
+  if (json.success) { showToast(`已${action}账号「${name}」。`); load(); }
+  else showToast('操作失败：' + (json.error?.message || ''));
+}
+
+// 初始化
+load();
+</script>
+{% endblock %}

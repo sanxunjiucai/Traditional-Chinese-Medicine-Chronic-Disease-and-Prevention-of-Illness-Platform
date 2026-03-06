@@ -1,0 +1,370 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "scale_library" %}
+{% block title %}量表分类管理 - 治未病平台{% endblock %}
+{% block page_title %}量表分类管理{% endblock %}
+
+{% block content %}
+<div class="flex gap-4 h-full">
+
+  <!-- 左侧分类树 -->
+  <div class="w-1/3 flex flex-col gap-4">
+    <div class="bg-white rounded-xl shadow-sm p-4">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-gray-700 text-sm">分类目录</h3>
+        <button onclick="openCategoryModal(null, null)"
+          class="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-green-700 flex items-center gap-1">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          新建一级分类
+        </button>
+      </div>
+      <div id="category-tree" class="space-y-1"></div>
+    </div>
+  </div>
+
+  <!-- 右侧量表列表 -->
+  <div class="flex-1 flex flex-col gap-4">
+    <div class="bg-white rounded-xl shadow-sm p-4">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 id="panel-title" class="font-semibold text-gray-700">请选择左侧分类</h3>
+          <p id="panel-desc" class="text-xs text-gray-400 mt-0.5"></p>
+        </div>
+        <span id="scale-count" class="text-xs text-gray-400"></span>
+      </div>
+      <div id="scale-table-wrap">
+        <div class="text-center py-16 text-gray-300">
+          <svg class="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7"/>
+          </svg>
+          <p class="text-sm">选择分类以查看量表列表</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新建/编辑分类弹窗 -->
+<div id="category-modal" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center hidden">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h3 id="modal-title" class="font-semibold text-gray-800 text-lg">新建分类</h3>
+      <button onclick="closeCategoryModal()" class="text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">分类名称 <span class="text-red-500">*</span></label>
+        <input id="cat-name" type="text" placeholder="请输入分类名称"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">上级分类</label>
+        <select id="cat-parent" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+          <option value="">无（一级分类）</option>
+          <option value="1">中医体质类</option>
+          <option value="2">慢性病评估</option>
+          <option value="3">心理健康</option>
+          <option value="4">综合评估</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">分类颜色</label>
+        <div class="flex gap-2 flex-wrap" id="color-picker">
+          <div class="color-opt w-7 h-7 rounded-full bg-green-500 cursor-pointer ring-2 ring-offset-1 ring-green-500" data-color="#22c55e" onclick="selectColor(this)"></div>
+          <div class="color-opt w-7 h-7 rounded-full cursor-pointer" style="background:#4E7A61;" data-color="#4E7A61" onclick="selectColor(this)"></div>
+          <div class="color-opt w-7 h-7 rounded-full bg-purple-500 cursor-pointer" data-color="#a855f7" onclick="selectColor(this)"></div>
+          <div class="color-opt w-7 h-7 rounded-full bg-amber-500 cursor-pointer" data-color="#f59e0b" onclick="selectColor(this)"></div>
+          <div class="color-opt w-7 h-7 rounded-full bg-red-500 cursor-pointer" data-color="#ef4444" onclick="selectColor(this)"></div>
+          <div class="color-opt w-7 h-7 rounded-full cursor-pointer" style="background:#5070A8;" data-color="#5070A8" onclick="selectColor(this)"></div>
+          <div class="color-opt w-7 h-7 rounded-full bg-teal-500 cursor-pointer" data-color="#14b8a6" onclick="selectColor(this)"></div>
+          <div class="color-opt w-7 h-7 rounded-full bg-pink-500 cursor-pointer" data-color="#ec4899" onclick="selectColor(this)"></div>
+        </div>
+        <input id="cat-color" type="hidden" value="#22c55e">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">排序号</label>
+        <input id="cat-sort" type="number" value="10" min="1"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">说明</label>
+        <textarea id="cat-desc" rows="2" placeholder="分类说明（可选）"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300 resize-none"></textarea>
+      </div>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button onclick="closeCategoryModal()" class="flex-1 border border-gray-200 text-gray-600 py-2 rounded-lg text-sm hover:bg-gray-50">取消</button>
+      <button onclick="saveCategory()" class="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm hover:bg-green-700">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 删除确认弹窗 -->
+<div id="delete-modal" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center hidden">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center">
+    <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.07 16.5C3.3 18.333 4.26 20 5.8 20z"/>
+      </svg>
+    </div>
+    <h4 class="font-semibold text-gray-800 mb-2">确认删除</h4>
+    <p id="delete-msg" class="text-sm text-gray-500 mb-5">确定要删除该分类吗？删除后下属量表将变为未分类状态。</p>
+    <div class="flex gap-3">
+      <button onclick="closeDeleteModal()" class="flex-1 border border-gray-200 text-gray-600 py-2 rounded-lg text-sm hover:bg-gray-50">取消</button>
+      <button onclick="confirmDelete()" class="flex-1 bg-red-600 text-white py-2 rounded-lg text-sm hover:bg-red-700">确认删除</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="fixed top-4 right-4 z-[100] hidden">
+  <div class="bg-gray-800 text-white px-4 py-2.5 rounded-lg text-sm shadow-lg flex items-center gap-2">
+    <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+    </svg>
+    <span id="toast-msg"></span>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const DEMO_CATEGORIES = [
+  { id: 1, name: '中医体质类', color: '#22c55e', sort: 10, desc: '依据中医体质学说进行分类的评估量表', children: [
+    { id: 11, name: '九种体质', color: '#22c55e', sort: 10, desc: '平和质、气虚质、阳虚质等九种体质辨识' },
+  ]},
+  { id: 2, name: '慢性病评估', color: '#5070A8', sort: 20, desc: '针对各类慢性疾病的专项评估量表', children: [
+    { id: 21, name: '高血压', color: '#5070A8', sort: 10, desc: '高血压风险与管理评估' },
+    { id: 22, name: '糖尿病', color: '#5070A8', sort: 20, desc: '糖尿病相关量表与生活质量评估' },
+    { id: 23, name: '冠心病', color: '#5070A8', sort: 30, desc: '冠心病风险评估与康复评估' },
+  ]},
+  { id: 3, name: '心理健康', color: '#a855f7', sort: 30, desc: '情绪、心理状态及精神健康评估量表', children: [
+    { id: 31, name: '焦虑', color: '#a855f7', sort: 10, desc: '焦虑相关筛查与评估工具' },
+    { id: 32, name: '抑郁', color: '#a855f7', sort: 20, desc: '抑郁症筛查与严重程度评估' },
+  ]},
+  { id: 4, name: '综合评估', color: '#f59e0b', sort: 40, desc: '多维度综合健康状态评估', children: [] },
+];
+
+const DEMO_SCALES = {
+  11: [
+    { name: '中医九体质辨识量表', questions: 72, audience: '全人群', enabled: true },
+    { name: '体质辨识简化版', questions: 30, audience: '健康体检', enabled: true },
+  ],
+  21: [
+    { name: '高血压自我管理量表', questions: 24, audience: '高血压患者', enabled: true },
+    { name: '高血压知识与行为问卷', questions: 18, audience: '高血压患者', enabled: true },
+    { name: '24小时血压监测记录表', questions: 8, audience: '高血压患者', enabled: false },
+  ],
+  22: [
+    { name: '糖尿病生活质量量表(DQoL)', questions: 46, audience: '2型糖尿病患者', enabled: true },
+    { name: '糖尿病知识问卷', questions: 20, audience: '糖尿病患者', enabled: true },
+    { name: '足部并发症风险评估', questions: 12, audience: '糖尿病患者', enabled: true },
+  ],
+  23: [
+    { name: '冠心病患者教育评估', questions: 15, audience: '冠心病患者', enabled: true },
+    { name: '心绞痛稳定性评估', questions: 10, audience: '冠心病患者', enabled: false },
+  ],
+  31: [
+    { name: 'GAD-7 焦虑症筛查量表', questions: 7, audience: '成年人', enabled: true },
+    { name: '社交焦虑量表', questions: 17, audience: '成年人', enabled: true },
+  ],
+  32: [
+    { name: 'PHQ-9 抑郁症筛查量表', questions: 9, audience: '成年人', enabled: true },
+    { name: 'GDS 老年抑郁量表', questions: 15, audience: '老年人', enabled: true },
+    { name: 'BDI-II 贝克抑郁量表', questions: 21, audience: '成年人', enabled: false },
+  ],
+  1:  [{ name: '中医体质综合评估', questions: 60, audience: '全人群', enabled: true }],
+  2:  [{ name: '慢性病综合评估问卷', questions: 35, audience: '慢性病患者', enabled: true }],
+  3:  [{ name: '心理健康状态综合问卷', questions: 28, audience: '成年人', enabled: true }],
+  4:  [
+    { name: 'SF-36 健康调查量表', questions: 36, audience: '全人群', enabled: true },
+    { name: '老年综合评估量表', questions: 50, audience: '65岁以上', enabled: true },
+  ],
+};
+
+let selectedCatId = null;
+let deleteTargetId = null;
+let selectedColor = '#22c55e';
+
+function renderTree() {
+  const tree = document.getElementById('category-tree');
+  tree.innerHTML = '';
+  DEMO_CATEGORIES.forEach(cat => {
+    const parentEl = document.createElement('div');
+    parentEl.className = 'rounded-lg overflow-hidden';
+    parentEl.innerHTML = `
+      <div class="flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-gray-50 transition group
+        ${selectedCatId === cat.id ? 'bg-green-50 border border-green-200' : ''}"
+        onclick="selectCategory(${cat.id}, '${cat.name}', '${cat.desc}')">
+        <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${cat.color}"></span>
+        <span class="flex-1 text-sm font-medium text-gray-700">${cat.name}</span>
+        <span class="text-xs text-gray-400">${(cat.children?.length || 0) + 1}</span>
+        <div class="hidden group-hover:flex items-center gap-1">
+          <button onclick="event.stopPropagation(); openCategoryModal(${cat.id}, 'edit')"
+            class="p-1 text-gray-400 rounded" onmouseenter="this.style.color='#4E7A61'" onmouseleave="this.style.color=''">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+            </svg>
+          </button>
+          <button onclick="event.stopPropagation(); openDeleteModal(${cat.id}, '${cat.name}')"
+            class="p-1 text-gray-400 hover:text-red-600 rounded">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+          </button>
+          <button onclick="event.stopPropagation(); openCategoryModal(null, ${cat.id})"
+            class="p-1 text-gray-400 hover:text-green-600 rounded" title="新建子分类">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+          </button>
+        </div>
+      </div>`;
+    tree.appendChild(parentEl);
+
+    if (cat.children && cat.children.length > 0) {
+      cat.children.forEach(child => {
+        const childEl = document.createElement('div');
+        childEl.innerHTML = `
+          <div class="flex items-center gap-2 px-3 py-2 ml-4 rounded-lg cursor-pointer hover:bg-gray-50 transition group
+            ${selectedCatId === child.id ? 'bg-green-50 border border-green-200' : ''}"
+            onclick="selectCategory(${child.id}, '${child.name}', '${child.desc}')">
+            <span class="w-1.5 h-1.5 rounded-full flex-shrink-0 ml-1" style="background:${child.color}"></span>
+            <span class="flex-1 text-sm text-gray-600">${child.name}</span>
+            <div class="hidden group-hover:flex items-center gap-1">
+              <button onclick="event.stopPropagation(); openCategoryModal(${child.id}, 'edit')"
+                class="p-1 text-gray-400 rounded" onmouseenter="this.style.color='#4E7A61'" onmouseleave="this.style.color=''">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                </svg>
+              </button>
+              <button onclick="event.stopPropagation(); openDeleteModal(${child.id}, '${child.name}')"
+                class="p-1 text-gray-400 hover:text-red-600 rounded">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>
+            </div>
+          </div>`;
+        tree.appendChild(childEl);
+      });
+    }
+  });
+}
+
+function selectCategory(id, name, desc) {
+  selectedCatId = id;
+  document.getElementById('panel-title').textContent = name;
+  document.getElementById('panel-desc').textContent = desc;
+  const scales = DEMO_SCALES[id] || [];
+  document.getElementById('scale-count').textContent = `共 ${scales.length} 个量表`;
+  renderScaleTable(scales);
+  renderTree();
+}
+
+function renderScaleTable(scales) {
+  const wrap = document.getElementById('scale-table-wrap');
+  if (scales.length === 0) {
+    wrap.innerHTML = `<div class="text-center py-12 text-gray-300">
+      <p class="text-sm">该分类下暂无量表</p></div>`;
+    return;
+  }
+  let rows = scales.map(s => `
+    <tr class="hover:bg-gray-50">
+      <td class="px-4 py-3 text-sm font-medium text-gray-800">${s.name}</td>
+      <td class="px-4 py-3 text-sm text-gray-500 text-center">${s.questions} 题</td>
+      <td class="px-4 py-3 text-sm text-gray-500">${s.audience}</td>
+      <td class="px-4 py-3 text-center">
+        <span class="text-xs px-2 py-0.5 rounded-full ${s.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}">
+          ${s.enabled ? '启用' : '停用'}
+        </span>
+      </td>
+      <td class="px-4 py-3 text-sm text-center">
+        <a href="/gui/admin/scale-config/new" class="mr-2 hover:underline" style="color:#4E7A61;">编辑</a>
+        <button class="text-gray-400 hover:text-gray-600">移动</button>
+      </td>
+    </tr>`).join('');
+
+  wrap.innerHTML = `
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b border-gray-100">
+            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">量表名称</th>
+            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500">题目数量</th>
+            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500">适用人群</th>
+            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500">状态</th>
+            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500">操作</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function openCategoryModal(editId, parentId) {
+  document.getElementById('modal-title').textContent = editId === 'edit' ? '编辑分类' : '新建分类';
+  document.getElementById('cat-name').value = '';
+  document.getElementById('cat-desc').value = '';
+  document.getElementById('cat-sort').value = '10';
+  if (parentId && parentId !== 'edit') {
+    document.getElementById('cat-parent').value = parentId;
+  } else {
+    document.getElementById('cat-parent').value = '';
+  }
+  document.getElementById('category-modal').classList.remove('hidden');
+}
+
+function closeCategoryModal() {
+  document.getElementById('category-modal').classList.add('hidden');
+}
+
+function selectColor(el) {
+  document.querySelectorAll('.color-opt').forEach(e => {
+    e.classList.remove('ring-2', 'ring-offset-1');
+    const c = e.dataset.color.replace('#','');
+    e.style.outline = '';
+  });
+  el.style.outline = '2px solid ' + el.dataset.color;
+  el.style.outlineOffset = '2px';
+  selectedColor = el.dataset.color;
+  document.getElementById('cat-color').value = selectedColor;
+}
+
+function saveCategory() {
+  const name = document.getElementById('cat-name').value.trim();
+  if (!name) { document.getElementById('cat-name').classList.add('border-red-400'); return; }
+  closeCategoryModal();
+  showToast('分类保存成功');
+  renderTree();
+}
+
+function openDeleteModal(id, name) {
+  deleteTargetId = id;
+  document.getElementById('delete-modal').classList.remove('hidden');
+}
+
+function closeDeleteModal() {
+  document.getElementById('delete-modal').classList.add('hidden');
+  deleteTargetId = null;
+}
+
+function confirmDelete() {
+  closeDeleteModal();
+  showToast('分类已删除');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  t.classList.remove('hidden');
+  setTimeout(() => t.classList.add('hidden'), 3000);
+}
+
+renderTree();
+</script>
+{% endblock %}

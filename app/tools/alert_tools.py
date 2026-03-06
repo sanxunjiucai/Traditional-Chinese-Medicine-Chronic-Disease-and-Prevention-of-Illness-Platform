@@ -8,8 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.deps import get_current_user, require_role
-from app.models.alert import AlertEvent
+from app.models.alert import AlertEvent, AlertRule
 from app.models.enums import AlertStatus, UserRole
+from app.models.user import User
 from app.services.audit_service import log_action
 from app.tools.response import fail, ok
 
@@ -49,7 +50,18 @@ async def all_alerts(
         select(AlertEvent).where(and_(*filters) if filters else True).order_by(AlertEvent.created_at.desc())
     )
     events = result.scalars().all()
-    return ok([_event_dict(e) for e in events])
+    items = []
+    for e in events:
+        d = _event_dict(e)
+        user_r = await db.execute(select(User).where(User.id == e.user_id))
+        user = user_r.scalar_one_or_none()
+        d["user_name"] = user.name if user else None
+        d["user_phone"] = user.phone if user else None
+        rule_r = await db.execute(select(AlertRule).where(AlertRule.id == e.rule_id))
+        rule = rule_r.scalar_one_or_none()
+        d["rule_name"] = rule.name if rule else None
+        items.append(d)
+    return ok(items)
 
 
 @router.get("/{event_id}")
@@ -65,7 +77,15 @@ async def get_alert(
     event = result.scalar_one_or_none()
     if event is None:
         return fail("NOT_FOUND", "预警事件不存在", status_code=404)
-    return ok(_event_dict(event))
+    d = _event_dict(event)
+    user_r = await db.execute(select(User).where(User.id == event.user_id))
+    user = user_r.scalar_one_or_none()
+    d["user_name"] = user.name if user else None
+    d["user_phone"] = user.phone if user else None
+    rule_r = await db.execute(select(AlertRule).where(AlertRule.id == event.rule_id))
+    rule = rule_r.scalar_one_or_none()
+    d["rule_name"] = rule.name if rule else None
+    return ok(d)
 
 
 class AckRequest(BaseModel):

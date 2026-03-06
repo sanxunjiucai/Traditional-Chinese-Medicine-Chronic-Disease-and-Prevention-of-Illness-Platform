@@ -3,113 +3,150 @@
 {% block page_title %}健康档案{% endblock %}
 
 {% block content %}
-<div class="px-4 pt-4 space-y-4 pb-6">
+<div style="padding: 16px; display: flex; flex-direction: column; gap: 14px; padding-bottom: 24px;">
 
   <!-- 基础信息卡片 -->
-  <div class="bg-white rounded-2xl p-4">
-    <div class="flex items-center justify-between mb-3">
-      <h3 class="font-semibold text-gray-800">基础信息</h3>
-      <a href="#" onclick="toggleEdit()" class="text-green-600 text-sm">编辑</a>
+  <div style="background:#fff;border-radius:20px;padding:18px;box-shadow:0 1px 14px rgba(68,60,48,0.07);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <h3 style="font-size:15px;font-weight:600;color:#28231E;margin:0;">基础信息</h3>
+      <button onclick="toggleEdit()" style="
+        color:#4E7A61;font-size:14px;font-weight:500;background:none;border:none;cursor:pointer;padding:0;
+      ">编辑</button>
     </div>
-    <div id="profile-display" class="space-y-2">
-      <div class="animate-pulse space-y-2">
-        <div class="h-8 bg-gray-100 rounded"></div>
-        <div class="h-8 bg-gray-100 rounded"></div>
-      </div>
+
+    <!-- 展示态 -->
+    <div id="profile-display">
+      <p style="font-size:14px;color:#9A9188;text-align:center;padding:12px 0;margin:0;">
+        点击右上角"编辑"更新基础信息
+      </p>
     </div>
-    <div id="profile-form" class="space-y-3 hidden">
-      <div class="grid grid-cols-2 gap-3">
+
+    <!-- 编辑态 -->
+    <div id="profile-form" style="display:none;flex-direction:column;gap:14px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div>
-          <label class="text-xs text-gray-500">身高 (cm)</label>
-          <input id="height" type="number" class="w-full border border-gray-200 rounded-xl px-3 py-2 mt-1 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
+          <label style="font-size:12px;color:#6A6258;display:block;margin-bottom:6px;">身高（cm）</label>
+          <input id="height" type="number" class="input-field">
         </div>
         <div>
-          <label class="text-xs text-gray-500">体重 (kg)</label>
-          <input id="weight" type="number" step="0.1" class="w-full border border-gray-200 rounded-xl px-3 py-2 mt-1 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
+          <label style="font-size:12px;color:#6A6258;display:block;margin-bottom:6px;">体重（kg）</label>
+          <input id="weight" type="number" step="0.1" class="input-field">
         </div>
       </div>
       <div>
-        <label class="text-xs text-gray-500">性别</label>
-        <select id="gender" class="w-full border border-gray-200 rounded-xl px-3 py-2 mt-1 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
+        <label style="font-size:12px;color:#6A6258;display:block;margin-bottom:6px;">性别</label>
+        <select id="gender" class="input-field" style="appearance:none;">
           <option value="">请选择</option>
           <option value="male">男</option>
           <option value="female">女</option>
         </select>
       </div>
-      <div class="flex space-x-2">
-        <button onclick="saveProfile()" class="flex-1 bg-green-600 text-white text-sm py-2.5 rounded-xl">保存</button>
-        <button onclick="toggleEdit()" class="flex-1 border border-gray-200 text-gray-600 text-sm py-2.5 rounded-xl">取消</button>
+      <div style="display:flex;gap:10px;">
+        <button onclick="saveProfile()" class="btn-primary" style="flex:1;">保存</button>
+        <button onclick="toggleEdit()" class="btn-ghost" style="flex:1;">取消</button>
       </div>
     </div>
   </div>
 
   <!-- 慢病档案 -->
-  <div class="bg-white rounded-2xl p-4">
-    <div class="flex items-center justify-between mb-3">
-      <h3 class="font-semibold text-gray-800">慢病档案</h3>
-      <button onclick="showAddDisease()" class="text-green-600 text-sm">+ 添加</button>
+  <div style="background:#fff;border-radius:20px;padding:18px;box-shadow:0 1px 14px rgba(68,60,48,0.07);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <h3 style="font-size:15px;font-weight:600;color:#28231E;margin:0;">慢病档案</h3>
+      <button onclick="showAddDisease()" style="
+        color:#4E7A61;font-size:14px;font-weight:500;background:none;border:none;cursor:pointer;padding:0;
+      ">+ 添加</button>
     </div>
-    <div id="disease-list" class="space-y-2"></div>
+    <div id="disease-list" style="display:flex;flex-direction:column;gap:8px;"></div>
   </div>
 
-  <!-- 添加慢病 Modal -->
-  <div id="disease-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-end">
-    <div class="bg-white rounded-t-2xl w-full p-5 space-y-4">
-      <h3 class="font-semibold text-gray-800">添加慢病档案</h3>
+  <!-- 关联链接 -->
+  <div style="background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 1px 14px rgba(68,60,48,0.07);">
+    <a href="/h5/followup" style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;text-decoration:none;cursor:pointer;border-bottom:1px solid #F0EBE4;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:38px;height:38px;background:#EBF2ED;border-radius:11px;display:flex;align-items:center;justify-content:center;">
+          <svg width="18" height="18" fill="none" stroke="#4E7A61" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+        </div>
+        <span style="font-size:14px;font-weight:500;color:#28231E;">随访打卡</span>
+      </div>
+      <svg width="16" height="16" fill="none" stroke="#9A9188" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 18l6-6-6-6"/>
+      </svg>
+    </a>
+    <a href="/h5/recommendation" style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;text-decoration:none;cursor:pointer;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:38px;height:38px;background:#F7EEE4;border-radius:11px;display:flex;align-items:center;justify-content:center;">
+          <svg width="18" height="18" fill="none" stroke="#B8885E" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <span style="font-size:14px;font-weight:500;color:#28231E;">调护建议</span>
+      </div>
+      <svg width="16" height="16" fill="none" stroke="#9A9188" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 18l6-6-6-6"/>
+      </svg>
+    </a>
+  </div>
+
+</div>
+
+<!-- 添加慢病 Modal -->
+<div id="disease-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:50;align-items:flex-end;">
+  <div style="background:#fff;border-radius:24px 24px 0 0;width:100%;padding:24px 20px 36px;" class="slide-up">
+    <div style="width:36px;height:4px;background:#E4DDD4;border-radius:2px;margin:0 auto 20px;"></div>
+    <h3 style="font-size:17px;font-weight:600;color:#28231E;margin:0 0 20px;">添加慢病档案</h3>
+    <div style="display:flex;flex-direction:column;gap:14px;">
       <div>
-        <label class="text-xs text-gray-500">病种</label>
-        <select id="disease-type" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 mt-1 text-sm">
+        <label style="font-size:12px;color:#6A6258;display:block;margin-bottom:7px;">病种</label>
+        <select id="disease-type" class="input-field" style="appearance:none;">
           <option value="HYPERTENSION">高血压</option>
           <option value="DIABETES_T2">2型糖尿病</option>
         </select>
       </div>
       <div>
-        <label class="text-xs text-gray-500">确诊时间（可选）</label>
-        <input id="disease-date" type="date" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 mt-1 text-sm">
+        <label style="font-size:12px;color:#6A6258;display:block;margin-bottom:7px;">确诊时间（可选）</label>
+        <input id="disease-date" type="date" class="input-field">
       </div>
-      <div class="flex space-x-3">
-        <button onclick="closeDiseaseModal()" class="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl text-sm">取消</button>
-        <button onclick="addDisease()" class="flex-1 bg-green-600 text-white py-3 rounded-xl text-sm">添加</button>
+      <div style="display:flex;gap:10px;margin-top:4px;">
+        <button onclick="closeDiseaseModal()" class="btn-ghost" style="flex:1;">取消</button>
+        <button onclick="addDisease()" class="btn-primary" style="flex:1;">确认添加</button>
       </div>
     </div>
   </div>
-
 </div>
+
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
 const DISEASE_NAMES = {HYPERTENSION: '高血压', DIABETES_T2: '2型糖尿病'};
 
-async function loadProfile() {
-  // Profile display (simplified)
-  document.getElementById('profile-display').innerHTML = `
-    <div class="text-sm text-gray-400 text-center py-2">点击右上角"编辑"更新基础信息</div>
-  `;
-}
-
 async function loadDiseases() {
   const resp = await fetch('/tools/disease');
   const data = await resp.json();
   const list = document.getElementById('disease-list');
   if (!data.success || data.data.length === 0) {
-    list.innerHTML = '<p class="text-sm text-gray-400 text-center py-2">暂无慢病档案，点击添加</p>';
+    list.innerHTML = '<p style="font-size:14px;color:#9A9188;text-align:center;padding:12px 0;margin:0;">暂无慢病档案，点击添加</p>';
     return;
   }
   list.innerHTML = data.data.map(d => `
-    <div class="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2.5">
+    <div style="display:flex;align-items:center;justify-content:space-between;background:#F5F2EC;border-radius:14px;padding:12px 14px;">
       <div>
-        <p class="font-medium text-sm text-gray-800">${DISEASE_NAMES[d.disease_type] || d.disease_type}</p>
-        ${d.diagnosed_at ? `<p class="text-xs text-gray-400">确诊：${d.diagnosed_at}</p>` : ''}
+        <p style="font-size:14px;font-weight:500;color:#28231E;margin:0;">${DISEASE_NAMES[d.disease_type] || d.disease_type}</p>
+        ${d.diagnosed_at ? `<p style="font-size:12px;color:#9A9188;margin:3px 0 0;">确诊：${d.diagnosed_at}</p>` : ''}
       </div>
-      <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">管理中</span>
+      <span style="font-size:12px;background:#EBF2ED;color:#4E7A61;padding:4px 10px;border-radius:99px;font-weight:500;">管理中</span>
     </div>
   `).join('');
 }
 
 function toggleEdit() {
-  document.getElementById('profile-display').classList.toggle('hidden');
-  document.getElementById('profile-form').classList.toggle('hidden');
+  const display = document.getElementById('profile-display');
+  const form = document.getElementById('profile-form');
+  const isHidden = form.style.display === 'none';
+  display.style.display = isHidden ? 'none' : 'block';
+  form.style.display = isHidden ? 'flex' : 'none';
 }
 
 async function saveProfile() {
@@ -122,15 +159,22 @@ async function saveProfile() {
   if (g) body.gender = g;
 
   const resp = await fetch('/tools/profile', {
-    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body),
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
   });
   const data = await resp.json();
   if (data.success) toggleEdit();
   else alert('保存失败：' + data.error.message);
 }
 
-function showAddDisease() { document.getElementById('disease-modal').classList.remove('hidden'); }
-function closeDiseaseModal() { document.getElementById('disease-modal').classList.add('hidden'); }
+function showAddDisease() {
+  const m = document.getElementById('disease-modal');
+  m.style.display = 'flex';
+}
+function closeDiseaseModal() {
+  document.getElementById('disease-modal').style.display = 'none';
+}
 
 async function addDisease() {
   const body = {
@@ -138,14 +182,15 @@ async function addDisease() {
     diagnosed_at: document.getElementById('disease-date').value || null,
   };
   const resp = await fetch('/tools/disease', {
-    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body),
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
   });
   const data = await resp.json();
   if (data.success) { closeDiseaseModal(); loadDiseases(); }
   else alert('添加失败：' + data.error.message);
 }
 
-loadProfile();
 loadDiseases();
 </script>
 {% endblock %}

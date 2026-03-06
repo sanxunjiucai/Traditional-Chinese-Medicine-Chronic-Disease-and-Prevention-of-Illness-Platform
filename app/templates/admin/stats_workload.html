@@ -1,0 +1,216 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "stats_workload" %}
+{% block title %}工作量统计 - 治未病平台{% endblock %}
+{% block page_title %}医护工作量统计{% endblock %}
+
+{% block content %}
+<!-- 筛选 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-5 flex items-center gap-3 flex-wrap">
+  <input id="date-from" type="date" class="border border-gray-200 rounded-lg px-3 py-2 text-sm">
+  <span class="text-gray-400">至</span>
+  <input id="date-to" type="date" class="border border-gray-200 rounded-lg px-3 py-2 text-sm">
+  <select id="dept-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm">
+    <option value="">全部科室</option>
+    <option value="中医科">中医科</option>
+    <option value="内分泌科">内分泌科</option>
+    <option value="心内科">心内科</option>
+    <option value="全科诊室">全科诊室</option>
+  </select>
+  <input id="search-doctor" type="text" placeholder="搜索医生姓名"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-36 focus:outline-none"
+    oninput="filterDoctors()">
+  <button onclick="loadStats()" class="text-white px-4 py-2 rounded-lg text-sm hover:opacity-90" style="background:#4E7A61">查询</button>
+  <button onclick="exportWorkload()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-700">导出报表</button>
+</div>
+
+<!-- 汇总指标 -->
+<div class="grid grid-cols-5 gap-4 mb-5">
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-gray-500 text-xs">随访总量</p>
+    <p id="s-followup" class="text-2xl font-bold text-gray-800 mt-1">-</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-gray-500 text-xs">完成率</p>
+    <p id="s-rate" class="text-2xl font-bold text-green-600 mt-1">-</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-gray-500 text-xs">体质评估</p>
+    <p id="s-assess" class="text-2xl font-bold mt-1" style="color:#4E7A61">-</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-gray-500 text-xs">中医指导</p>
+    <p id="s-guidance" class="text-2xl font-bold mt-1" style="color:#5070A8">-</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-gray-500 text-xs">预警处置</p>
+    <p id="s-alerts" class="text-2xl font-bold text-rose-600 mt-1">-</p>
+  </div>
+</div>
+
+<!-- 医生工作量明细表 -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+    <h3 class="font-semibold text-gray-700 text-sm">医生工作量明细</h3>
+    <button onclick="exportReport()" class="text-xs hover:underline" style="color:#4E7A61">导出报表</button>
+  </div>
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-5 py-2.5 text-left">医生姓名</th>
+        <th class="px-5 py-2.5 text-left">科室</th>
+        <th class="px-5 py-2.5 text-left">管辖档案数</th>
+        <th class="px-5 py-2.5 text-left">随访量</th>
+        <th class="px-5 py-2.5 text-left">完成率</th>
+        <th class="px-5 py-2.5 text-left">体质评估</th>
+        <th class="px-5 py-2.5 text-left">中医指导</th>
+        <th class="px-5 py-2.5 text-left">预警处置</th>
+        <th class="px-5 py-2.5 text-left">综合评级</th>
+        <th class="px-5 py-2.5 text-left">操作</th>
+      </tr>
+    </thead>
+    <tbody id="workload-tbody" class="divide-y divide-gray-100"></tbody>
+  </table>
+</div>
+
+<!-- 随访方式分布 -->
+<div class="grid grid-cols-2 gap-4 mt-4">
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <h3 class="font-semibold text-gray-700 mb-4 text-sm">随访方式分布</h3>
+    <div class="space-y-3">
+      <div>
+        <div class="flex justify-between text-sm mb-1"><span class="text-gray-600">电话随访</span><span class="text-gray-500">45%</span></div>
+        <div class="h-2.5 rounded-full" style="background:#EDE8E2"><div class="h-2.5 rounded-full" style="background:#4E7A61;width:45%"></div></div>
+      </div>
+      <div>
+        <div class="flex justify-between text-sm mb-1"><span class="text-gray-600">门诊随访</span><span class="text-gray-500">30%</span></div>
+        <div class="h-2.5 rounded-full" style="background:#EDE8E2"><div class="h-2.5 bg-green-400 rounded-full" style="width:30%"></div></div>
+      </div>
+      <div>
+        <div class="flex justify-between text-sm mb-1"><span class="text-gray-600">家庭随访</span><span class="text-gray-500">15%</span></div>
+        <div class="h-2.5 rounded-full" style="background:#EDE8E2"><div class="h-2.5 bg-amber-400 rounded-full" style="width:15%"></div></div>
+      </div>
+      <div>
+        <div class="flex justify-between text-sm mb-1"><span class="text-gray-600">信息随访</span><span class="text-gray-500">10%</span></div>
+        <div class="h-2.5 rounded-full" style="background:#EDE8E2"><div class="h-2.5 rounded-full" style="background:#5070A8;width:10%"></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <h3 class="font-semibold text-gray-700 mb-4 text-sm">周度随访趋势</h3>
+    <div id="week-trend" class="flex items-end gap-2 h-28"></div>
+    <div id="week-labels" class="flex gap-2 mt-1 text-xs text-gray-400"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const MOCK_DOCTORS = [
+  {name: '张医生', dept: '中医科', archives: 86, followup: 45, rate: 93, assess: 12, guidance: 28, alerts: 3},
+  {name: '李医生', dept: '内分泌科', archives: 72, followup: 38, rate: 88, assess: 8, guidance: 21, alerts: 5},
+  {name: '王医生', dept: '心内科', archives: 94, followup: 52, rate: 96, assess: 15, guidance: 33, alerts: 7},
+  {name: '赵医生', dept: '全科诊室', archives: 61, followup: 29, rate: 79, assess: 6, guidance: 17, alerts: 2},
+  {name: '陈医生', dept: '中医科', archives: 78, followup: 41, rate: 90, assess: 11, guidance: 25, alerts: 4},
+];
+
+function renderDoctorTable(data) {
+  const rateColor = r => r >= 90 ? 'text-green-600' : r >= 75 ? 'text-amber-600' : 'text-red-600';
+  const grade = r => r >= 90 ? '优秀' : r >= 75 ? '良好' : '待改进';
+  const gradeColor = r => r >= 90 ? 'bg-green-100 text-green-700' : r >= 75 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700';
+  const tbody = document.getElementById('workload-tbody');
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center text-gray-400 py-8">暂无匹配数据</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(d => `
+    <tr class="hover:bg-gray-50">
+      <td class="px-5 py-2.5 font-medium text-gray-800">${d.name}</td>
+      <td class="px-5 py-2.5 text-gray-500">${d.dept}</td>
+      <td class="px-5 py-2.5 text-gray-700">${d.archives}</td>
+      <td class="px-5 py-2.5 text-gray-700">${d.followup}</td>
+      <td class="px-5 py-2.5 font-medium ${rateColor(d.rate)}">${d.rate}%</td>
+      <td class="px-5 py-2.5 text-gray-700">${d.assess}</td>
+      <td class="px-5 py-2.5 text-gray-700">${d.guidance}</td>
+      <td class="px-5 py-2.5 text-gray-700">${d.alerts}</td>
+      <td class="px-5 py-2.5">
+        <span class="text-xs px-2 py-0.5 rounded font-medium ${gradeColor(d.rate)}">${grade(d.rate)}</span>
+      </td>
+      <td class="px-5 py-2.5">
+        <a onclick="showToast('医生工作详情功能开发中')" class="text-xs cursor-pointer hover:underline" style="color:#4E7A61">详情</a>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function loadStats() {
+  const dept = document.getElementById('dept-filter').value;
+  const q = (document.getElementById('search-doctor').value || '').trim().toLowerCase();
+  const data = MOCK_DOCTORS.filter(d =>
+    (!dept || d.dept === dept) &&
+    (!q || d.name.includes(q))
+  );
+
+  // 先用 demo 数据填充医生表格
+  const totFollowup = data.reduce((a, d) => a + d.followup, 0);
+  const avgRate = data.length ? Math.round(data.reduce((a, d) => a + d.rate, 0) / data.length) : 0;
+  const totAssess = data.reduce((a, d) => a + d.assess, 0);
+  const totGuidance = data.reduce((a, d) => a + d.guidance, 0);
+  const totAlerts = data.reduce((a, d) => a + d.alerts, 0);
+
+  document.getElementById('s-followup').textContent = totFollowup;
+  document.getElementById('s-rate').textContent = avgRate + '%';
+  document.getElementById('s-assess').textContent = totAssess;
+  document.getElementById('s-guidance').textContent = totGuidance;
+  document.getElementById('s-alerts').textContent = totAlerts;
+
+  // 用真实 API 覆盖 KPI 卡片数值
+  try {
+    const resp = await fetch('/tools/stats/business');
+    const d = await resp.json();
+    if (d.success && d.data) {
+      const s = d.data;
+      document.getElementById('s-followup').textContent = s.plans_issued_total ?? totFollowup;
+      document.getElementById('s-rate').textContent = Math.round((s.followup_completion_rate ?? 0) * 100) + '%';
+      document.getElementById('s-assess').textContent = s.high_risk_patients ?? totAssess;
+      document.getElementById('s-guidance').textContent = s.plans_issued_this_month ?? totGuidance;
+      document.getElementById('s-alerts').textContent = s.auto_alerts_this_month ?? totAlerts;
+    }
+  } catch (_) { /* 保留演示数据 */ }
+
+  renderDoctorTable(data);
+
+  // Week trend bars
+  const weeks = Array.from({length: 8}, (_, i) => ({label: `W${8-i}`, val: Math.floor(Math.random() * 30 + 10)}));
+  const maxV = Math.max(...weeks.map(w => w.val));
+  document.getElementById('week-trend').innerHTML = weeks.map(w => `
+    <div class="flex-1 rounded-t" style="height:${Math.round(w.val/maxV*100)}%;background:rgba(78,122,97,0.5)"></div>
+  `).join('');
+  document.getElementById('week-labels').innerHTML = weeks.map(w => `<div class="flex-1 text-center">${w.label}</div>`).join('');
+}
+
+function filterDoctors() {
+  const q = document.getElementById('search-doctor').value.trim().toLowerCase();
+  const dept = document.getElementById('dept-filter').value;
+  const data = MOCK_DOCTORS.filter(d =>
+    (!dept || d.dept === dept) &&
+    (!q || d.name.includes(q))
+  );
+  renderDoctorTable(data);
+}
+
+function exportWorkload() {
+  showToast('工作量报表导出中，包含当前筛选条件的数据');
+}
+
+function exportReport() {
+  exportWorkload();
+}
+
+// Init dates
+const today = new Date().toISOString().split('T')[0];
+const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+document.getElementById('date-from').value = monthStart;
+document.getElementById('date-to').value = today;
+loadStats();
+</script>
+{% endblock %}

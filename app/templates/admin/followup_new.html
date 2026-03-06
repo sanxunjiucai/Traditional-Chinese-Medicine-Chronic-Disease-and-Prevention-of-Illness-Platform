@@ -1,0 +1,160 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "followup" %}
+{% block title %}新增随访任务 - 治未病平台{% endblock %}
+{% block page_title %}新增随访任务{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-4">
+  <!-- 患者选择 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h3 class="font-semibold text-gray-700 mb-4">选择随访患者</h3>
+    <div class="flex gap-3 mb-4">
+      <input id="search-input" type="text" placeholder="点击或输入姓名/手机号搜索患者档案"
+        onfocus="searchPatient()" oninput="debounceSearch()" autocomplete="off"
+        class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+      <button onclick="searchPatient()" class="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-700">搜索</button>
+    </div>
+    <div id="search-results" class="hidden mb-3">
+      <div id="results-list" class="space-y-2 max-h-48 overflow-y-auto"></div>
+    </div>
+    <div id="selected-patient" class="hidden bg-amber-50 border border-amber-200 rounded-lg p-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-amber-200 flex items-center justify-center font-bold text-amber-700" id="sel-avatar">-</div>
+        <div class="flex-1">
+          <p id="sel-name" class="font-semibold text-gray-800"></p>
+          <p id="sel-info" class="text-sm text-gray-500"></p>
+        </div>
+        <button onclick="clearSelection()" class="text-gray-400 hover:text-gray-600 text-sm">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 任务配置 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h3 class="font-semibold text-gray-700 mb-4">随访任务配置</h3>
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">随访类型 <span class="text-red-500">*</span></label>
+        <select id="task-type"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+          <option value="CHRONIC">慢病随访</option>
+          <option value="CONSTITUTION">体质调护</option>
+          <option value="ELDERLY">老年人管理</option>
+          <option value="MATERNAL">孕产妇随访</option>
+          <option value="CUSTOM">自定义</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">随访方式 <span class="text-red-500">*</span></label>
+        <select id="task-method"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+          <option value="PHONE">电话</option>
+          <option value="VISIT">上门</option>
+          <option value="ONLINE">在线</option>
+          <option value="APP">APP推送</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">计划随访时间 <span class="text-red-500">*</span></label>
+        <input type="date" id="scheduled-at"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">执行人</label>
+        <input type="text" id="executor" placeholder="默认为当前登录医生"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+      </div>
+      <div class="col-span-2">
+        <label class="block text-sm text-gray-600 mb-1">随访要点</label>
+        <textarea id="key-points" rows="3" placeholder="本次随访的重点关注内容..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"></textarea>
+      </div>
+      <div class="col-span-2">
+        <label class="block text-sm text-gray-600 mb-1">备注</label>
+        <textarea id="task-notes" rows="2" placeholder="补充说明..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- 按钮 -->
+  <div class="flex gap-3 justify-end">
+    <a href="/gui/admin/followup/tasks"
+      class="px-5 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">取消</a>
+    <button onclick="createTask()"
+      class="bg-amber-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-amber-700 font-medium">创建随访任务</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let selectedArchiveId = null;
+let _allPatients = null;
+let _searchTimer = null;
+
+async function loadAllPatients() {
+  if (_allPatients !== null) return _allPatients;
+  try {
+    const res = await fetch('/tools/archive/archives?page_size=100');
+    const data = await res.json();
+    _allPatients = (data.success && data.data?.items) ? data.data.items : [];
+  } catch { _allPatients = []; }
+  return _allPatients;
+}
+
+async function searchPatient() {
+  const q = document.getElementById('search-input').value.trim();
+  const patients = await loadAllPatients();
+  const filtered = q
+    ? patients.filter(p => p.name.includes(q) || (p.phone||'').includes(q))
+    : patients;
+  const list = document.getElementById('results-list');
+  document.getElementById('search-results').classList.remove('hidden');
+  if (!filtered.length) {
+    list.innerHTML = '<p class="text-sm text-gray-400 py-2 text-center">未找到匹配档案</p>'; return;
+  }
+  list.innerHTML = filtered.slice(0, 30).map(p => `
+    <div class="flex items-center gap-3 p-3 border border-gray-100 rounded-lg cursor-pointer hover:border-amber-300 hover:bg-amber-50"
+      onclick="selectPatient('${p.id}','${p.name}','${p.gender||''}','${p.phone||''}')">
+      <div class="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 font-bold text-sm">${p.name[0]}</div>
+      <div class="flex-1"><p class="text-sm font-medium">${p.name}</p><p class="text-xs text-gray-400">${p.phone||'无手机号'}</p></div>
+    </div>`).join('');
+}
+
+function debounceSearch() {
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(searchPatient, 200);
+}
+
+function selectPatient(id, name, gender, phone) {
+  selectedArchiveId = id;
+  document.getElementById('search-results').classList.add('hidden');
+  document.getElementById('selected-patient').classList.remove('hidden');
+  document.getElementById('sel-avatar').textContent = name[0];
+  document.getElementById('sel-name').textContent = name;
+  document.getElementById('sel-info').textContent = `${gender==='male'?'男':'女'} · ${phone||'无手机号'}`;
+}
+
+function clearSelection() {
+  selectedArchiveId = null;
+  document.getElementById('selected-patient').classList.add('hidden');
+  document.getElementById('search-input').value = '';
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#search-input') && !e.target.closest('#search-results')) {
+    document.getElementById('search-results').classList.add('hidden');
+  }
+});
+
+async function createTask() {
+  if (!selectedArchiveId) { showToast('请先选择患者档案'); return; }
+  if (!document.getElementById('scheduled-at').value) { showToast('请选择计划随访时间'); return; }
+  showToast('随访任务创建成功');
+  window.location.href = '/gui/admin/followup/tasks';
+}
+
+document.getElementById('scheduled-at').value = new Date().toISOString().split('T')[0];
+</script>
+{% endblock %}

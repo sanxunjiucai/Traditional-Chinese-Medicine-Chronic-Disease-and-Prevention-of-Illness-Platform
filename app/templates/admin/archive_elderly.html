@@ -1,0 +1,279 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "archive_elderly" %}
+{% block title %}老年人档案 - 治未病平台{% endblock %}
+{% block page_title %}老年人档案{% endblock %}
+
+{% block content %}
+<!-- KPI 卡片 -->
+<div class="grid grid-cols-4 gap-4 mb-6">
+  <div class="bg-white rounded-xl shadow-sm p-4 border-l-4 border-orange-500">
+    <p class="text-gray-500 text-xs">老年总数</p>
+    <p id="kpi-total" class="text-2xl font-bold text-orange-700 mt-1">-</p>
+    <p class="text-xs text-gray-400 mt-1">60岁及以上在册人数</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4 border-l-4 border-red-400">
+    <p class="text-gray-500 text-xs">高龄老人（≥80岁）</p>
+    <p id="kpi-oldest" class="text-2xl font-bold text-red-600 mt-1">-</p>
+    <p class="text-xs text-gray-400 mt-1">需重点监护</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4 border-l-4 border-orange-300">
+    <p class="text-gray-500 text-xs">本月新增</p>
+    <p id="kpi-new" class="text-2xl font-bold text-orange-600 mt-1">-</p>
+    <p class="text-xs text-gray-400 mt-1">本月建档数量</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4 border-l-4 border-amber-500">
+    <p class="text-gray-500 text-xs">需重点关注</p>
+    <p id="kpi-focus" class="text-2xl font-bold text-amber-600 mt-1">-</p>
+    <p class="text-xs text-gray-400 mt-1">半失能 + 失能</p>
+  </div>
+</div>
+
+<!-- 筛选栏 + 操作 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <input id="q" type="text" placeholder="姓名 / 手机号 / 证件号"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-52 focus:outline-none focus:ring-2 focus:ring-orange-300">
+  <select id="age-range" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+    <option value="">全部年龄段</option>
+    <option value="60-70">60-70岁</option>
+    <option value="70-80">70-80岁</option>
+    <option value="80-200">80岁以上（高龄）</option>
+  </select>
+  <select id="ability-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+    <option value="">能力状态</option>
+    <option value="self_care">自理</option>
+    <option value="semi_dependent">半失能</option>
+    <option value="dependent">失能</option>
+  </select>
+  <select id="gender-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+    <option value="">全部性别</option>
+    <option value="male">男</option>
+    <option value="female">女</option>
+  </select>
+  <select id="org-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+    <option value="">全部机构</option>
+    <option value="community_a">社区卫生服务中心A</option>
+    <option value="community_b">社区卫生服务中心B</option>
+    <option value="hospital_c">第三人民医院</option>
+  </select>
+  <button onclick="loadList(1)" class="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-orange-600">搜索</button>
+  <a href="/gui/admin/archives/new" class="ml-auto bg-orange-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-orange-600 flex items-center gap-1">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+    </svg>
+    新建老年档案
+  </a>
+</div>
+
+<!-- 批量操作区 -->
+<div id="batch-bar" class="hidden rounded-xl px-4 py-3 mb-3 flex items-center gap-3 flex-wrap" style="background:#EBF2ED;border:1px solid #B8D4C2;">
+  <span id="batch-count" class="text-sm font-medium" style="color:#4E7A61;">已选 0 条</span>
+  <button onclick="batchAssignDoctor()" class="bg-white px-3 py-1.5 rounded-lg text-sm" style="border:1px solid #B8D4C2;color:#4E7A61;">调整责任医生</button>
+  <button onclick="batchAssignOrg()" class="bg-white px-3 py-1.5 rounded-lg text-sm" style="border:1px solid #B8D4C2;color:#4E7A61;">调整管辖机构</button>
+  <button onclick="batchDelete()" class="bg-white border border-red-300 text-red-600 px-3 py-1.5 rounded-lg text-sm hover:bg-red-50">批量删除</button>
+  <button onclick="clearSelection()" class="ml-auto text-xs text-gray-400 hover:text-gray-600">取消选择</button>
+</div>
+
+<!-- 表格 -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-orange-50 text-orange-700 text-xs uppercase">
+      <tr>
+        <th class="px-4 py-3 text-left"><input type="checkbox" id="select-all" onchange="toggleAll(this)"></th>
+        <th class="px-5 py-3 text-left">姓名</th>
+        <th class="px-5 py-3 text-left">性别</th>
+        <th class="px-5 py-3 text-left">年龄</th>
+        <th class="px-5 py-3 text-left">能力状态</th>
+        <th class="px-5 py-3 text-left">手机号</th>
+        <th class="px-5 py-3 text-left">紧急联系人</th>
+        <th class="px-5 py-3 text-left">所属机构</th>
+        <th class="px-5 py-3 text-left">建档时间</th>
+        <th class="px-5 py-3 text-left">操作</th>
+      </tr>
+    </thead>
+    <tbody id="list-tbody" class="divide-y divide-gray-100">
+      <tr><td colspan="10" class="text-center text-gray-400 py-10">加载中...</td></tr>
+    </tbody>
+  </table>
+  <div id="pagination" class="px-5 py-3 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500"></div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// 演示数据（60岁以上老年人）
+const demoData = [
+  { id: 'e001', name: '王大爷', gender: 'male', birth_date: '1948-03-22', ability: 'self_care', phone: '13700030001', emergency_contact: '王小明 / 13700030011', org: '社区卫生服务中心A', created_at: '2022-05-10' },
+  { id: 'e002', name: '李奶奶', gender: 'female', birth_date: '1940-08-15', ability: 'semi_dependent', phone: '13700030002', emergency_contact: '李丽 / 13700030012', org: '社区卫生服务中心B', created_at: '2021-07-18' },
+  { id: 'e003', name: '张老伯', gender: 'male', birth_date: '1952-11-05', ability: 'self_care', phone: '13700030003', emergency_contact: '张华 / 13700030013', org: '第三人民医院', created_at: '2023-01-09' },
+  { id: 'e004', name: '刘老太', gender: 'female', birth_date: '1938-06-30', ability: 'dependent', phone: '13700030004', emergency_contact: '刘强 / 13700030014', org: '社区卫生服务中心A', created_at: '2020-11-25' },
+  { id: 'e005', name: '陈爷爷', gender: 'male', birth_date: '1959-01-17', ability: 'self_care', phone: '13700030005', emergency_contact: '陈红 / 13700030015', org: '社区卫生服务中心B', created_at: '2024-08-03' },
+  { id: 'e006', name: '周婆婆', gender: 'female', birth_date: '1944-04-08', ability: 'semi_dependent', phone: '13700030006', emergency_contact: '周涛 / 13700030016', org: '第三人民医院', created_at: '2025-02-14' },
+  { id: 'e007', name: '赵老汉', gender: 'male', birth_date: '1963-09-21', ability: 'self_care', phone: '13700030007', emergency_contact: '赵雪 / 13700030017', org: '社区卫生服务中心A', created_at: '2026-01-30' },
+];
+
+const ABILITY_LABELS = { self_care: '自理', semi_dependent: '半失能', dependent: '失能' };
+const ABILITY_COLORS = {
+  self_care: 'bg-green-100 text-green-700',
+  semi_dependent: 'bg-yellow-100 text-yellow-700',
+  dependent: 'bg-red-100 text-red-700',
+};
+
+function calcAge(birthDate) {
+  const birth = new Date(birthDate);
+  const now = new Date();
+  return now.getFullYear() - birth.getFullYear() - (now < new Date(now.getFullYear(), birth.getMonth(), birth.getDate()) ? 1 : 0);
+}
+
+function setKpis(data) {
+  document.getElementById('kpi-total').textContent = data.length;
+  const ages = data.map(d => calcAge(d.birth_date));
+  document.getElementById('kpi-oldest').textContent = ages.filter(a => a >= 80).length;
+  const now = new Date();
+  const newThisMonth = data.filter(d => {
+    const c = new Date(d.created_at);
+    return c.getMonth() === now.getMonth() && c.getFullYear() === now.getFullYear();
+  }).length;
+  document.getElementById('kpi-new').textContent = newThisMonth;
+  document.getElementById('kpi-focus').textContent = data.filter(d => d.ability === 'semi_dependent' || d.ability === 'dependent').length;
+}
+
+let currentPage = 1;
+const PAGE_SIZE = 10;
+let ALL_DATA = null; // 缓存 API 数据
+
+async function loadList(page = 1) {
+  currentPage = page;
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const gender = document.getElementById('gender-filter').value;
+
+  // 优先调用真实 API
+  if (!ALL_DATA) {
+    try {
+      const params = new URLSearchParams({ archive_type: 'ELDERLY', page_size: 100 });
+      const resp = await fetch('/tools/archive/archives?' + params);
+      const d = await resp.json();
+      if (d.success) ALL_DATA = d.data.items.map(a => ({
+        id: a.id, name: a.name, gender: a.gender || 'male',
+        birth_date: a.birth_date || '1958-01-01', ability: 'self_care',
+        phone: a.phone || '-', emergency_contact: '-',
+        org: '-', created_at: (a.created_at || '').slice(0, 10),
+      }));
+    } catch (_) {}
+    if (!ALL_DATA) ALL_DATA = demoData;
+  }
+
+  let filtered = ALL_DATA.filter(d => {
+    if (q && !d.name.toLowerCase().includes(q) && !d.phone.includes(q)) return false;
+    if (gender && d.gender !== gender) return false;
+    return true;
+  });
+
+  // age range filter
+  const ageRange = document.getElementById('age-range').value;
+  if (ageRange) {
+    filtered = filtered.filter(d => {
+      const age = calcAge(d.birth_date);
+      const [min, max] = ageRange.split('-').map(Number);
+      return age >= min && age < max;
+    });
+  }
+
+  setKpis(filtered);
+  const start = (page - 1) * PAGE_SIZE;
+  const pageItems = filtered.slice(start, start + PAGE_SIZE);
+  const tbody = document.getElementById('list-tbody');
+
+  if (!pageItems.length) {
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center text-gray-400 py-10">暂无老年人档案数据</td></tr>';
+  } else {
+    tbody.innerHTML = pageItems.map(a => {
+      const age = calcAge(a.birth_date);
+      const isHighAge = age >= 80;
+      return `
+      <tr class="hover:bg-orange-50/30${isHighAge ? ' bg-amber-50/40' : ''}">
+        <td class="px-4 py-3"><input type="checkbox" class="row-check" value="${a.id}"></td>
+        <td class="px-5 py-3 font-medium text-gray-800">
+          <a href="/gui/admin/archives/${a.id}?from=elderly" class="hover:text-orange-600">${a.name}</a>
+          ${isHighAge ? '<span class="ml-1 inline-block bg-red-100 text-red-700 text-xs px-1.5 py-0.5 rounded">高龄</span>' : ''}
+        </td>
+        <td class="px-5 py-3 text-gray-600">${a.gender === 'male' ? '男' : '女'}</td>
+        <td class="px-5 py-3 text-gray-600 font-medium">${age} 岁</td>
+        <td class="px-5 py-3">
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${ABILITY_COLORS[a.ability] || 'bg-gray-100 text-gray-600'}">
+            ${ABILITY_LABELS[a.ability] || '-'}
+          </span>
+        </td>
+        <td class="px-5 py-3 text-gray-600">${a.phone}</td>
+        <td class="px-5 py-3 text-gray-500 text-xs">${a.emergency_contact}</td>
+        <td class="px-5 py-3 text-gray-500 text-xs">${a.org}</td>
+        <td class="px-5 py-3 text-gray-500 text-xs">${a.created_at}</td>
+        <td class="px-5 py-3">
+          <a href="/gui/admin/archives/${a.id}?from=elderly" class="text-orange-600 text-xs hover:underline mr-2">详情</a>
+          <a href="/gui/admin/archives/${a.id}/edit" class="text-gray-500 text-xs hover:underline mr-2">编辑</a>
+          <button onclick="deleteArchive('${a.id}','${a.name}')" class="text-red-400 hover:underline text-xs">删除</button>
+        </td>
+      </tr>
+      `;
+    }).join('');
+    document.querySelectorAll('.row-check').forEach(cb => cb.addEventListener('change', updateBatchBar));
+  }
+
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  document.getElementById('pagination').innerHTML = `
+    <span>共 ${total} 条</span>
+    <div class="flex gap-2">
+      ${page > 1 ? `<button onclick="loadList(${page - 1})" class="px-3 py-1 rounded border text-xs hover:bg-orange-50">上一页</button>` : ''}
+      <span class="px-3 py-1 text-xs">第 ${page}/${totalPages} 页</span>
+      ${page < totalPages ? `<button onclick="loadList(${page + 1})" class="px-3 py-1 rounded border text-xs hover:bg-orange-50">下一页</button>` : ''}
+    </div>
+  `;
+}
+
+function filterData() { ALL_DATA = null; loadList(1); }
+
+document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'Enter') loadList(1); });
+
+function deleteArchive(id, name) {
+  if (confirm(`确定将「${name}」的档案移至回收站？`)) {
+    showToast('已移至回收站');
+  }
+}
+
+function toggleAll(el) {
+  document.querySelectorAll('.row-check').forEach(cb => cb.checked = el.checked);
+  updateBatchBar();
+}
+function updateBatchBar() {
+  const checked = document.querySelectorAll('.row-check:checked');
+  const bar = document.getElementById('batch-bar');
+  if (checked.length > 0) {
+    bar.classList.remove('hidden');
+    document.getElementById('batch-count').textContent = `已选 ${checked.length} 条`;
+  } else {
+    bar.classList.add('hidden');
+  }
+}
+function clearSelection() {
+  document.querySelectorAll('.row-check, #select-all').forEach(cb => cb.checked = false);
+  updateBatchBar();
+}
+function batchAssignDoctor() {
+  const n = document.querySelectorAll('.row-check:checked').length;
+  showToast(`批量调整 ${n} 条档案的责任医生`);
+}
+function batchAssignOrg() {
+  const n = document.querySelectorAll('.row-check:checked').length;
+  showToast(`批量调整 ${n} 条档案的管辖机构`);
+}
+function batchDelete() {
+  const n = document.querySelectorAll('.row-check:checked').length;
+  if (confirm(`确定将选中的 ${n} 条档案移至回收站？`)) {
+    showToast('批量删除成功');
+    clearSelection();
+  }
+}
+
+loadList();
+</script>
+{% endblock %}

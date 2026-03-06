@@ -1,0 +1,286 @@
+{% extends "_layouts/patient.html" %}
+{% block title %}打卡与量表{% endblock %}
+{% block page_title %}打卡与症状量表{% endblock %}
+
+{% block extra_css %}
+.star-row { display:flex; gap:6px; }
+.star-btn {
+  width:36px; height:36px; border-radius:10px; border:1.5px solid var(--border);
+  background:#fff; font-size:18px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition: all 0.15s; font-family:inherit;
+}
+.star-btn.sel { border-color:var(--primary); background:var(--primary-light); }
+.symptom-row {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:13px 0; border-bottom:1px solid var(--border-light);
+}
+.symptom-row:last-child { border-bottom:none; }
+{% endblock %}
+
+{% block content %}
+<div style="padding:16px;display:flex;flex-direction:column;gap:14px;">
+
+  <!-- 今日打卡状态 -->
+  <div id="checkin-card" style="background:#fff;border-radius:20px;padding:18px;box-shadow:var(--shadow-sm);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <h3 style="font-size:15px;font-weight:600;color:#28231E;margin:0;">今日随访打卡</h3>
+      <span id="checkin-date" style="font-size:12px;color:#9A9188;"></span>
+    </div>
+
+    <!-- 已打卡状态 -->
+    <div id="done-state" style="display:none;text-align:center;padding:12px 0;">
+      <div style="width:52px;height:52px;background:#EBF2ED;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:10px;">
+        <svg width="26" height="26" fill="none" stroke="#4E7A61" stroke-width="2.2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 13l4 4L19 7"/>
+        </svg>
+      </div>
+      <p style="font-size:15px;font-weight:600;color:#28231E;margin:0 0 4px;">今日已打卡</p>
+      <p id="done-time" style="font-size:13px;color:#9A9188;margin:0;"></p>
+    </div>
+
+    <!-- 未打卡：任务列表 -->
+    <div id="todo-state">
+      <div id="task-items" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+        <div class="skeleton" style="height:48px;"></div>
+        <div class="skeleton" style="height:48px;width:85%;"></div>
+      </div>
+      <button id="checkin-btn" onclick="doCheckin()" style="
+        width:100%;background:#4E7A61;color:#fff;font-size:15px;font-weight:500;
+        padding:13px;border-radius:var(--radius-btn);border:none;cursor:pointer;
+        font-family:inherit;transition:background 0.2s;display:none;
+      ">确认完成今日打卡</button>
+    </div>
+  </div>
+
+  <!-- 连续打卡进度 -->
+  <div style="background:#fff;border-radius:20px;padding:18px;box-shadow:var(--shadow-sm);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <h3 style="font-size:15px;font-weight:600;color:#28231E;margin:0;">本周打卡记录</h3>
+      <span id="streak-badge" style="font-size:12px;color:#4E7A61;background:#EBF2ED;padding:3px 10px;border-radius:99px;font-weight:500;"></span>
+    </div>
+    <div id="week-dots" style="display:flex;justify-content:space-between;gap:6px;"></div>
+  </div>
+
+  <!-- 症状自评 -->
+  <div style="background:#fff;border-radius:20px;padding:18px;box-shadow:var(--shadow-sm);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <h3 style="font-size:15px;font-weight:600;color:#28231E;margin:0;">今日症状自评</h3>
+      <span style="font-size:12px;color:#9A9188;">1=无  5=严重</span>
+    </div>
+    <div id="symptom-list">
+      <!-- 动态渲染 -->
+    </div>
+    <button onclick="submitSymptoms()" style="
+      width:100%;background:var(--primary);color:#fff;font-size:14px;font-weight:500;
+      padding:12px;border-radius:var(--radius-btn);border:none;cursor:pointer;
+      font-family:inherit;margin-top:16px;transition:background 0.2s;
+    ">提交症状记录</button>
+  </div>
+
+  <!-- 量表评估 -->
+  <div style="background:#fff;border-radius:20px;padding:18px;box-shadow:var(--shadow-sm);">
+    <h3 style="font-size:15px;font-weight:600;color:#28231E;margin:0 0 14px;">症状量表</h3>
+    <div id="scale-list" style="display:flex;flex-direction:column;gap:10px;">
+      <div class="skeleton" style="height:60px;"></div>
+      <div class="skeleton" style="height:60px;width:90%;"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div id="toast" style="display:none;position:fixed;bottom:96px;left:50%;transform:translateX(-50%);background:#28231E;color:#fff;padding:10px 18px;border-radius:12px;font-size:13px;z-index:100;white-space:nowrap;"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const SYMPTOMS = [
+  { key:'headache',   label:'头痛头晕', icon:'🤕' },
+  { key:'fatigue',    label:'乏力疲倦', icon:'😴' },
+  { key:'sleep',      label:'睡眠质量', icon:'🌙' },
+  { key:'appetite',   label:'食欲状态', icon:'🍽️' },
+  { key:'mood',       label:'情绪状态', icon:'😊' },
+  { key:'chest',      label:'胸闷气短', icon:'💨' },
+];
+const symptomVals = {};
+
+function showToast(msg, ms=2200) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display='block';
+  setTimeout(() => t.style.display='none', ms);
+}
+
+// 渲染症状列表
+function renderSymptoms() {
+  const el = document.getElementById('symptom-list');
+  el.innerHTML = SYMPTOMS.map(s => {
+    const btns = [1,2,3,4,5].map(v => `
+      <button class="star-btn" data-key="${s.key}" data-val="${v}" onclick="setSymptom('${s.key}',${v},this)">
+        ${v}
+      </button>`).join('');
+    return `
+      <div class="symptom-row">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:18px;">${s.icon}</span>
+          <span style="font-size:14px;color:#28231E;">${s.label}</span>
+        </div>
+        <div class="star-row">${btns}</div>
+      </div>`;
+  }).join('');
+}
+
+function setSymptom(key, val, btn) {
+  symptomVals[key] = val;
+  document.querySelectorAll(`.star-btn[data-key="${key}"]`).forEach(b => {
+    b.classList.toggle('sel', parseInt(b.dataset.val) <= val);
+  });
+}
+
+async function submitSymptoms() {
+  if (Object.keys(symptomVals).length < 3) {
+    showToast('请至少评估3项症状'); return;
+  }
+  try {
+    await fetch('/tools/followup/checkin', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ symptoms: symptomVals, notes: '症状自评' })
+    });
+  } catch(e) {}
+  showToast('✓ 症状记录已提交');
+}
+
+// 今日打卡
+async function loadTasks() {
+  const today = new Date().toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'});
+  document.getElementById('checkin-date').textContent = today;
+
+  let tasks = [];
+  let todayDone = false;
+  try {
+    const r = await fetch('/tools/followup/today');
+    const j = await r.json();
+    if (j.success && j.data?.length) {
+      tasks = j.data;
+      todayDone = tasks.every(t => t.checkin_status === 'DONE');
+    }
+  } catch(e) {}
+
+  const taskEl = document.getElementById('task-items');
+  if (todayDone) {
+    document.getElementById('todo-state').style.display = 'none';
+    document.getElementById('done-state').style.display = 'block';
+    document.getElementById('done-time').textContent = '今日任务全部完成，继续保持！';
+  } else if (tasks.length === 0) {
+    // 演示
+    tasks = [
+      {name:'测量血压（晨起）', required:true,  checkin_status:'DONE'},
+      {name:'步行6000步',       required:true,  checkin_status:'PENDING'},
+      {name:'服药提醒',         required:true,  checkin_status:'PENDING'},
+      {name:'八段锦练习',       required:false, checkin_status:'PENDING'},
+    ];
+    todayDone = false;
+  }
+
+  if (!todayDone) {
+    taskEl.innerHTML = tasks.map(t => {
+      const done = t.checkin_status === 'DONE';
+      return `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:13px;background:${done?'#EBF2ED':'#FDFCF9'};border:1px solid ${done?'#C8DDD0':'var(--border-light)'};">
+          <div style="width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;${done?'background:#4E7A61;':'border:1.5px solid #D0C9C0;'}">
+            ${done?'<svg width="12" height="12" fill="none" stroke="#fff" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>':''}
+          </div>
+          <span style="flex:1;font-size:14px;color:${done?'#9A9188':'#28231E'};${done?'text-decoration:line-through;':''}">${t.name}</span>
+          ${t.required && !done ? '<span style="font-size:11px;color:#D95C4A;background:#FEF2F0;padding:2px 6px;border-radius:6px;">必做</span>' : ''}
+        </div>`;
+    }).join('');
+    document.getElementById('checkin-btn').style.display = 'block';
+  }
+}
+
+async function doCheckin() {
+  const btn = document.getElementById('checkin-btn');
+  btn.disabled = true; btn.textContent = '提交中…';
+  try {
+    await fetch('/tools/followup/checkin', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({notes:'今日打卡'})
+    });
+  } catch(e) {}
+  document.getElementById('todo-state').style.display = 'none';
+  document.getElementById('done-state').style.display = 'block';
+  document.getElementById('done-time').textContent = '打卡时间：' + new Date().toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'});
+  showToast('✓ 打卡成功！');
+}
+
+// 本周打卡点
+function renderWeekDots() {
+  const days = ['一','二','三','四','五','六','日'];
+  const today = new Date().getDay(); // 0=周日
+  const el = document.getElementById('week-dots');
+  // 演示：今天及之前随机已完成
+  const todayIdx = today === 0 ? 6 : today - 1;
+  let streak = 0;
+  el.innerHTML = days.map((d, i) => {
+    const past = i <= todayIdx;
+    const done = past && (i < todayIdx - 1 || Math.random() > 0.25);
+    if (done) streak++;
+    return `
+      <div style="flex:1;text-align:center;">
+        <div style="width:100%;aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:5px;
+          background:${i === todayIdx ? (done?'#4E7A61':'#EBF2ED') : done?'#C8DDD0':'#F5F2EC'};
+          border:${i === todayIdx ? '2px solid #4E7A61' : '1px solid transparent'};
+        ">
+          ${done ? '<svg width="12" height="12" fill="none" stroke="'+(i===todayIdx?'#fff':'#4E7A61')+'" stroke-width="2.5" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>' : (past ? '<span style="font-size:10px;color:#D0C9C0;">✗</span>' : '')}
+        </div>
+        <span style="font-size:11px;color:${i===todayIdx?'#4E7A61':'#9A9188'};">周${d}</span>
+      </div>`;
+  }).join('');
+  document.getElementById('streak-badge').textContent = `连续 ${streak} 天`;
+}
+
+// 量表列表
+async function loadScales() {
+  let scales = [];
+  try {
+    const r = await fetch('/tools/scale/scales?is_active=true&page_size=10');
+    const j = await r.json();
+    if (j.success && j.data?.items?.length) scales = j.data.items;
+  } catch(e) {}
+
+  if (!scales.length) {
+    scales = [
+      {id:'s1', title:'PHQ-9 抑郁自评量表',    description:'评估近两周抑郁症状', estimated_minutes:5},
+      {id:'s2', title:'GAD-7 焦虑自评量表',     description:'评估近两周焦虑症状', estimated_minutes:4},
+      {id:'s3', title:'MMSE 认知功能筛查',       description:'评估认知功能状态',   estimated_minutes:10},
+      {id:'s4', title:'血压症状日记量表',        description:'记录今日血压相关症状', estimated_minutes:3},
+    ];
+  }
+
+  document.getElementById('scale-list').innerHTML = scales.map(s => `
+    <a href="/h5/constitution/assess?scale_id=${s.id}" style="text-decoration:none;">
+      <div style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:14px;background:#FDFCF9;border:1px solid var(--border-light);transition:border-color 0.15s;" class="tap-card">
+        <div style="width:40px;height:40px;border-radius:12px;background:#EBF2ED;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg width="18" height="18" fill="none" stroke="#4E7A61" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <p style="font-size:14px;font-weight:500;color:#28231E;margin:0 0 3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.title}</p>
+          <p style="font-size:12px;color:#9A9188;margin:0;">${s.description || ''} ${s.estimated_minutes ? '· 约' + s.estimated_minutes + '分钟' : ''}</p>
+        </div>
+        <svg width="16" height="16" fill="none" stroke="#D0C9C0" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 18l6-6-6-6"/>
+        </svg>
+      </div>
+    </a>`).join('');
+}
+
+renderSymptoms();
+renderWeekDots();
+loadTasks();
+loadScales();
+</script>
+{% endblock %}

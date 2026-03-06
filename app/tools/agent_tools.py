@@ -43,4 +43,6 @@ async def agent_execute(
         result = await run_agent(body.query, db, current_user)
         return ok(result)
     except Exception as exc:
+        import traceback
+        traceback.print_exc()
         return fail("AGENT_ERROR", f"执行出错：{exc}", status_code=500)

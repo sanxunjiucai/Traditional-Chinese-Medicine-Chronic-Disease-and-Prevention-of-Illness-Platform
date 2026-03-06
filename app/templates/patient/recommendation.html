@@ -3,16 +3,28 @@
 {% block page_title %}调护建议{% endblock %}
 
 {% block content %}
-<div class="px-4 pt-4 space-y-4 pb-6">
+<div style="padding: 16px; display: flex; flex-direction: column; gap: 14px; padding-bottom: 24px;">
 
-  <div id="no-plan" class="hidden text-center py-12">
-    <div class="text-5xl mb-3">🌿</div>
-    <p class="text-gray-500 text-sm">还未生成调护方案</p>
-    <p class="text-gray-400 text-xs mt-1">完成体质评估后自动生成</p>
-    <a href="/h5/constitution/assess" class="inline-block mt-4 bg-green-600 text-white px-6 py-2.5 rounded-xl text-sm">开始体质评估</a>
+  <!-- 无方案引导 -->
+  <div id="no-plan" style="display:none;text-align:center;padding:40px 20px;">
+    <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#EBF2ED;border-radius:20px;margin-bottom:16px;">
+      <svg width="32" height="32" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M18 32 L18 14" stroke="#4E7A61" stroke-width="2" stroke-linecap="round"/>
+        <path d="M18 20 C18 20 10 18 9 10 C15 9 20 14 18 20Z" fill="#C8DDD0" stroke="#4E7A61" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M18 26 C18 26 26 24 27 16 C21 15 16 20 18 26Z" fill="#D4E5D9" stroke="#4E7A61" stroke-width="1.5" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <p style="font-size:16px;font-weight:500;color:#28231E;margin:0 0 8px;">还未生成调护方案</p>
+    <p style="font-size:14px;color:#9A9188;margin:0 0 24px;line-height:1.6;">完成体质评估后自动生成个性化方案</p>
+    <a href="/h5/constitution/assess" style="
+      display:inline-block;background:#4E7A61;color:#fff;
+      font-size:14px;font-weight:500;padding:13px 28px;
+      border-radius:14px;text-decoration:none;cursor:pointer;
+    ">开始体质评估</a>
   </div>
 
-  <div id="plan-content" class="space-y-3 hidden"></div>
+  <!-- 方案内容 -->
+  <div id="plan-content" style="display:none;flex-direction:column;gap:10px;"></div>
 
 </div>
 {% endblock %}
@@ -20,80 +32,82 @@
 {% block extra_scripts %}
 <script>
 const CAT_NAMES = {
-  DAILY_ROUTINE: '起居作息', DIET: '饮食调护', EXERCISE: '运动导引',
-  EMOTIONAL: '情志调护', EXTERNAL: '外治非药',
+  DAILY_ROUTINE: '起居作息',
+  DIET:          '饮食调护',
+  EXERCISE:      '运动导引',
+  EMOTIONAL:     '情志调护',
+  EXTERNAL:      '外治非药',
 };
+
 const CAT_ICONS = {
-  DAILY_ROUTINE: '🌙', DIET: '🥗', EXERCISE: '🧘', EMOTIONAL: '💆', EXTERNAL: '🌿',
+  DAILY_ROUTINE: `<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`,
+  DIET:          `<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/></svg>`,
+  EXERCISE:      `<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>`,
+  EMOTIONAL:     `<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>`,
+  EXTERNAL:      `<svg width="20" height="20" viewBox="0 0 36 36" fill="none"><path d="M18 32 L18 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18 20 C18 20 10 18 9 10 C15 9 20 14 18 20Z" fill="rgba(78,122,97,0.15)" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M18 26 C18 26 26 24 27 16 C21 15 16 20 18 26Z" fill="rgba(78,122,97,0.10)" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`,
+};
+
+const CAT_COLORS = {
+  DAILY_ROUTINE: { bg: '#EEE8F5', color: '#7A5EA0' },
+  DIET:          { bg: '#F0F8EE', color: '#4E7A61' },
+  EXERCISE:      { bg: '#F7EEE4', color: '#B8885E' },
+  EMOTIONAL:     { bg: '#EEF2F7', color: '#5070A8' },
+  EXTERNAL:      { bg: '#EBF2ED', color: '#4E7A61' },
 };
 
 async function load() {
   const resp = await fetch('/tools/constitution/latest');
   const data = await resp.json();
   if (!data.success || !data.data) {
-    document.getElementById('no-plan').classList.remove('hidden');
+    document.getElementById('no-plan').style.display = 'block';
     return;
   }
 
-  // 调护建议是存在 recommendation plan 里，通过 constitution submit 时自动生成
-  // 这里简化：直接读取体质结果展示提示（或调用 recommendation API）
-  const assessment = data.data;
-
-  // 实际调用：GET /tools/followup/... 暂无单独 recommendation get endpoint
-  // 这里展示体质对应的一般性提示
-  document.getElementById('plan-content').classList.remove('hidden');
   const container = document.getElementById('plan-content');
+  container.style.display = 'flex';
 
-  const mainType = assessment.main_type;
-  const TYPE_TIPS = {
-    BALANCED: {
-      DAILY_ROUTINE: ['保持早睡早起的规律作息，每天7-8小时睡眠'],
-      DIET: ['饮食多样化，五谷杂粮均衡摄入，避免暴饮暴食'],
-      EXERCISE: ['每天保持30分钟以上的有氧运动，如快走、太极拳'],
-      EMOTIONAL: ['保持积极乐观心态，定期放松减压'],
-      EXTERNAL: ['可适当进行穴位按摩，如足三里保健'],
-    },
-  };
-
-  // 通用提示文本（实际从 DB 模板获取）
   const categories = ['DAILY_ROUTINE', 'DIET', 'EXERCISE', 'EMOTIONAL', 'EXTERNAL'];
   categories.forEach(cat => {
+    const c = CAT_COLORS[cat] || { bg: '#EBF2ED', color: '#4E7A61' };
     const div = document.createElement('div');
-    div.className = 'bg-white rounded-2xl overflow-hidden';
+    div.style.cssText = 'background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 1px 14px rgba(68,60,48,0.07);';
     div.innerHTML = `
-      <button class="w-full flex items-center justify-between p-4" onclick="toggleSection(this)">
-        <div class="flex items-center space-x-3">
-          <span class="text-2xl">${CAT_ICONS[cat]}</span>
-          <span class="font-semibold text-gray-800">${CAT_NAMES[cat]}</span>
+      <button
+        onclick="toggleSection(this)"
+        style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:16px 18px;background:transparent;border:none;cursor:pointer;font-family:inherit;text-align:left;"
+        aria-expanded="false"
+      >
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:40px;height:40px;background:${c.bg};border-radius:12px;display:flex;align-items:center;justify-content:center;color:${c.color};flex-shrink:0;">
+            ${CAT_ICONS[cat] || ''}
+          </div>
+          <span style="font-size:15px;font-weight:600;color:#28231E;">${CAT_NAMES[cat]}</span>
         </div>
-        <svg class="w-4 h-4 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        <svg class="chevron" width="16" height="16" fill="none" stroke="#9A9188" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.25s;flex-shrink:0;">
+          <path d="M6 9l6 6 6-6"/>
         </svg>
       </button>
-      <div class="section-content px-4 pb-4 space-y-2 hidden" data-cat="${cat}">
-        <p class="text-sm text-gray-500 text-center py-2">正在加载建议...</p>
+      <div class="section-content" style="display:none;padding:0 18px 18px;color:#6A6258;font-size:14px;line-height:1.7;" data-cat="${cat}">
+        <p style="margin:0;color:#9A9188;text-align:center;padding:8px 0;">加载中…</p>
       </div>
     `;
     container.appendChild(div);
   });
 
-  // 加载真实建议
   loadRecommendations();
 }
 
 async function loadRecommendations() {
-  // 重新读取体质评估
   const resp = await fetch('/tools/constitution/latest');
   const data = await resp.json();
   if (!data.success || !data.data) return;
 
-  // 展示体质分数信息
   const assessment = data.data;
   document.querySelectorAll('[data-cat]').forEach(el => {
     el.innerHTML = `
-      <div class="text-sm text-gray-600 leading-relaxed">
-        <p class="text-xs text-gray-400 mb-1">基于体质：${assessment.main_type}</p>
-        <p>根据您的体质特征，我们已为您匹配个性化调护建议。如需详细方案，请联系您的随访医生。</p>
+      <div style="padding-top:4px;">
+        <p style="font-size:12px;color:#9A9188;margin:0 0 8px;padding:6px 10px;background:#F5F2EC;border-radius:8px;display:inline-block;">基于体质：${assessment.main_type}</p>
+        <p style="margin:0;color:#6A6258;font-size:14px;line-height:1.7;">根据您的体质特征，我们已为您匹配个性化调护建议。如需详细方案，请联系您的随访医生。</p>
       </div>
     `;
   });
@@ -101,9 +115,11 @@ async function loadRecommendations() {
 
 function toggleSection(btn) {
   const content = btn.nextElementSibling;
-  const icon = btn.querySelector('svg');
-  content.classList.toggle('hidden');
-  icon.classList.toggle('rotate-180');
+  const chevron = btn.querySelector('.chevron');
+  const isOpen = content.style.display !== 'none';
+  content.style.display = isOpen ? 'none' : 'block';
+  chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+  btn.setAttribute('aria-expanded', String(!isOpen));
 }
 
 load();

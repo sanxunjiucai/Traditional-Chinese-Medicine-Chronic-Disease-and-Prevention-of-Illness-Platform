@@ -27,6 +27,12 @@ from app.models.content import ContentItem
 from app.models.followup import FollowupTemplate
 from app.models.recommendation import RecommendationTemplate
 from app.models.user import User
+from app.models.guidance import GuidanceTemplate, GuidanceRecord  # noqa: F401
+from app.models.org import Organization, Department, SystemRole   # noqa: F401
+from app.models.config import SystemConfig, ScheduledTask         # noqa: F401
+from app.models.archive import PatientArchive, FamilyArchive, ArchiveFamilyMember, ArchiveTransfer  # noqa: F401
+from app.models.clinical import ClinicalDocument, SyncLog         # noqa: F401
+from app.models.sysdict import DictGroup, DictItem, SystemVersion, AuthLicense, LoginLog, SmsLog  # noqa: F401
 from app.services.auth_service import hash_password
 
 
@@ -771,6 +777,26 @@ async def seed_users(db: AsyncSession):
     return users
 
 
+async def seed_patient_archive_for_demo(db: AsyncSession, patient_user: User):
+    """为演示患者账号（patient@tcm）创建 PatientArchive，以便接收通知。"""
+    from app.models.enums import IdType
+    existing = await db.execute(
+        select(PatientArchive).where(PatientArchive.user_id == patient_user.id)
+    )
+    if existing.scalar_one_or_none() is not None:
+        return
+    archive = PatientArchive(
+        user_id=patient_user.id,
+        name="李患者",
+        gender="female",
+        phone="13800000003",
+        archive_type="NORMAL",
+    )
+    db.add(archive)
+    await db.flush()
+    print(f"  ✓ 演示患者档案：{patient_user.name}")
+
+
 async def run_seed():
     print("🌱 开始 Seed 演示数据...")
     # 确保表已创建（SQLite 演示时无需单独跑 Alembic）
@@ -780,12 +806,15 @@ async def run_seed():
         try:
             users = await seed_users(db)
             admin_user = users.get(UserRole.ADMIN)
+            patient_user = users.get(UserRole.PATIENT)
             await seed_questions(db)
             await seed_recommendation_templates(db)
             await seed_followup_templates(db)
             await seed_alert_rules(db)
             if admin_user:
                 await seed_articles(db, admin_user.id)
+            if patient_user:
+                await seed_patient_archive_for_demo(db, patient_user)
             await db.commit()
             print("✅ Seed 完成！")
             print("\n演示账号（密码均为 Demo@123456）：")

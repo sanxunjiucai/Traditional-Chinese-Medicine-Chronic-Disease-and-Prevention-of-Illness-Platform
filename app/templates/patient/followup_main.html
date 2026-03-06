@@ -1,0 +1,273 @@
+{% extends "_layouts/patient.html" %}
+{% block title %}随访 / 咨询{% endblock %}
+{% set active_tab = "followup" %}
+
+{% block header_left %}
+<div style="display:flex;align-items:center;gap:10px;">
+  <div style="width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,#4E7A61,#6B9E7E);display:flex;align-items:center;justify-content:center;">
+    <svg width="18" height="18" fill="none" stroke="#fff" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+    </svg>
+  </div>
+  <span style="font-size:18px;font-weight:700;color:var(--text);">随访管理</span>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+.tab2-btn {
+  flex:1; padding:10px; text-align:center; font-size:14px; font-weight:500;
+  border:none; background:transparent; cursor:pointer; font-family:inherit;
+  color:var(--text-muted); border-bottom:2.5px solid transparent; transition:all 0.15s;
+}
+.tab2-btn.active { color:var(--primary); border-bottom-color:var(--primary); }
+.task-card {
+  background:#fff; border-radius:18px; padding:16px 18px;
+  box-shadow:var(--shadow-card);
+  border-left:3.5px solid transparent;
+  transition:transform 0.15s;
+}
+.task-card:active { transform:scale(0.98); }
+.task-card.urgent { border-left-color:var(--error); }
+.task-card.warn   { border-left-color:var(--accent); }
+.task-card.normal { border-left-color:var(--primary); }
+.task-card.done   { border-left-color:#D0C9C0; opacity:0.7; }
+{% endblock %}
+
+{% block content %}
+<div style="padding:8px 16px 24px;display:flex;flex-direction:column;gap:14px;">
+
+  <!-- 下次复诊倒计时卡 -->
+  <div id="next-visit-card" style="display:none;background:linear-gradient(140deg,#4E7A61 0%,#3D6A52 60%,#2E5843 100%);border-radius:22px;padding:20px 22px;color:#fff;position:relative;overflow:hidden;">
+    <div aria-hidden="true" style="position:absolute;top:-30px;right:-20px;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,0.06);"></div>
+    <p style="font-size:12px;color:rgba(255,255,255,0.6);margin:0 0 6px;">下次复诊</p>
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <h3 id="nv-title" style="font-size:17px;font-weight:600;margin:0 0 3px;"></h3>
+        <p id="nv-doctor" style="font-size:13px;color:rgba(255,255,255,0.7);margin:0;"></p>
+      </div>
+      <div style="text-align:right;">
+        <p id="nv-days" style="font-size:32px;font-weight:800;margin:0;line-height:1;"></p>
+        <p style="font-size:11px;color:rgba(255,255,255,0.6);margin:3px 0 0;">天后</p>
+      </div>
+    </div>
+    <p id="nv-date" style="font-size:12px;color:rgba(255,255,255,0.65);margin:10px 0 0;"></p>
+  </div>
+
+  <!-- 快捷操作 -->
+  <div style="display:flex;gap:10px;">
+    <a href="/h5/consultation/new" style="flex:1;display:flex;align-items:center;gap:12px;padding:15px 16px;background:#fff;border-radius:18px;text-decoration:none;box-shadow:var(--shadow-card);" class="tap-card">
+      <div style="width:42px;height:42px;background:var(--teal);border-radius:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="20" height="20" fill="none" stroke="var(--teal-dark)" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <div>
+        <p style="font-size:14px;font-weight:600;color:var(--text);margin:0;">在线咨询</p>
+        <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0;">图文 · 留言</p>
+      </div>
+    </a>
+    <a href="/h5/appointment" style="flex:1;display:flex;align-items:center;gap:12px;padding:15px 16px;background:#fff;border-radius:18px;text-decoration:none;box-shadow:var(--shadow-card);" class="tap-card">
+      <div style="width:42px;height:42px;background:var(--accent-light);border-radius:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="20" height="20" fill="none" stroke="var(--accent)" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+      </div>
+      <div>
+        <p style="font-size:14px;font-weight:600;color:var(--text);margin:0;">复诊预约</p>
+        <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0;">在线预约 · 到院提醒</p>
+      </div>
+    </a>
+  </div>
+
+  <!-- 任务列表 Tab -->
+  <div>
+    <div style="display:flex;border-bottom:1.5px solid var(--border-light);margin-bottom:14px;">
+      <button class="tab2-btn active" onclick="switchTab2(this,'pending')" id="t2-pending">待完成 <span id="pending-badge" style="font-size:11px;color:var(--error);"></span></button>
+      <button class="tab2-btn"        onclick="switchTab2(this,'done')"    id="t2-done">已完成</button>
+    </div>
+
+    <div id="t2-pending-panel">
+      <div id="pending-loading" style="display:flex;flex-direction:column;gap:10px;">
+        <div class="skeleton" style="height:84px;"></div>
+        <div class="skeleton" style="height:84px;width:90%;"></div>
+      </div>
+      <div id="pending-list"  style="display:none;flex-direction:column;gap:10px;"></div>
+      <div id="pending-empty" style="display:none;text-align:center;padding:36px 0;">
+        <div style="width:64px;height:64px;border-radius:50%;background:var(--primary-light);margin:0 auto 14px;display:flex;align-items:center;justify-content:center;">
+          <svg width="28" height="28" fill="none" stroke="var(--primary)" viewBox="0 0 24 24" stroke-width="1.8"><path d="M5 13l4 4L19 7"/></svg>
+        </div>
+        <p style="font-size:15px;font-weight:600;color:var(--text);margin:0 0 4px;">全部任务已完成</p>
+        <p style="font-size:13px;color:var(--text-muted);margin:0;">继续保持良好的随访习惯</p>
+      </div>
+    </div>
+
+    <div id="t2-done-panel" style="display:none;">
+      <div id="done-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+      <div id="done-empty" style="display:none;text-align:center;padding:36px 0;">
+        <p style="font-size:13px;color:var(--text-muted);">暂无已完成记录</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 打卡 Modal -->
+<div id="checkin-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:100;align-items:flex-end;" onclick="if(event.target===this)closeModal()">
+  <div style="background:#fff;border-radius:24px 24px 0 0;width:100%;padding:24px 20px 36px;" class="slide-up">
+    <div style="width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px;"></div>
+    <h3 style="font-size:17px;font-weight:600;color:var(--text);margin:0 0 16px;" id="modal-task-name">完成打卡</h3>
+    <input id="modal-note" type="text" placeholder="备注（可选）" class="input-field" style="margin-bottom:16px;">
+    <div style="display:flex;gap:10px;">
+      <button onclick="closeModal()" class="btn-ghost" style="flex:1;">取消</button>
+      <button onclick="confirmCheckin()" class="btn-primary" style="flex:1;">确认完成</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" style="display:none;position:fixed;bottom:96px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:11px 20px;border-radius:14px;font-size:13px;z-index:200;white-space:nowrap;box-shadow:var(--shadow);"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let allTasks=[], currentModalTaskId=null;
+
+const TYPE_ICON={
+  VISIT:`<svg width="18" height="18" fill="none" stroke="var(--primary)" viewBox="0 0 24 24" stroke-width="1.8"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3"/></svg>`,
+  FOLLOWUP:`<svg width="18" height="18" fill="none" stroke="var(--accent)" viewBox="0 0 24 24" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+  EXAM:`<svg width="18" height="18" fill="none" stroke="#5070A8" viewBox="0 0 24 24" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+  MEDICATION:`<svg width="18" height="18" fill="none" stroke="var(--accent)" viewBox="0 0 24 24" stroke-width="1.8"><path d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5A2.25 2.25 0 008.25 22.5h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5"/></svg>`,
+  DEFAULT:`<svg width="18" height="18" fill="none" stroke="var(--text-muted)" viewBox="0 0 24 24" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`,
+};
+const TYPE_LBL={VISIT:'复诊',FOLLOWUP:'随访',EXAM:'检查',MEDICATION:'用药',EXERCISE:'运动',DEFAULT:'任务'};
+const TYPE_BG={VISIT:'var(--primary-light)',FOLLOWUP:'var(--accent-light)',EXAM:'#EEF2F7',MEDICATION:'var(--accent-light)',DEFAULT:'#F0EBE4'};
+
+const DEMO_TASKS=[
+  {id:'t1',type:'EXAM',    name:'糖化血红蛋白复查',  notes:'须空腹8小时以上',       due:'2026-03-12',status:'PENDING',urgency:'urgent'},
+  {id:'t2',type:'VISIT',   name:'心内科门诊复诊',    notes:'携带近期血压记录本',     due:'2026-03-15',status:'PENDING',urgency:'warn'},
+  {id:'t3',type:'FOLLOWUP',name:'30天随访收尾打卡',   notes:'完成本轮随访并提交总结', due:'2026-03-20',status:'PENDING',urgency:'normal'},
+  {id:'t4',type:'VISIT',   name:'营养科初诊',        notes:'评估饮食干预方案',       due:'2026-03-10',status:'PENDING',urgency:'warn'},
+  {id:'t5',type:'FOLLOWUP',name:'电话随访',           notes:'血压控制情况复核',       due:'2026-02-28',status:'DONE',   urgency:'normal'},
+  {id:'t6',type:'EXAM',    name:'血常规复查',         notes:'报告已归档',             due:'2026-02-20',status:'DONE',   urgency:'normal'},
+];
+
+function daysUntil(d){
+  const dt=new Date(d);dt.setHours(0,0,0,0);
+  const now=new Date();now.setHours(0,0,0,0);
+  return Math.round((dt-now)/86400000);
+}
+
+function taskUrgency(t){
+  if(t.status==='DONE')return'done';
+  const d=daysUntil(t.due||'');
+  if(d<0)return'urgent';if(d<=3)return'warn';return'normal';
+}
+
+function renderTask(t,showComplete){
+  const icon=TYPE_ICON[t.type]||TYPE_ICON.DEFAULT;
+  const bg=TYPE_BG[t.type]||TYPE_BG.DEFAULT;
+  const urg=taskUrgency(t);
+  const days=daysUntil(t.due||'');
+  const daysLabel=t.status==='DONE'?'已完成':days<0?`逾期${-days}天`:days===0?'今天':days+`天后`;
+  const daysColor=t.status==='DONE'?'var(--text-muted)':days<0?'var(--error)':days<=3?'var(--accent)':'var(--primary)';
+  return `
+    <div class="task-card ${urg}">
+      <div style="display:flex;align-items:flex-start;gap:14px;">
+        <div style="width:42px;height:42px;border-radius:13px;background:${bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${icon}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+            <p style="font-size:14px;font-weight:600;color:${t.status==='DONE'?'var(--text-muted)':'var(--text)'};margin:0;${t.status==='DONE'?'text-decoration:line-through;':''}">${t.name}</p>
+            <span style="font-size:12px;font-weight:600;color:${daysColor};white-space:nowrap;flex-shrink:0;">${daysLabel}</span>
+          </div>
+          <p style="font-size:12px;color:var(--text-muted);margin:3px 0 ${showComplete?'12px':'0'};">${t.notes||''}</p>
+          ${showComplete?`<button onclick="openCheckinModal('${t.id}','${t.name.replace(/'/g,"\\'")}',this)" style="padding:7px 18px;border-radius:99px;background:var(--primary-light);color:var(--primary);border:none;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:background 0.15s;">标记完成</button>`:''}
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderLists(){
+  const pending=allTasks.filter(t=>t.status!=='DONE');
+  const done=allTasks.filter(t=>t.status==='DONE');
+
+  document.getElementById('pending-loading').style.display='none';
+  const pBadge=document.getElementById('pending-badge');
+  if(pending.length){pBadge.textContent=`(${pending.length})`;} else {pBadge.textContent='';}
+  const pList=document.getElementById('pending-list');
+  if(pending.length){
+    pList.style.display='flex';pList.innerHTML=pending.map(t=>renderTask(t,true)).join('');
+    document.getElementById('pending-empty').style.display='none';
+  } else {
+    pList.style.display='none';document.getElementById('pending-empty').style.display='block';
+  }
+
+  const dList=document.getElementById('done-list');
+  if(done.length){
+    dList.style.display='flex';dList.innerHTML=done.map(t=>renderTask(t,false)).join('');
+    document.getElementById('done-empty').style.display='none';
+  } else {
+    dList.style.display='none';document.getElementById('done-empty').style.display='block';
+  }
+
+  const nextVisit=pending.find(t=>t.type==='VISIT');
+  if(nextVisit){
+    const days=Math.max(0,daysUntil(nextVisit.due||''));
+    document.getElementById('next-visit-card').style.display='block';
+    document.getElementById('nv-title').textContent=nextVisit.name;
+    document.getElementById('nv-doctor').textContent=nextVisit.notes||'';
+    document.getElementById('nv-days').textContent=days;
+    document.getElementById('nv-date').textContent=nextVisit.due;
+  }
+}
+
+function switchTab2(btn,tab){
+  document.querySelectorAll('.tab2-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('t2-pending-panel').style.display=tab==='pending'?'block':'none';
+  document.getElementById('t2-done-panel').style.display=tab==='done'?'block':'none';
+}
+
+function openCheckinModal(id,name){
+  currentModalTaskId=id;
+  document.getElementById('modal-task-name').textContent='完成：'+name;
+  document.getElementById('modal-note').value='';
+  document.getElementById('checkin-modal').style.display='flex';
+}
+function closeModal(){document.getElementById('checkin-modal').style.display='none';}
+async function confirmCheckin(){
+  const note=document.getElementById('modal-note').value;
+  try{
+    await fetch(`/tools/followup/tasks/${currentModalTaskId}/complete`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({notes:note})
+    });
+  }catch(e){}
+  const t=allTasks.find(x=>x.id===currentModalTaskId);
+  if(t)t.status='DONE';
+  closeModal();renderLists();showToast('已标记完成');
+}
+
+function showToast(msg,ms=2200){
+  const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';
+  setTimeout(()=>t.style.display='none',ms);
+}
+
+async function loadTasks(){
+  try{
+    const r=await fetch('/tools/followup/tasks?page_size=30');
+    const j=await r.json();
+    if(j.success&&j.data?.items?.length){
+      allTasks=j.data.items.map(t=>({
+        id:t.id,type:t.task_type||'FOLLOWUP',name:t.name,
+        notes:t.notes||'',due:t.scheduled_date||t.due_date||'',
+        status:t.status==='COMPLETED'?'DONE':'PENDING',
+      }));
+    }
+  }catch(e){}
+  if(!allTasks.length)allTasks=DEMO_TASKS;
+  allTasks.sort((a,b)=>new Date(a.due)-new Date(b.due));
+  renderLists();
+}
+
+loadTasks();
+</script>
+{% endblock %}

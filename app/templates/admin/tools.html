@@ -9,7 +9,7 @@
     font-size:11px;font-weight:700;letter-spacing:.06em;
     padding:2px 8px;border-radius:5px;min-width:52px; }
   .method-GET    { background:#dcfce7;color:#15803d; }
-  .method-POST   { background:#dbeafe;color:#1d4ed8; }
+  .method-POST   { background:#EBF2ED;color:#4E7A61; }
   .method-PATCH  { background:#fef3c7;color:#b45309; }
   .method-DELETE { background:#fee2e2;color:#b91c1c; }
 
@@ -25,7 +25,7 @@
   .collapse-btn { cursor:pointer;user-select:none; }
   .tool-detail  { overflow:hidden;transition:max-height .25s ease; }
 
-  .chip-color-blue    { background:#eff6ff;color:#1d4ed8; }
+  .chip-color-blue    { background:#EBF2ED;color:#4E7A61; }
   .chip-color-green   { background:#f0fdf4;color:#15803d; }
   .chip-color-rose    { background:#fff1f2;color:#be123c; }
   .chip-color-amber   { background:#fffbeb;color:#b45309; }
@@ -76,16 +76,15 @@
     </svg>
     <input id="search-input" type="text" placeholder="搜索接口名称或路径…"
       class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm
-             focus:outline-none focus:ring-2 focus:ring-green-300">
+             focus:outline-none focus:ring-2 focus:ring-jade-light">
   </div>
   <div class="flex flex-wrap gap-1.5" id="group-filters">
     <button data-group="all" onclick="filterGroup('all')"
-      class="filter-btn px-3 py-1.5 rounded-full text-xs font-medium border
-             border-green-500 bg-green-50 text-green-700">全部</button>
+      class="filter-btn px-3 py-1.5 rounded-full text-xs font-medium border border-jade bg-jade-light text-jade">全部</button>
     {% for g in tools_registry %}
     <button data-group="{{ g.group_en }}" onclick="filterGroup('{{ g.group_en }}')"
       class="filter-btn px-3 py-1.5 rounded-full text-xs font-medium border
-             border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-700">
+             border-gray-200 text-gray-600 hover:border-jade hover:text-jade">
       {{ g.group }}
     </button>
     {% endfor %}
@@ -118,7 +117,7 @@
   </div>
 
   {# 接口列表 #}
-  <div class="divide-y divide-gray-50">
+  <div class="divide-y divide-gray-100">
   {% for tool in group.tools %}
   <div class="tool-row tool-item"
        data-name="{{ tool.name }}" data-path="{{ tool.path }}">
@@ -139,8 +138,8 @@
       <div class="flex items-center gap-2 flex-shrink-0">
         <span class="text-xs px-2 py-0.5 rounded-full
           {% if tool.role == '公开' %}bg-gray-100 text-gray-500
-          {% elif tool.role == 'PATIENT' %}bg-blue-50 text-blue-600
-          {% elif tool.role == 'ADMIN' %}bg-red-50 text-red-600
+          {% elif tool.role == 'PATIENT' %}bg-jade-light text-jade
+          {% elif tool.role == 'ADMIN' %}bg-red-100 text-red-700
           {% else %}bg-amber-50 text-amber-700{% endif %}">
           {{ tool.role }}
         </span>
@@ -186,7 +185,7 @@
                 <th class="px-3 py-2 text-left">说明</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody class="divide-y divide-gray-100">
               {% for p in tool.params %}
               <tr>
                 <td class="px-3 py-2">
@@ -298,9 +297,9 @@ function filterGroup(group) {
   document.querySelectorAll('.filter-btn').forEach(b => {
     const on = b.dataset.group === group;
     b.className = b.className
-      .replace(/border-green-500|bg-green-50|text-green-700|border-gray-200|text-gray-600/g, '').trim();
+      .replace(/border-jade|bg-jade-light|text-jade|border-gray-200|text-gray-600/g, '').trim();
     if (on) {
-      b.classList.add('border-green-500', 'bg-green-50', 'text-green-700');
+      b.classList.add('border-jade', 'bg-jade-light', 'text-jade');
     } else {
       b.classList.add('border-gray-200', 'text-gray-600');
     }

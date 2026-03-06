@@ -1,0 +1,243 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "mgmt_menus" %}
+{% block title %}权限菜单配置 - 治未病平台{% endblock %}
+{% block page_title %}权限菜单配置{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-3 gap-4">
+  <!-- 左：菜单树 -->
+  <div class="col-span-2 bg-white rounded-xl shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+      <h3 class="font-semibold text-gray-700">菜单列表</h3>
+      <button onclick="showAddModal()"
+        class="text-white px-3 py-1.5 rounded-lg text-sm" style="background:#4E7A61;" onmouseover="this.style.background='#3F6A52'" onmouseout="this.style.background='#4E7A61'">+ 新增菜单</button>
+    </div>
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+        <tr>
+          <th class="px-5 py-3 text-left">菜单名称</th>
+          <th class="px-5 py-3 text-left">路径</th>
+          <th class="px-5 py-3 text-left">图标</th>
+          <th class="px-5 py-3 text-left">排序</th>
+          <th class="px-5 py-3 text-left">权限标签</th>
+          <th class="px-5 py-3 text-left">角色可见</th>
+          <th class="px-5 py-3 text-left">状态</th>
+          <th class="px-5 py-3 text-left">操作</th>
+        </tr>
+      </thead>
+      <tbody id="menu-list" class="divide-y divide-gray-100"></tbody>
+    </table>
+  </div>
+
+  <!-- 右：说明 -->
+  <div class="space-y-4">
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-3">菜单说明</h3>
+      <ul class="space-y-2 text-sm text-gray-500">
+        <li class="flex items-start gap-2">
+          <span class="mt-0.5" style="color:#4E7A61;">•</span>
+          菜单配置影响侧边栏导航显示，修改后刷新页面生效。
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="mt-0.5" style="color:#4E7A61;">•</span>
+          角色可见控制不同角色（管理员/医生）能看到的菜单项。
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="mt-0.5" style="color:#4E7A61;">•</span>
+          排序值越小越靠上，同组内按排序值升序排列。
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="mt-0.5" style="color:#4E7A61;">•</span>
+          停用的菜单对所有角色隐藏，但路由仍然可以直接访问。
+        </li>
+      </ul>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-3">分组列表</h3>
+      <div class="space-y-2" id="group-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增/编辑菜单弹窗 -->
+<div id="menu-modal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50"
+  onclick="if(event.target===this)closeModal()">
+  <div class="bg-white rounded-xl p-6 w-[520px] shadow-xl">
+    <h3 class="font-semibold text-gray-800 mb-4" id="modal-title">新增菜单</h3>
+    <div class="space-y-4">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">菜单名称 <span class="text-red-500">*</span></label>
+          <input type="text" id="menu-name" placeholder="如：健康评估"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light">
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">所属分组</label>
+          <select id="menu-group"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light">
+            <option value="tcm">中医管理</option>
+            <option value="archive">档案管理</option>
+            <option value="stats">统计分析</option>
+            <option value="content">内容与工具</option>
+            <option value="mgmt">管理中心</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">菜单路径 <span class="text-red-500">*</span></label>
+        <input type="text" id="menu-path" placeholder="/gui/admin/..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-jade-light">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">排序值</label>
+          <input type="number" id="menu-order" value="99"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light">
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">图标（SVG path）</label>
+          <input type="text" id="menu-icon" placeholder="留空使用默认图标"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light">
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">权限标签</label>
+        <input type="text" id="menu-perms" placeholder="如：archive:read, intervention:write"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light">
+        <p class="text-xs text-gray-400 mt-1">多个标签用英文逗号分隔，用于接口权限校验</p>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-2">角色可见</label>
+        <div class="flex gap-4">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="role-admin" checked class="rounded">
+            <span class="text-sm">管理员</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="role-doctor" checked class="rounded">
+            <span class="text-sm">医生</span>
+          </label>
+        </div>
+      </div>
+      <div>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" id="menu-active" checked class="rounded">
+          <span class="text-sm text-gray-700">启用此菜单</span>
+        </label>
+      </div>
+    </div>
+    <div class="flex gap-3 justify-end mt-5">
+      <button onclick="closeModal()" class="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600">取消</button>
+      <button onclick="saveMenu()" class="text-white px-5 py-2 rounded-lg text-sm" style="background:#4E7A61;" onmouseover="this.style.background='#3F6A52'" onmouseout="this.style.background='#4E7A61'">保存</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const MENUS = [
+  {id:'1', name:'工作台',       path:'/gui/admin/workbench',          group:'工作台',   order:1, perms:'workbench:view',          roles:'管理员,医生', icon:'house',     active:true},
+  {id:'2', name:'档案查询',     path:'/gui/admin/archives',           group:'档案管理', order:1, perms:'archive:read',             roles:'管理员,医生', icon:'users',     active:true},
+  {id:'3', name:'家庭档案',     path:'/gui/admin/archives/families',  group:'档案管理', order:2, perms:'archive:read',             roles:'管理员,医生', icon:'home',      active:true},
+  {id:'4', name:'档案回收站',   path:'/gui/admin/archives/recycle',   group:'档案管理', order:3, perms:'archive:delete',           roles:'管理员',      icon:'trash',     active:true},
+  {id:'5', name:'综合就诊台',   path:'/gui/admin/visit-station',      group:'中医管理', order:1, perms:'visit:read',              roles:'管理员,医生', icon:'grid',      active:true},
+  {id:'6', name:'就诊数据同步', path:'/gui/admin/clinical',           group:'中医管理', order:2, perms:'visit:sync',              roles:'管理员,医生', icon:'database',  active:true},
+  {id:'7', name:'危急值预警',   path:'/gui/admin/alerts',             group:'中医管理', order:3, perms:'alert:read',              roles:'管理员,医生', icon:'bell',      active:true},
+  {id:'8', name:'体质评估',     path:'/gui/admin/assessments',        group:'中医管理', order:4, perms:'assessment:read',         roles:'管理员,医生', icon:'heart',     active:true},
+  {id:'9', name:'健康评估',     path:'/gui/admin/health-assess',      group:'中医管理', order:5, perms:'assessment:read',         roles:'管理员,医生', icon:'clipboard', active:true},
+  {id:'10',name:'中医指导',     path:'/gui/admin/guidance',           group:'中医管理', order:6, perms:'guidance:read',           roles:'管理员,医生', icon:'doc',       active:true},
+  {id:'11',name:'随访管理',     path:'/gui/admin/followup/tasks',     group:'中医管理', order:7, perms:'followup:read',           roles:'管理员,医生', icon:'chart',     active:true},
+  {id:'12',name:'量表配置',     path:'/gui/admin/scale-config',       group:'中医管理', order:8, perms:'scale:manage',            roles:'管理员',      icon:'checklist', active:true},
+  {id:'13',name:'危急值规则',   path:'/gui/admin/alert-rules',        group:'中医管理', order:9, perms:'alert:manage',            roles:'管理员',      icon:'warning',   active:true},
+  {id:'14',name:'综合统计',     path:'/gui/admin/stats',              group:'统计分析', order:1, perms:'stats:view',              roles:'管理员,医生', icon:'pie',       active:true},
+  {id:'15',name:'疾病统计',     path:'/gui/admin/stats/disease',      group:'统计分析', order:2, perms:'stats:view',              roles:'管理员,医生', icon:'bar',       active:true},
+  {id:'16',name:'档案统计',     path:'/gui/admin/stats/archive',      group:'统计分析', order:3, perms:'stats:view',              roles:'管理员',      icon:'bar',       active:true},
+  {id:'17',name:'体质统计',     path:'/gui/admin/stats/constitution', group:'统计分析', order:4, perms:'stats:view',              roles:'管理员',      icon:'bar',       active:true},
+  {id:'18',name:'工作量统计',   path:'/gui/admin/stats/workload',     group:'统计分析', order:5, perms:'stats:view',              roles:'管理员',      icon:'bar',       active:true},
+  {id:'19',name:'内容管理',     path:'/gui/admin/content',            group:'内容与工具',order:1,perms:'content:manage',          roles:'管理员',      icon:'doc',       active:true},
+  {id:'20',name:'机构管理',     path:'/gui/admin/mgmt/orgs',          group:'管理中心', order:1, perms:'mgmt:orgs',               roles:'管理员',      icon:'org',       active:true},
+  {id:'21',name:'角色管理',     path:'/gui/admin/mgmt/roles',         group:'管理中心', order:2, perms:'mgmt:roles',              roles:'管理员',      icon:'lock',      active:true},
+  {id:'22',name:'数据字典',     path:'/gui/admin/mgmt/dict',          group:'管理中心', order:3, perms:'mgmt:dict',               roles:'管理员',      icon:'book',      active:true},
+  {id:'23',name:'授权管理',     path:'/gui/admin/mgmt/licenses',      group:'管理中心', order:4, perms:'mgmt:licenses',           roles:'管理员',      icon:'key',       active:true},
+  {id:'24',name:'权限菜单',     path:'/gui/admin/mgmt/menus',         group:'管理中心', order:5, perms:'mgmt:menus',              roles:'管理员',      icon:'menu',      active:true},
+  {id:'25',name:'定时任务',     path:'/gui/admin/mgmt/tasks',         group:'管理中心', order:6, perms:'mgmt:tasks',              roles:'管理员',      icon:'clock',     active:true},
+  {id:'26',name:'系统设置',     path:'/gui/admin/mgmt/settings',      group:'管理中心', order:7, perms:'mgmt:settings',           roles:'管理员',      icon:'settings',  active:true},
+  {id:'27',name:'系统日志',     path:'/gui/admin/mgmt/logs',          group:'管理中心', order:8, perms:'mgmt:logs',               roles:'管理员',      icon:'log',       active:true},
+  {id:'28',name:'操作审计',     path:'/gui/admin/audit',              group:'管理中心', order:9, perms:'audit:view',              roles:'管理员',      icon:'audit',     active:true},
+];
+
+function renderMenus() {
+  document.getElementById('menu-list').innerHTML = MENUS.map(m => `
+    <tr class="hover:bg-gray-50">
+      <td class="px-5 py-3 font-medium text-gray-800">${m.name}</td>
+      <td class="px-5 py-3 text-gray-500 font-mono text-xs">${m.path}</td>
+      <td class="px-5 py-3 text-gray-400 text-xs">${m.icon}</td>
+      <td class="px-5 py-3 text-gray-500">${m.order}</td>
+      <td class="px-5 py-3 text-xs">
+        ${m.perms ? m.perms.split(',').map(p => `<span class="inline-block px-1.5 py-0.5 rounded text-xs mr-1 mb-0.5" style="background:#EBF2ED;color:#4E7A61;">${p.trim()}</span>`).join('') : '<span class="text-gray-300">-</span>'}
+      </td>
+      <td class="px-5 py-3 text-gray-500 text-xs">${m.roles}</td>
+      <td class="px-5 py-3">
+        <span class="px-2 py-0.5 rounded-full text-xs ${m.active?'bg-green-100 text-green-700':'bg-gray-100 text-gray-500'}">
+          ${m.active?'启用':'停用'}
+        </span>
+      </td>
+      <td class="px-5 py-3 flex gap-2">
+        <button onclick="editMenu('${m.id}')" class="hover:underline text-xs" style="color:#4E7A61;">编辑</button>
+        <button onclick="toggleMenu('${m.id}',${m.active})" class="text-gray-400 hover:underline text-xs">${m.active?'停用':'启用'}</button>
+      </td>
+    </tr>`).join('');
+
+  // 分组统计
+  const groups = {};
+  MENUS.forEach(m => {
+    groups[m.group] = (groups[m.group]||0) + 1;
+  });
+  document.getElementById('group-list').innerHTML = Object.entries(groups).map(([g,c]) => `
+    <div class="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
+      <span class="text-sm text-gray-600">${g}</span>
+      <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">${c} 项</span>
+    </div>`).join('');
+}
+
+function showAddModal() {
+  document.getElementById('modal-title').textContent = '新增菜单';
+  document.getElementById('menu-name').value = '';
+  document.getElementById('menu-path').value = '';
+  document.getElementById('menu-order').value = '99';
+  document.getElementById('menu-perms').value = '';
+  const m = document.getElementById('menu-modal');
+  m.classList.remove('hidden');
+  m.style.display = 'flex';
+}
+function editMenu(id) {
+  const menu = MENUS.find(m => m.id === id);
+  if (!menu) return;
+  document.getElementById('modal-title').textContent = '编辑菜单';
+  document.getElementById('menu-name').value = menu.name;
+  document.getElementById('menu-path').value = menu.path;
+  document.getElementById('menu-order').value = menu.order;
+  document.getElementById('menu-perms').value = menu.perms || '';
+  const m = document.getElementById('menu-modal');
+  m.classList.remove('hidden');
+  m.style.display = 'flex';
+}
+function closeModal() {
+  const m = document.getElementById('menu-modal');
+  m.classList.add('hidden'); m.style.display = '';
+}
+function saveMenu() {
+  const name = document.getElementById('menu-name').value.trim();
+  if (!name) { showToast('请填写菜单名称'); return; }
+  showToast('菜单保存成功');
+  closeModal();
+}
+function toggleMenu(id, current) {
+  showToast(`${current?'停用':'启用'}菜单`);
+}
+
+renderMenus();
+</script>
+{% endblock %}

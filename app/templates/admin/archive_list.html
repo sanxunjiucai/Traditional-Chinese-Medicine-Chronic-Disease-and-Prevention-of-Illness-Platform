@@ -1,0 +1,611 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "archives" %}
+{% block title %}档案查询 - 治未病平台{% endblock %}
+{% block page_title %}居民健康档案{% endblock %}
+
+{% block content %}
+<!-- 统计摘要 -->
+<div id="archive-stats" class="grid grid-cols-5 gap-4 mb-6">
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-gray-500 text-xs">档案总数</p>
+    <p id="stat-total" class="text-2xl font-bold text-gray-800 mt-1">-</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-gray-500 text-xs">老年人档案</p>
+    <p id="stat-elderly" class="text-2xl font-bold mt-1" style="color:#4E7A61;">-</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-gray-500 text-xs">儿童档案</p>
+    <p id="stat-child" class="text-2xl font-bold text-green-600 mt-1">-</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-gray-500 text-xs">重点关注</p>
+    <p id="stat-key" class="text-2xl font-bold text-rose-600 mt-1">-</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-gray-500 text-xs">回收站</p>
+    <p id="stat-recycle" class="text-2xl font-bold text-gray-400 mt-1">-</p>
+  </div>
+</div>
+
+<!-- 搜索 + 操作 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <input id="q" type="text" placeholder="姓名 / 手机号 / 证件号码"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-emerald-300">
+  <select id="archive-type" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
+    <option value="">全部类型</option>
+    <option value="NORMAL">普通居民</option>
+    <option value="CHILD">0-6岁儿童</option>
+    <option value="FEMALE">女性档案</option>
+    <option value="ELDERLY">老年人(60+)</option>
+    <option value="KEY_FOCUS">重点关注</option>
+  </select>
+  <select id="gender-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
+    <option value="">全部性别</option>
+    <option value="male">男</option>
+    <option value="female">女</option>
+  </select>
+  <span class="text-xs text-gray-500">建档：</span>
+  <input id="date-from" type="date"
+    class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
+  <span class="text-gray-400">~</span>
+  <input id="date-to" type="date"
+    class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
+  <span class="text-xs text-gray-500 ml-1">出生年：</span>
+  <input id="birth-from" type="number" placeholder="起" min="1900" max="2030"
+    class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm w-20 focus:outline-none focus:ring-2 focus:ring-emerald-300">
+  <span class="text-gray-400">~</span>
+  <input id="birth-to" type="number" placeholder="止" min="1900" max="2030"
+    class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm w-20 focus:outline-none focus:ring-2 focus:ring-emerald-300">
+  <select id="tag-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
+    <option value="">全部标签</option>
+  </select>
+  <button onclick="loadArchives(1)" class="text-white px-4 py-2 rounded-lg text-sm" style="background:#4E7A61;" onmouseover="this.style.background='#3F6A52'" onmouseout="this.style.background='#4E7A61'">搜索</button>
+  <button onclick="exportArchives()"
+    class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-1">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
+    </svg>
+    导出 Excel
+  </button>
+  <button onclick="openNewModal()" class="ml-auto bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 flex items-center gap-1">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+    </svg>
+    新建档案
+  </button>
+</div>
+
+<!-- 批量操作栏（默认隐藏） -->
+<div id="batch-bar" class="hidden rounded-xl px-4 py-3 mb-3 flex items-center gap-3" style="background:#EBF2ED;border:1px solid #B8D4C2;">
+  <span id="batch-count" class="text-sm font-medium" style="color:#4E7A61;">已选 0 条</span>
+  <button onclick="batchAssignDoctor()" class="bg-white px-3 py-1.5 rounded-lg text-sm" style="border:1px solid #B8D4C2;color:#4E7A61;">调整责任医生</button>
+  <button onclick="batchAssignOrg()" class="bg-white px-3 py-1.5 rounded-lg text-sm" style="border:1px solid #B8D4C2;color:#4E7A61;">调整管辖机构</button>
+  <button onclick="batchDelete()" class="bg-white border border-red-300 text-red-600 px-3 py-1.5 rounded-lg text-sm hover:bg-red-50">批量删除</button>
+  <button onclick="clearSelection()" class="ml-auto text-xs text-gray-400 hover:text-gray-600">取消选择</button>
+</div>
+
+<!-- 表格 -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-5 py-3 text-left"><input type="checkbox" id="select-all" class="rounded"></th>
+        <th class="px-5 py-3 text-left">姓名</th>
+        <th class="px-5 py-3 text-left">性别</th>
+        <th class="px-5 py-3 text-left">出生日期</th>
+        <th class="px-5 py-3 text-left">证件号</th>
+        <th class="px-5 py-3 text-left">手机号</th>
+        <th class="px-5 py-3 text-left">地区</th>
+        <th class="px-5 py-3 text-left">类型</th>
+        <th class="px-5 py-3 text-left">标签</th>
+        <th class="px-5 py-3 text-left">操作</th>
+      </tr>
+    </thead>
+    <tbody id="archive-tbody" class="divide-y divide-gray-100">
+      <tr><td colspan="10" class="text-center text-gray-400 py-10">加载中...</td></tr>
+    </tbody>
+  </table>
+  <div id="pagination" class="px-5 py-3 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500"></div>
+</div>
+
+<!-- 新建档案弹窗 -->
+<div id="new-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
+    <h3 class="font-semibold text-gray-800 text-lg mb-4">新建居民档案</h3>
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">姓名 <span class="text-red-500">*</span></label>
+        <input id="f-name" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="请输入姓名">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">性别</label>
+        <select id="f-gender" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+          <option value="">请选择</option>
+          <option value="male">男</option>
+          <option value="female">女</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">出生日期</label>
+        <input id="f-birth" type="date" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">民族</label>
+        <input id="f-ethnicity" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="汉族" value="汉族">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">证件类型</label>
+        <select id="f-id-type" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+          <option value="ID_CARD">居民身份证</option>
+          <option value="PASSPORT">护照</option>
+          <option value="MILITARY">军官证</option>
+          <option value="BIRTH_CERT">出生医学证明</option>
+          <option value="OTHER">其他</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">证件号码</label>
+        <input id="f-id-num" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="请输入证件号码">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">手机号</label>
+        <input id="f-phone" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="请输入手机号">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">档案类型</label>
+        <select id="f-archive-type" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+          <option value="NORMAL">普通居民</option>
+          <option value="CHILD">0-6岁儿童</option>
+          <option value="FEMALE">女性档案</option>
+          <option value="ELDERLY">老年人(60+)</option>
+          <option value="KEY_FOCUS">重点关注</option>
+        </select>
+      </div>
+      <div class="col-span-2">
+        <label class="block text-xs text-gray-500 mb-1">居住地址</label>
+        <input id="f-address" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="省/市/区/详细地址">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">紧急联系人</label>
+        <input id="f-ec-name" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="紧急联系人姓名">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">紧急联系电话</label>
+        <input id="f-ec-phone" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="紧急联系人电话">
+      </div>
+    </div>
+    <div id="modal-err" class="hidden mt-3 text-sm text-red-500"></div>
+    <div class="flex gap-3 justify-end mt-6">
+      <button onclick="closeNewModal()" class="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">取消</button>
+      <button onclick="saveArchive()" class="px-4 py-2 rounded-lg bg-green-600 text-white text-sm hover:bg-green-700">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 调整责任医生弹窗 -->
+<div id="doctor-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+    <h3 class="font-semibold text-gray-800 text-lg mb-4">调整责任医生</h3>
+    <input id="doctor-search" type="text" placeholder="搜索医生姓名..."
+      class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+      oninput="filterDoctors(this.value)">
+    <div id="doctor-list" class="max-h-60 overflow-y-auto divide-y divide-gray-100 border border-gray-100 rounded-lg mb-3">
+      <div class="text-center text-gray-400 py-6 text-sm">加载中...</div>
+    </div>
+    <p id="doctor-selected" class="text-xs text-gray-500 mb-4">未选择医生</p>
+    <div class="flex gap-3 justify-end">
+      <button onclick="closeDoctorModal()" class="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">取消</button>
+      <button onclick="confirmAssignDoctor()" class="px-4 py-2 rounded-lg text-white text-sm" style="background:#4E7A61;">确认调整</button>
+    </div>
+  </div>
+</div>
+
+<!-- 调整管辖机构弹窗 -->
+<div id="org-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+    <h3 class="font-semibold text-gray-800 text-lg mb-4">调整管辖机构</h3>
+    <input id="org-search" type="text" placeholder="搜索机构名称..."
+      class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+      oninput="filterOrgs(this.value)">
+    <div id="org-list" class="max-h-60 overflow-y-auto divide-y divide-gray-100 border border-gray-100 rounded-lg mb-3">
+      <div class="text-center text-gray-400 py-6 text-sm">加载中...</div>
+    </div>
+    <p id="org-selected" class="text-xs text-gray-500 mb-4">未选择机构</p>
+    <div class="flex gap-3 justify-end">
+      <button onclick="closeOrgModal()" class="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">取消</button>
+      <button onclick="confirmAssignOrg()" class="px-4 py-2 rounded-lg text-white text-sm" style="background:#4E7A61;">确认调整</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const ARCHIVE_TYPE_LABELS = {
+  NORMAL: '普通居民', CHILD: '儿童', FEMALE: '女性', ELDERLY: '老年人', KEY_FOCUS: '重点关注'
+};
+const ARCHIVE_TYPE_COLORS = {
+  NORMAL: 'bg-gray-100 text-gray-600',
+  CHILD: 'bg-green-100 text-green-700',
+  FEMALE: 'bg-pink-100 text-pink-700',
+  ELDERLY: 'bg-emerald-100 text-emerald-700',
+  KEY_FOCUS: 'bg-rose-100 text-rose-700',
+};
+let currentPage = 1;
+let labelMap = {};
+
+async function loadStats() {
+  const r = await fetch('/tools/archive/stats');
+  const j = await r.json();
+  if (!j.success) return;
+  const d = j.data;
+  document.getElementById('stat-total').textContent = d.total;
+  document.getElementById('stat-elderly').textContent = d.by_type.ELDERLY || 0;
+  document.getElementById('stat-child').textContent = d.by_type.CHILD || 0;
+  document.getElementById('stat-key').textContent = d.by_type.KEY_FOCUS || 0;
+  document.getElementById('stat-recycle').textContent = d.recycle_count || 0;
+}
+
+async function loadTags() {
+  const r = await fetch('/tools/label/labels?page_size=100');
+  const j = await r.json();
+  if (!j.success || !j.data || !j.data.items) return;
+  const select = document.getElementById('tag-filter');
+  j.data.items.forEach(tag => {
+    labelMap[tag.id] = tag.name;
+    const opt = document.createElement('option');
+    opt.value = tag.id;
+    opt.textContent = tag.name;
+    select.appendChild(opt);
+  });
+}
+
+async function loadArchives(page = 1) {
+  currentPage = page;
+  const q = document.getElementById('q').value;
+  const at = document.getElementById('archive-type').value;
+  const gf = document.getElementById('gender-filter').value;
+  const dateFrom = document.getElementById('date-from').value;
+  const dateTo = document.getElementById('date-to').value;
+  const birthFrom = document.getElementById('birth-from').value;
+  const birthTo = document.getElementById('birth-to').value;
+  const tag = document.getElementById('tag-filter').value;
+  const params = new URLSearchParams({page, page_size: 20});
+  if (q) params.set('q', q);
+  if (at) params.set('archive_type', at);
+  if (gf) params.set('gender', gf);
+  if (dateFrom) params.set('date_from', dateFrom);
+  if (dateTo) params.set('date_to', dateTo);
+  if (birthFrom) params.set('birth_year_from', birthFrom);
+  if (birthTo) params.set('birth_year_to', birthTo);
+  if (tag) params.set('tag', tag);
+
+  const r = await fetch('/tools/archive/archives?' + params);
+  const j = await r.json();
+  if (!j.success) return;
+
+  const { items, total, page: p, page_size } = j.data;
+  const tbody = document.getElementById('archive-tbody');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center text-gray-400 py-10">暂无档案数据</td></tr>';
+  } else {
+    tbody.innerHTML = items.map(a => `
+      <tr class="hover:bg-gray-50">
+        <td class="px-5 py-3"><input type="checkbox" class="row-check rounded" value="${a.id}"></td>
+        <td class="px-5 py-3 font-medium text-gray-800">
+          <a href="/gui/admin/archives/${a.id}?from=archives" class="hover:underline" style="color:inherit;">${a.name}</a>
+        </td>
+        <td class="px-5 py-3 text-gray-600">${a.gender === 'male' ? '男' : a.gender === 'female' ? '女' : '-'}</td>
+        <td class="px-5 py-3 text-gray-600">${a.birth_date || '-'}</td>
+        <td class="px-5 py-3 text-gray-500 font-mono text-xs">${a.id_number || '-'}</td>
+        <td class="px-5 py-3 text-gray-600">${a.phone || '-'}</td>
+        <td class="px-5 py-3 text-gray-500">${a.district || '-'}</td>
+        <td class="px-5 py-3">
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${ARCHIVE_TYPE_COLORS[a.archive_type] || 'bg-gray-100 text-gray-600'}">
+            ${ARCHIVE_TYPE_LABELS[a.archive_type] || a.archive_type}
+          </span>
+        </td>
+        <td class="px-5 py-3">
+          ${(a.tags || []).slice(0,2).map(tagId => {
+            const tagName = labelMap[tagId] || tagId;
+            return `<span class="inline-block text-xs font-medium px-2 py-0.5 rounded-full mr-1" style="background:#EBF2ED;color:#4E7A61;">${tagName}</span>`;
+          }).join('')}
+        </td>
+        <td class="px-5 py-3">
+          <a href="/gui/admin/archives/${a.id}?from=archives" class="text-xs hover:underline mr-2" style="color:#4E7A61;">详情</a>
+          <a href="/gui/admin/archives/${a.id}/edit" class="text-gray-500 text-xs hover:underline">编辑</a>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  // 重新绑定 checkbox 事件
+  document.querySelectorAll('.row-check').forEach(cb => cb.addEventListener('change', updateBatchBar));
+
+  const totalPages = Math.ceil(total / page_size);
+  document.getElementById('pagination').innerHTML = `
+    <span>共 ${total} 条</span>
+    <div class="flex gap-2">
+      ${p > 1 ? `<button onclick="loadArchives(${p-1})" class="px-3 py-1 rounded border text-xs hover:bg-gray-50">上一页</button>` : ''}
+      <span class="px-3 py-1 text-xs">第 ${p}/${totalPages} 页</span>
+      ${p < totalPages ? `<button onclick="loadArchives(${p+1})" class="px-3 py-1 rounded border text-xs hover:bg-gray-50">下一页</button>` : ''}
+    </div>
+  `;
+}
+
+function openNewModal() {
+  document.getElementById('new-modal').classList.remove('hidden');
+  document.getElementById('modal-err').classList.add('hidden');
+}
+function closeNewModal() {
+  document.getElementById('new-modal').classList.add('hidden');
+}
+
+async function saveArchive() {
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) {
+    const el = document.getElementById('modal-err');
+    el.textContent = '请填写姓名';
+    el.classList.remove('hidden');
+    return;
+  }
+  const body = {
+    name,
+    gender: document.getElementById('f-gender').value || null,
+    birth_date: document.getElementById('f-birth').value || null,
+    ethnicity: document.getElementById('f-ethnicity').value || '汉族',
+    id_type: document.getElementById('f-id-type').value,
+    id_number: document.getElementById('f-id-num').value || null,
+    phone: document.getElementById('f-phone').value || null,
+    archive_type: document.getElementById('f-archive-type').value,
+    address: document.getElementById('f-address').value || null,
+    emergency_contact_name: document.getElementById('f-ec-name').value || null,
+    emergency_contact_phone: document.getElementById('f-ec-phone').value || null,
+  };
+  const r = await fetch('/tools/archive/archives', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  });
+  const j = await r.json();
+  if (j.success) {
+    closeNewModal();
+    loadArchives(1);
+    loadStats();
+  } else {
+    const el = document.getElementById('modal-err');
+    el.textContent = j.error?.message || '保存失败';
+    el.classList.remove('hidden');
+  }
+}
+
+// ---- 全选/反选 ----
+document.getElementById('select-all').addEventListener('change', function() {
+  document.querySelectorAll('.row-check').forEach(cb => cb.checked = this.checked);
+  updateBatchBar();
+});
+document.addEventListener('change', function(e) {
+  if (e.target.classList.contains('row-check')) updateBatchBar();
+});
+
+function updateBatchBar() {
+  const checked = document.querySelectorAll('.row-check:checked');
+  const bar = document.getElementById('batch-bar');
+  if (checked.length > 0) {
+    bar.classList.remove('hidden');
+    document.getElementById('batch-count').textContent = `已选 ${checked.length} 条`;
+  } else {
+    bar.classList.add('hidden');
+  }
+}
+
+function clearSelection() {
+  document.querySelectorAll('.row-check, #select-all').forEach(cb => cb.checked = false);
+  updateBatchBar();
+}
+
+function getCheckedIds() {
+  return [...document.querySelectorAll('.row-check:checked')].map(cb => cb.value);
+}
+
+// ---- 批量删除 ----
+async function batchDelete() {
+  const ids = getCheckedIds();
+  if (!ids.length) return;
+  if (!confirm(`确定将选中的 ${ids.length} 条档案移入回收站？`)) return;
+  const r = await fetch('/tools/archive/archives/batch-delete', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ids}),
+  });
+  const j = await r.json();
+  if (j.success) {
+    showToast(`已将 ${j.data.deleted} 条档案移入回收站`);
+    clearSelection();
+    loadArchives(currentPage);
+    loadStats();
+  } else {
+    showToast('删除失败：' + (j.error?.message || '未知错误'));
+  }
+}
+
+// ---- 调整责任医生 ----
+let allDoctors = [];
+let selectedDoctorId = null;
+let selectedDoctorName = '';
+
+async function batchAssignDoctor() {
+  if (!getCheckedIds().length) return;
+  selectedDoctorId = null;
+  selectedDoctorName = '';
+  document.getElementById('doctor-selected').textContent = '未选择医生';
+  document.getElementById('doctor-search').value = '';
+  document.getElementById('doctor-modal').classList.remove('hidden');
+  const listEl = document.getElementById('doctor-list');
+  listEl.innerHTML = '<div class="text-center text-gray-400 py-6 text-sm">加载中...</div>';
+  const r = await fetch('/tools/admin/users?role=PROFESSIONAL&page_size=100');
+  const j = await r.json();
+  allDoctors = j.success ? (j.data?.items || []) : [];
+  renderDoctorList(allDoctors);
+}
+
+function renderDoctorList(list) {
+  const el = document.getElementById('doctor-list');
+  if (!list.length) {
+    el.innerHTML = '<div class="text-center text-gray-400 py-6 text-sm">暂无医生数据</div>';
+    return;
+  }
+  el.innerHTML = list.map(d => `
+    <div class="px-3 py-2 hover:bg-emerald-50 cursor-pointer text-sm flex items-center gap-2 ${selectedDoctorId === d.id ? 'bg-emerald-50 font-medium' : ''}"
+      onclick="selectDoctor('${d.id}', '${d.name || d.phone}')">
+      <span class="w-2 h-2 rounded-full inline-block ${selectedDoctorId === d.id ? 'bg-emerald-500' : 'bg-gray-200'}"></span>
+      ${d.name || '-'} <span class="text-gray-400">${d.phone || ''}</span>
+    </div>
+  `).join('');
+}
+
+function filterDoctors(q) {
+  const filtered = q ? allDoctors.filter(d => (d.name || '').includes(q) || (d.phone || '').includes(q)) : allDoctors;
+  renderDoctorList(filtered);
+}
+
+function selectDoctor(id, name) {
+  selectedDoctorId = id;
+  selectedDoctorName = name;
+  document.getElementById('doctor-selected').textContent = `已选：${name}`;
+  renderDoctorList(allDoctors.filter(d =>
+    !document.getElementById('doctor-search').value ||
+    (d.name || '').includes(document.getElementById('doctor-search').value)
+  ));
+}
+
+function closeDoctorModal() {
+  document.getElementById('doctor-modal').classList.add('hidden');
+}
+
+async function confirmAssignDoctor() {
+  if (!selectedDoctorId) { showToast('请先选择一位医生'); return; }
+  const ids = getCheckedIds();
+  const r = await fetch('/tools/archive/archives/batch-assign-doctor', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ids, doctor_id: selectedDoctorId}),
+  });
+  const j = await r.json();
+  if (j.success) {
+    showToast(`已为 ${j.data.updated} 条档案调整责任医生为：${selectedDoctorName}`);
+    closeDoctorModal();
+    clearSelection();
+  } else {
+    showToast('调整失败：' + (j.error?.message || '未知错误'));
+  }
+}
+
+// ---- 调整管辖机构 ----
+let allOrgs = [];
+let selectedOrgId = null;
+let selectedOrgName = '';
+
+async function batchAssignOrg() {
+  if (!getCheckedIds().length) return;
+  selectedOrgId = null;
+  selectedOrgName = '';
+  document.getElementById('org-selected').textContent = '未选择机构';
+  document.getElementById('org-search').value = '';
+  document.getElementById('org-modal').classList.remove('hidden');
+  const listEl = document.getElementById('org-list');
+  listEl.innerHTML = '<div class="text-center text-gray-400 py-6 text-sm">加载中...</div>';
+  const r = await fetch('/tools/mgmt/orgs?page_size=100');
+  const j = await r.json();
+  allOrgs = j.success ? (j.data?.items || []) : [];
+  renderOrgList(allOrgs);
+}
+
+function renderOrgList(list) {
+  const el = document.getElementById('org-list');
+  if (!list.length) {
+    el.innerHTML = '<div class="text-center text-gray-400 py-6 text-sm">暂无机构数据</div>';
+    return;
+  }
+  el.innerHTML = list.map(o => `
+    <div class="px-3 py-2 hover:bg-emerald-50 cursor-pointer text-sm flex items-center gap-2 ${selectedOrgId === o.id ? 'bg-emerald-50 font-medium' : ''}"
+      onclick="selectOrg('${o.id}', '${o.name}')">
+      <span class="w-2 h-2 rounded-full inline-block ${selectedOrgId === o.id ? 'bg-emerald-500' : 'bg-gray-200'}"></span>
+      ${o.name}
+    </div>
+  `).join('');
+}
+
+function filterOrgs(q) {
+  const filtered = q ? allOrgs.filter(o => (o.name || '').includes(q)) : allOrgs;
+  renderOrgList(filtered);
+}
+
+function selectOrg(id, name) {
+  selectedOrgId = id;
+  selectedOrgName = name;
+  document.getElementById('org-selected').textContent = `已选：${name}`;
+  renderOrgList(allOrgs.filter(o =>
+    !document.getElementById('org-search').value ||
+    (o.name || '').includes(document.getElementById('org-search').value)
+  ));
+}
+
+function closeOrgModal() {
+  document.getElementById('org-modal').classList.add('hidden');
+}
+
+async function confirmAssignOrg() {
+  if (!selectedOrgId) { showToast('请先选择一个机构'); return; }
+  const ids = getCheckedIds();
+  const r = await fetch('/tools/archive/archives/batch-assign-org', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ids, org_id: selectedOrgId}),
+  });
+  const j = await r.json();
+  if (j.success) {
+    showToast(`已为 ${j.data.updated} 条档案调整管辖机构为：${selectedOrgName}`);
+    closeOrgModal();
+    clearSelection();
+  } else {
+    showToast('调整失败：' + (j.error?.message || '未知错误'));
+  }
+}
+
+document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'Enter') loadArchives(1); });
+
+function exportArchives() {
+  const q = document.getElementById('q').value;
+  const at = document.getElementById('archive-type').value;
+  const gf = document.getElementById('gender-filter').value;
+  const dateFrom = document.getElementById('date-from').value;
+  const dateTo = document.getElementById('date-to').value;
+  const birthFrom = document.getElementById('birth-from').value;
+  const birthTo = document.getElementById('birth-to').value;
+  const tag = document.getElementById('tag-filter').value;
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (at) params.set('archive_type', at);
+  if (gf) params.set('gender', gf);
+  if (dateFrom) params.set('date_from', dateFrom);
+  if (dateTo) params.set('date_to', dateTo);
+  if (birthFrom) params.set('birth_year_from', birthFrom);
+  if (birthTo) params.set('birth_year_to', birthTo);
+  if (tag) params.set('tag', tag);
+  const url = '/tools/archive/export?' + params.toString();
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  showToast('正在导出，请稍候...');
+}
+
+loadTags();
+loadStats();
+loadArchives();
+</script>
+{% endblock %}

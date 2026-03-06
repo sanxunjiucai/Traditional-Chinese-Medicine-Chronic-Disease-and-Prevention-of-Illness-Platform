@@ -1,0 +1,158 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "scales" %}
+{% block title %}量表库 - 治未病平台{% endblock %}
+{% block page_title %}量表库{% endblock %}
+
+{% block content %}
+<!-- 操作栏 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <input id="q" type="text" placeholder="量表名称/编码搜索"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-jade-300">
+  <select id="category" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300">
+    <option value="">全部分类</option>
+    <option value="CONSTITUTION">体质评估</option>
+    <option value="MENTAL">心理健康</option>
+    <option value="FUNCTION">功能评估</option>
+    <option value="CHRONIC">慢病管理</option>
+    <option value="GERIATRIC">老年评估</option>
+  </select>
+  <select id="scale_type" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300">
+    <option value="">全部类型</option>
+    <option value="SINGLE">单量表</option>
+    <option value="COMPOSITE">组合量表</option>
+  </select>
+  <button onclick="loadScales(1)"
+    class="text-white px-4 py-2 rounded-lg text-sm" style="background:#4E7A61;" onmouseenter="this.style.background='#3d6150'" onmouseleave="this.style.background='#4E7A61'">搜索</button>
+  <div class="ml-auto flex gap-2">
+    <span class="text-gray-400 text-sm">共 <span id="total">-</span> 个量表</span>
+    <a href="/gui/admin/scale-config/new"
+      class="text-white px-4 py-2 rounded-lg text-sm" style="background:#4E7A61;" onmouseenter="this.style.background='#3d6150'" onmouseleave="this.style.background='#4E7A61'">+ 新建量表</a>
+  </div>
+</div>
+
+<!-- 量表卡片网格 -->
+<div id="scale-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+  <div class="bg-white rounded-xl shadow-sm p-5 border" style="border-color:#d0e4d8;">
+    <div class="flex items-start justify-between mb-3">
+      <div>
+        <span class="text-xs px-2 py-0.5 rounded-full" style="background:#EBF2ED;color:#4E7A61;">体质评估</span>
+        <h4 class="font-semibold text-gray-800 mt-2">中医九体质辨识量表</h4>
+        <p class="text-xs text-gray-400 mt-0.5">ZYBZ-001 · 72题 · 系统内置</p>
+      </div>
+      <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">启用</span>
+    </div>
+    <p class="text-sm text-gray-500 mb-4 line-clamp-2">依据中华中医药学会标准，评估9种中医体质类型，包括平和质、气虚质、阳虚质等。</p>
+    <div class="flex gap-2">
+      <a href="/gui/admin/scale-library/constitution/preview"
+        class="flex-1 text-center py-1.5 border border-gray-200 text-gray-500 rounded-lg text-xs hover:bg-gray-50">预览</a>
+      <a href="/gui/admin/scale-answer/constitution"
+        class="flex-1 text-center py-1.5 rounded-lg text-xs" style="background:#EBF2ED;color:#4E7A61;" onmouseenter="this.style.background='#d0e4d8'" onmouseleave="this.style.background='#EBF2ED'">开始作答</a>
+      <a href="/gui/admin/scale-records?scale=CONSTITUTION"
+        class="flex-1 text-center py-1.5 border border-gray-200 text-gray-600 rounded-lg text-xs hover:bg-gray-50">作答记录</a>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <div class="flex items-start justify-between mb-3">
+      <div>
+        <span class="text-xs px-2 py-0.5 rounded-full" style="background:#EBF2ED;color:#4E7A61;">心理健康</span>
+        <h4 class="font-semibold text-gray-800 mt-2">PHQ-9 抑郁症筛查量表</h4>
+        <p class="text-xs text-gray-400 mt-0.5">PHQ-9 · 9题 · 国际通用</p>
+      </div>
+      <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">启用</span>
+    </div>
+    <p class="text-sm text-gray-500 mb-4 line-clamp-2">患者健康问卷-9，用于筛查和评估抑郁症状的严重程度，总分0-27分。</p>
+    <div class="flex gap-2">
+      <a href="/gui/admin/scale-library/phq9/preview"
+        class="flex-1 text-center py-1.5 border border-gray-200 text-gray-500 rounded-lg text-xs hover:bg-gray-50">预览</a>
+      <a href="/gui/admin/scale-answer/phq9"
+        class="flex-1 text-center py-1.5 rounded-lg text-xs" style="background:#EBF2ED;color:#4E7A61;" onmouseenter="this.style.background='#d0e4d8'" onmouseleave="this.style.background='#EBF2ED'">开始作答</a>
+      <a href="/gui/admin/scale-records?scale=PHQ9"
+        class="flex-1 text-center py-1.5 border border-gray-200 text-gray-600 rounded-lg text-xs hover:bg-gray-50">作答记录</a>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <div class="flex items-start justify-between mb-3">
+      <div>
+        <span class="text-xs px-2 py-0.5 rounded-full" style="background:#EBF2ED;color:#4E7A61;">心理健康</span>
+        <h4 class="font-semibold text-gray-800 mt-2">GAD-7 焦虑症筛查量表</h4>
+        <p class="text-xs text-gray-400 mt-0.5">GAD-7 · 7题 · 国际通用</p>
+      </div>
+      <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">启用</span>
+    </div>
+    <p class="text-sm text-gray-500 mb-4 line-clamp-2">广泛性焦虑障碍量表，用于筛查和评估焦虑症状，总分0-21分。</p>
+    <div class="flex gap-2">
+      <a href="/gui/admin/scale-library/gad7/preview"
+        class="flex-1 text-center py-1.5 border border-gray-200 text-gray-500 rounded-lg text-xs hover:bg-gray-50">预览</a>
+      <a href="/gui/admin/scale-answer/gad7"
+        class="flex-1 text-center py-1.5 rounded-lg text-xs" style="background:#EBF2ED;color:#4E7A61;" onmouseenter="this.style.background='#d0e4d8'" onmouseleave="this.style.background='#EBF2ED'">开始作答</a>
+      <a href="/gui/admin/scale-records?scale=GAD7"
+        class="flex-1 text-center py-1.5 border border-gray-200 text-gray-600 rounded-lg text-xs hover:bg-gray-50">作答记录</a>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <div class="flex items-start justify-between mb-3">
+      <div>
+        <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">老年评估</span>
+        <h4 class="font-semibold text-gray-800 mt-2">MMSE 简易精神状态检查</h4>
+        <p class="text-xs text-gray-400 mt-0.5">MMSE · 30题 · 认知评估</p>
+      </div>
+      <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">启用</span>
+    </div>
+    <p class="text-sm text-gray-500 mb-4 line-clamp-2">评估记忆力、定向力、语言能力等认知功能，总分0-30分，用于筛查痴呆。</p>
+    <div class="flex gap-2">
+      <a href="/gui/admin/scale-library/mmse/preview"
+        class="flex-1 text-center py-1.5 border border-gray-200 text-gray-500 rounded-lg text-xs hover:bg-gray-50">预览</a>
+      <a href="/gui/admin/scale-answer/mmse"
+        class="flex-1 text-center py-1.5 bg-amber-100 text-amber-700 rounded-lg text-xs hover:bg-amber-200">开始作答</a>
+      <a href="/gui/admin/scale-records?scale=MMSE"
+        class="flex-1 text-center py-1.5 border border-gray-200 text-gray-600 rounded-lg text-xs hover:bg-gray-50">作答记录</a>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <div class="flex items-start justify-between mb-3">
+      <div>
+        <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">功能评估</span>
+        <h4 class="font-semibold text-gray-800 mt-2">ADL 日常生活能力量表</h4>
+        <p class="text-xs text-gray-400 mt-0.5">ADL · 20题 · 功能评估</p>
+      </div>
+      <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">启用</span>
+    </div>
+    <p class="text-sm text-gray-500 mb-4 line-clamp-2">评估老年人日常生活自理能力，包括躯体自理和工具性日常生活活动能力。</p>
+    <div class="flex gap-2">
+      <a href="/gui/admin/scale-library/adl/preview"
+        class="flex-1 text-center py-1.5 border border-gray-200 text-gray-500 rounded-lg text-xs hover:bg-gray-50">预览</a>
+      <a href="/gui/admin/scale-answer/adl"
+        class="flex-1 text-center py-1.5 bg-green-100 text-green-700 rounded-lg text-xs hover:bg-green-200">开始作答</a>
+      <a href="/gui/admin/scale-records?scale=ADL"
+        class="flex-1 text-center py-1.5 border border-gray-200 text-gray-600 rounded-lg text-xs hover:bg-gray-50">作答记录</a>
+    </div>
+  </div>
+
+  <!-- 新建量表按钮 -->
+  <a href="/gui/admin/scale-config/new"
+    class="bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl p-5 flex flex-col items-center justify-center gap-2 transition group" onmouseenter="this.style.borderColor='#4E7A61';this.style.background='#EBF2ED'" onmouseleave="this.style.borderColor='';this.style.background=''">
+    <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center transition">
+      <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+    </div>
+    <span class="text-sm text-gray-400">新建自定义量表</span>
+  </a>
+</div>
+
+<div id="pagination" class="flex justify-center gap-2 mt-6 hidden"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function loadScales(page=1) {
+  document.getElementById('total').textContent = '6';
+}
+loadScales();
+</script>
+{% endblock %}

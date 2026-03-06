@@ -1,0 +1,159 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "intervention" %}
+{% block title %}{% if tpl_id %}编辑干预模板{% else %}新建干预模板{% endif %} - 治未病平台{% endblock %}
+{% block page_title %}{% if tpl_id %}编辑干预模板{% else %}新建干预模板{% endif %}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-4">
+
+  <!-- 分区一：基本信息 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h3 class="font-semibold text-gray-700 mb-4">基本信息</h3>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">模板名称 <span class="text-red-500">*</span></label>
+        <input type="text" id="tpl-name" placeholder="如：气虚体质针灸调理方案"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">干预类型</label>
+          <select id="tpl-type" onchange="updatePlaceholder()"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+            <option value="ACUPUNCTURE">针灸</option>
+            <option value="MASSAGE">推拿</option>
+            <option value="HERBAL">中药</option>
+            <option value="DIET">食疗</option>
+            <option value="EXERCISE">运动疗法</option>
+            <option value="BATH">药浴</option>
+            <option value="COMBINED">综合干预</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">公开范围</label>
+          <select id="tpl-scope"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+            <option value="PERSONAL">仅自己</option>
+            <option value="DEPT">科室内</option>
+            <option value="PUBLIC">全机构公开</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">适用体质/疾病</label>
+        <input type="text" id="tpl-applicable" placeholder="如：气虚质、高血压患者（逗号分隔）"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">模板简介</label>
+        <textarea id="tpl-desc" rows="2" placeholder="简短描述此模板的适用场景和主要干预目的..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- 分区二：干预内容 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h3 class="font-semibold text-gray-700 mb-4">干预内容</h3>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">治疗目标</label>
+        <textarea id="tpl-goal" rows="2" placeholder="描述本次干预期望达到的治疗效果和健康目标..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">操作方法 / 取穴方案</label>
+        <textarea id="tpl-method" rows="4"
+          placeholder="针灸请填写：主穴、配穴、针刺手法、留针时间等；推拿请填写：手法、部位、操作顺序等..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">注意事项 / 禁忌</label>
+        <textarea id="tpl-caution" rows="3" placeholder="描述施术禁忌、过敏注意、特殊人群禁忌等..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">药材 / 食材清单</label>
+        <textarea id="tpl-materials" rows="2" placeholder="针灸、推拿类可留空；中药请列出组方药味及用量；食疗请列出食材及配比..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- 分区三：执行计划 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h3 class="font-semibold text-gray-700 mb-4">执行计划</h3>
+    <div class="grid grid-cols-3 gap-4">
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">建议周期</label>
+        <div class="flex gap-2 items-center">
+          <input type="number" id="tpl-duration" value="4" min="1" max="52"
+            class="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+          <span class="text-sm text-gray-500">周</span>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">执行频率</label>
+        <select id="tpl-freq"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+          <option>每日</option>
+          <option>每周2次</option>
+          <option selected>每周1次</option>
+          <option>每两周</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">随访方式</label>
+        <select id="tpl-followup"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+          <option>电话</option>
+          <option>在线</option>
+          <option>APP</option>
+          <option>上门</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- 按钮行 -->
+  <div class="flex gap-3 justify-between">
+    <a href="/gui/admin/intervention/templates"
+      class="px-5 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">取消</a>
+    <button onclick="saveTemplate()"
+      class="bg-green-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-green-700 font-medium">保存模板</button>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const METHOD_PLACEHOLDERS = {
+  ACUPUNCTURE: '主穴：足三里、气海、关元\n配穴：脾俞、肾俞\n手法：补法，留针20分钟，每穴行针1次\n疗程：每周2次，共4周',
+  MASSAGE: '操作手法：揉法、拿法、点按法\n操作部位：颈肩部、背部膀胱经\n操作顺序：先放松后整复\n每次时长：30分钟',
+  HERBAL: '主方：天麻钩藤饮加减\n组成：天麻15g、钩藤20g（后下）、石决明30g（先煎）\n用法：水煎服，日1剂，分2次温服\n加减：肝火旺盛加龙胆草10g',
+  DIET: '宜食：山药、薏苡仁、赤小豆、南瓜\n忌食：肥甘厚腻、辛辣刺激\n食疗方：山药薏仁粥（山药30g+薏仁30g+粳米100g）\n用量：每日1次，早餐服用',
+  EXERCISE: '运动项目：八段锦、太极拳\n运动强度：中低强度，心率不超过110次/分\n运动时长：每次20-30分钟\n注意：运动前热身，避免空腹运动',
+  BATH: '药浴组方：透骨草30g、威灵仙30g、艾叶20g、红花15g\n制备方法：加水3000ml煎煮30分钟，去渣取汁\n使用方法：水温38-42°C，浸泡20-30分钟\n频率：每日1次或隔日1次',
+  COMBINED: '一、针灸干预：...\n二、中药调理：...\n三、饮食指导：...\n四、运动康复：...'
+};
+
+function updatePlaceholder() {
+  const type = document.getElementById('tpl-type').value;
+  const textarea = document.getElementById('tpl-method');
+  textarea.placeholder = METHOD_PLACEHOLDERS[type] || '请详细描述操作方法...';
+}
+
+function saveTemplate() {
+  const name = document.getElementById('tpl-name').value.trim();
+  if (!name) {
+    showToast('请填写模板名称');
+    return;
+  }
+  showToast('干预模板保存成功');
+  window.location.href = '/gui/admin/intervention/templates';
+}
+
+updatePlaceholder();
+</script>
+{% endblock %}

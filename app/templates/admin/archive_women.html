@@ -1,0 +1,271 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "archive_women" %}
+{% block title %}女性居民档案 - 治未病平台{% endblock %}
+{% block page_title %}女性居民档案{% endblock %}
+
+{% block content %}
+<!-- KPI 卡片 -->
+<div class="grid grid-cols-4 gap-4 mb-6">
+  <div class="bg-white rounded-xl shadow-sm p-4 border-l-4 border-rose-500">
+    <p class="text-gray-500 text-xs">女性总数</p>
+    <p id="kpi-total" class="text-2xl font-bold text-rose-700 mt-1">-</p>
+    <p class="text-xs text-gray-400 mt-1">全部在册女性居民</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4 border-l-4 border-rose-400">
+    <p class="text-gray-500 text-xs">育龄女性（18-45岁）</p>
+    <p id="kpi-childbearing" class="text-2xl font-bold text-rose-600 mt-1">-</p>
+    <p class="text-xs text-gray-400 mt-1">重点关注人群</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4 border-l-4 border-purple-400">
+    <p class="text-gray-500 text-xs">老年女性（≥60岁）</p>
+    <p id="kpi-elderly" class="text-2xl font-bold text-purple-600 mt-1">-</p>
+    <p class="text-xs text-gray-400 mt-1">老年健康管理</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4 border-l-4 border-pink-400">
+    <p class="text-gray-500 text-xs">本月新增</p>
+    <p id="kpi-new" class="text-2xl font-bold text-pink-600 mt-1">-</p>
+    <p class="text-xs text-gray-400 mt-1">本月建档数量</p>
+  </div>
+</div>
+
+<!-- 筛选栏 + 操作 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <input id="q" type="text" placeholder="姓名 / 手机号 / 证件号"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-52 focus:outline-none focus:ring-2 focus:ring-rose-300">
+  <select id="age-range" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300">
+    <option value="">全部年龄段</option>
+    <option value="0-18">18岁以下</option>
+    <option value="18-45">18-45岁（育龄）</option>
+    <option value="45-60">45-60岁（围绝经期）</option>
+    <option value="60-200">60岁以上（老年）</option>
+  </select>
+  <select id="marital-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300">
+    <option value="">婚育状况</option>
+    <option value="unmarried">未婚</option>
+    <option value="married">已婚</option>
+    <option value="divorced">离异</option>
+    <option value="widowed">丧偶</option>
+  </select>
+  <select id="org-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300">
+    <option value="">全部机构</option>
+    <option value="community_a">社区卫生服务中心A</option>
+    <option value="community_b">社区卫生服务中心B</option>
+    <option value="hospital_c">第三人民医院</option>
+  </select>
+  <button onclick="loadList(1)" class="bg-rose-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-rose-700">搜索</button>
+  <a href="/gui/admin/archives/new" class="ml-auto bg-rose-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-rose-700 flex items-center gap-1">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+    </svg>
+    新建档案
+  </a>
+</div>
+
+<!-- 批量操作区 -->
+<div id="batch-bar" class="hidden rounded-xl px-4 py-3 mb-3 flex items-center gap-3 flex-wrap" style="background:#EBF2ED;border:1px solid #B8D4C2;">
+  <span id="batch-count" class="text-sm font-medium" style="color:#4E7A61;">已选 0 条</span>
+  <button onclick="batchAssignDoctor()" class="bg-white px-3 py-1.5 rounded-lg text-sm" style="border:1px solid #B8D4C2;color:#4E7A61;">调整责任医生</button>
+  <button onclick="batchAssignOrg()" class="bg-white px-3 py-1.5 rounded-lg text-sm" style="border:1px solid #B8D4C2;color:#4E7A61;">调整管辖机构</button>
+  <button onclick="batchDelete()" class="bg-white border border-red-300 text-red-600 px-3 py-1.5 rounded-lg text-sm hover:bg-red-50">批量删除</button>
+  <button onclick="clearSelection()" class="ml-auto text-xs text-gray-400 hover:text-gray-600">取消选择</button>
+</div>
+
+<!-- 表格 -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-rose-50 text-rose-700 text-xs uppercase">
+      <tr>
+        <th class="px-4 py-3 text-left"><input type="checkbox" id="select-all" onchange="toggleAll(this)"></th>
+        <th class="px-5 py-3 text-left">姓名</th>
+        <th class="px-5 py-3 text-left">年龄</th>
+        <th class="px-5 py-3 text-left">出生日期</th>
+        <th class="px-5 py-3 text-left">婚育状况</th>
+        <th class="px-5 py-3 text-left">证件号</th>
+        <th class="px-5 py-3 text-left">手机号</th>
+        <th class="px-5 py-3 text-left">所属机构</th>
+        <th class="px-5 py-3 text-left">建档时间</th>
+        <th class="px-5 py-3 text-left">操作</th>
+      </tr>
+    </thead>
+    <tbody id="list-tbody" class="divide-y divide-gray-100">
+      <tr><td colspan="10" class="text-center text-gray-400 py-10">加载中...</td></tr>
+    </tbody>
+  </table>
+  <div id="pagination" class="px-5 py-3 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500"></div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// 演示数据（全部为女性）
+const demoData = [
+  { id: 'w001', name: '张梅', birth_date: '1992-05-14', marital: 'married', id_number: '110101199205141234', phone: '13900020001', org: '社区卫生服务中心A', created_at: '2024-03-12' },
+  { id: 'w002', name: '李秀芳', birth_date: '1988-11-02', marital: 'unmarried', id_number: '110101198811021235', phone: '13900020002', org: '社区卫生服务中心B', created_at: '2023-09-08' },
+  { id: 'w003', name: '王玉兰', birth_date: '1965-07-23', marital: 'widowed', id_number: '110101196507231236', phone: '13900020003', org: '第三人民医院', created_at: '2022-11-30' },
+  { id: 'w004', name: '陈小燕', birth_date: '2000-02-18', marital: 'unmarried', id_number: '110101200002181237', phone: '13900020004', org: '社区卫生服务中心A', created_at: '2025-06-15' },
+  { id: 'w005', name: '赵淑华', birth_date: '1958-09-30', marital: 'married', id_number: '110101195809301238', phone: '13900020005', org: '社区卫生服务中心B', created_at: '2021-04-22' },
+  { id: 'w006', name: '周芳芳', birth_date: '1979-12-05', marital: 'divorced', id_number: '110101197912051239', phone: '13900020006', org: '第三人民医院', created_at: '2026-01-18' },
+  { id: 'w007', name: '刘红', birth_date: '2003-08-11', marital: 'unmarried', id_number: '110101200308111240', phone: '13900020007', org: '社区卫生服务中心A', created_at: '2026-02-25' },
+];
+
+const MARITAL_LABELS = { unmarried: '未婚', married: '已婚', divorced: '离异', widowed: '丧偶' };
+const MARITAL_COLORS = {
+  unmarried: '',
+  married: 'bg-green-100 text-green-700',
+  divorced: 'bg-orange-100 text-orange-700',
+  widowed: 'bg-gray-100 text-gray-600',
+};
+const MARITAL_INLINE_STYLES = {
+  unmarried: 'background:#EBF2ED;color:#4E7A61;',
+  married: '',
+  divorced: '',
+  widowed: '',
+};
+
+function calcAge(birthDate) {
+  const birth = new Date(birthDate);
+  const now = new Date();
+  return now.getFullYear() - birth.getFullYear() - (now < new Date(now.getFullYear(), birth.getMonth(), birth.getDate()) ? 1 : 0);
+}
+
+function setKpis(data) {
+  document.getElementById('kpi-total').textContent = data.length;
+  const ages = data.map(d => calcAge(d.birth_date));
+  document.getElementById('kpi-childbearing').textContent = ages.filter(a => a >= 18 && a < 45).length;
+  document.getElementById('kpi-elderly').textContent = ages.filter(a => a >= 60).length;
+  const now = new Date();
+  const newThisMonth = data.filter(d => {
+    const c = new Date(d.created_at);
+    return c.getMonth() === now.getMonth() && c.getFullYear() === now.getFullYear();
+  }).length;
+  document.getElementById('kpi-new').textContent = newThisMonth;
+}
+
+let currentPage = 1;
+const PAGE_SIZE = 10;
+let ALL_DATA = null;
+
+async function loadList(page = 1) {
+  currentPage = page;
+  if (!ALL_DATA) {
+    try {
+      const resp = await fetch('/tools/archive/archives?archive_type=FEMALE&page_size=100');
+      const d = await resp.json();
+      if (d.success) ALL_DATA = d.data.items.map(a => ({
+        id: a.id, name: a.name, birth_date: a.birth_date || '1990-01-01',
+        marital: 'married', id_number: a.id_number || '-',
+        phone: a.phone || '-', org: '-', created_at: (a.created_at || '').slice(0, 10),
+      }));
+    } catch (_) {}
+    if (!ALL_DATA) ALL_DATA = demoData;
+  }
+
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const ageRange = document.getElementById('age-range').value;
+  let filtered = ALL_DATA.filter(d => {
+    if (q && !d.name.toLowerCase().includes(q) && !d.phone.includes(q)) return false;
+    return true;
+  });
+  if (ageRange) {
+    filtered = filtered.filter(d => {
+      const age = calcAge(d.birth_date);
+      const [min, max] = ageRange.split('-').map(Number);
+      return age >= min && age < max;
+    });
+  }
+  setKpis(filtered);
+
+  const start = (page - 1) * PAGE_SIZE;
+  const pageItems = filtered.slice(start, start + PAGE_SIZE);
+  const tbody = document.getElementById('list-tbody');
+
+  if (!pageItems.length) {
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center text-gray-400 py-10">暂无女性档案数据</td></tr>';
+  } else {
+    tbody.innerHTML = pageItems.map(a => {
+      const age = calcAge(a.birth_date);
+      return `
+      <tr class="hover:bg-rose-50/30">
+        <td class="px-4 py-3"><input type="checkbox" class="row-check" value="${a.id}"></td>
+        <td class="px-5 py-3 font-medium text-gray-800">
+          <a href="/gui/admin/archives/${a.id}?from=women" class="hover:text-rose-600">${a.name}</a>
+        </td>
+        <td class="px-5 py-3 text-gray-600">${age} 岁</td>
+        <td class="px-5 py-3 text-gray-600">${a.birth_date}</td>
+        <td class="px-5 py-3">
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${MARITAL_COLORS[a.marital] || 'bg-gray-100 text-gray-600'}" style="${MARITAL_INLINE_STYLES[a.marital] || ''}">
+            ${MARITAL_LABELS[a.marital] || '-'}
+          </span>
+        </td>
+        <td class="px-5 py-3 text-gray-500 font-mono text-xs">${a.id_number}</td>
+        <td class="px-5 py-3 text-gray-600">${a.phone}</td>
+        <td class="px-5 py-3 text-gray-500 text-xs">${a.org}</td>
+        <td class="px-5 py-3 text-gray-500 text-xs">${a.created_at}</td>
+        <td class="px-5 py-3">
+          <a href="/gui/admin/archives/${a.id}?from=women" class="text-rose-600 text-xs hover:underline mr-2">详情</a>
+          <a href="/gui/admin/archives/${a.id}/edit" class="text-gray-500 text-xs hover:underline mr-2">编辑</a>
+          <button onclick="deleteArchive('${a.id}','${a.name}')" class="text-red-400 hover:underline text-xs">删除</button>
+        </td>
+      </tr>
+      `;
+    }).join('');
+    document.querySelectorAll('.row-check').forEach(cb => cb.addEventListener('change', updateBatchBar));
+  }
+
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  document.getElementById('pagination').innerHTML = `
+    <span>共 ${total} 条</span>
+    <div class="flex gap-2">
+      ${page > 1 ? `<button onclick="loadList(${page - 1})" class="px-3 py-1 rounded border text-xs hover:bg-rose-50">上一页</button>` : ''}
+      <span class="px-3 py-1 text-xs">第 ${page}/${totalPages} 页</span>
+      ${page < totalPages ? `<button onclick="loadList(${page + 1})" class="px-3 py-1 rounded border text-xs hover:bg-rose-50">下一页</button>` : ''}
+    </div>
+  `;
+}
+
+document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'Enter') loadList(1); });
+
+function deleteArchive(id, name) {
+  if (confirm(`确定将「${name}」的档案移至回收站？`)) {
+    showToast('已移至回收站');
+  }
+}
+
+function toggleAll(el) {
+  document.querySelectorAll('.row-check').forEach(cb => cb.checked = el.checked);
+  updateBatchBar();
+}
+function updateBatchBar() {
+  const checked = document.querySelectorAll('.row-check:checked');
+  const bar = document.getElementById('batch-bar');
+  if (checked.length > 0) {
+    bar.classList.remove('hidden');
+    document.getElementById('batch-count').textContent = `已选 ${checked.length} 条`;
+  } else {
+    bar.classList.add('hidden');
+  }
+}
+function clearSelection() {
+  document.querySelectorAll('.row-check, #select-all').forEach(cb => cb.checked = false);
+  updateBatchBar();
+}
+function batchAssignDoctor() {
+  const n = document.querySelectorAll('.row-check:checked').length;
+  showToast(`批量调整 ${n} 条档案的责任医生`);
+}
+function batchAssignOrg() {
+  const n = document.querySelectorAll('.row-check:checked').length;
+  showToast(`批量调整 ${n} 条档案的管辖机构`);
+}
+function batchDelete() {
+  const n = document.querySelectorAll('.row-check:checked').length;
+  if (confirm(`确定将选中的 ${n} 条档案移至回收站？`)) {
+    showToast('批量删除成功');
+    clearSelection();
+  }
+}
+
+loadList();
+</script>
+{% endblock %}

@@ -1,0 +1,164 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "activity_archives" %}
+{% block title %}活动规则列表 - 治未病平台{% endblock %}
+{% block page_title %}活动规则管理{% endblock %}
+
+{% block content %}
+<!-- 操作栏 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <input id="q" type="text" placeholder="规则名称 / 创建人"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-52 focus:outline-none focus:ring-2 focus:ring-jade-300">
+  <select id="status-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300">
+    <option value="">全部状态</option>
+    <option value="ACTIVE">启用</option>
+    <option value="INACTIVE">停用</option>
+  </select>
+  <button onclick="loadRules()" class="text-white px-4 py-2 rounded-lg text-sm" style="background:#4E7A61;" onmouseenter="this.style.background='#3d6150'" onmouseleave="this.style.background='#4E7A61'">搜索</button>
+  <div class="ml-auto flex items-center gap-2">
+    <a href="/gui/admin/activity-archives" class="border border-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">活动档案</a>
+    <a href="/gui/admin/activity-archives/rules/new" class="text-white px-4 py-2 rounded-lg text-sm flex items-center gap-1" style="background:#4E7A61;" onmouseenter="this.style.background='#3d6150'" onmouseleave="this.style.background='#4E7A61'">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      新建规则
+    </a>
+  </div>
+</div>
+
+<!-- 表格 -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-5 py-3 text-left">规则名称</th>
+        <th class="px-5 py-3 text-left">触发条件</th>
+        <th class="px-5 py-3 text-left">生成周期</th>
+        <th class="px-5 py-3 text-left">适用范围</th>
+        <th class="px-5 py-3 text-left">状态</th>
+        <th class="px-5 py-3 text-left">创建时间</th>
+        <th class="px-5 py-3 text-left">操作</th>
+      </tr>
+    </thead>
+    <tbody id="rule-tbody" class="divide-y divide-gray-100">
+      <tr><td colspan="7" class="text-center text-gray-400 py-10">加载中...</td></tr>
+    </tbody>
+  </table>
+  <div id="pagination" class="px-5 py-3 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500"></div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const DEMO_RULES = [
+  { id: 1,  name: '血压不达标规则',       condition: '收缩压 > 160 mmHg，近 30 天触发 ≥ 2 次', cycle: '每日', scope: '重点关注、老年人档案', status: 'ACTIVE', created: '2026-01-15' },
+  { id: 2,  name: '新入组患者规则',        condition: '近 7 天新建档案，档案类型为重点关注', cycle: '每日', scope: '重点关注', status: 'ACTIVE', created: '2026-01-18' },
+  { id: 3,  name: '血糖控制不佳规则',      condition: '空腹血糖 > 8.0 mmol/L，连续 3 次以上', cycle: '每周一', scope: '全部类型', status: 'ACTIVE', created: '2026-01-20' },
+  { id: 4,  name: '长期未随访规则',        condition: '最近随访时间距今 > 90 天，处于在管状态', cycle: '每日', scope: '全部类型', status: 'ACTIVE', created: '2026-01-25' },
+  { id: 5,  name: '老年跌倒高危规则',      condition: '年龄 ≥ 70 岁，近 6 月有跌倒史或平衡评估异常', cycle: '每月1日', scope: '老年人档案', status: 'ACTIVE', created: '2026-02-01' },
+  { id: 6,  name: '体质偏颇干预规则',      condition: '体质评估非"平和质"，近半年未开展干预', cycle: '每周一', scope: '全部类型', status: 'ACTIVE', created: '2026-02-05' },
+  { id: 7,  name: '孕期监测规则',          condition: '女性档案孕期标记，距下次随访 ≤ 7 天', cycle: '每日', scope: '女性档案', status: 'INACTIVE', created: '2026-02-10' },
+  { id: 8,  name: '高尿酸血症规则',        condition: '血尿酸 > 420 μmol/L（男），近 60 天触发', cycle: '每月1日', scope: '普通居民', status: 'INACTIVE', created: '2026-02-12' },
+  { id: 9,  name: '肾功能异常监测规则',    condition: '血肌酐 > 110 μmol/L，近 90 天持续升高趋势', cycle: '每周一', scope: '重点关注', status: 'ACTIVE', created: '2026-02-18' },
+  { id: 10, name: '脑卒中高危人群规则',    condition: 'NIHSS 评分 ≥ 1 或脑血管病史，近 1 月无随访', cycle: '每日', scope: '重点关注、老年人档案', status: 'ACTIVE', created: '2026-02-22' },
+];
+
+const pageSize = 10;
+
+async function loadRules() {
+  const q = document.getElementById('q').value.toLowerCase();
+  const status = document.getElementById('status-filter').value;
+  try {
+    const params = new URLSearchParams({ q, status });
+    const r = await fetch('/tools/activity-archives/rules?' + params);
+    const d = await r.json();
+    if (!d.success) throw new Error();
+    renderTable(d.items);
+    renderPagination(d.total, 1);
+  } catch {
+    let filtered = DEMO_RULES.filter(r =>
+      (!q || r.name.includes(q)) &&
+      (!status || r.status === status)
+    );
+    renderTable(filtered);
+    renderPagination(filtered.length, 1);
+  }
+}
+
+function renderTable(rows) {
+  const tbody = document.getElementById('rule-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-gray-400 py-10">暂无数据</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => `
+    <tr class="hover:bg-gray-50 transition-colors">
+      <td class="px-5 py-3 font-medium text-gray-800">${r.name}</td>
+      <td class="px-5 py-3 text-gray-500 max-w-xs">
+        <span class="truncate block" title="${r.condition}">${r.condition.length > 30 ? r.condition.slice(0,30)+'…' : r.condition}</span>
+      </td>
+      <td class="px-5 py-3 text-gray-600">${r.cycle}</td>
+      <td class="px-5 py-3 text-gray-600">${r.scope}</td>
+      <td class="px-5 py-3">
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${r.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">
+          ${r.status === 'ACTIVE' ? '启用' : '停用'}
+        </span>
+      </td>
+      <td class="px-5 py-3 text-gray-500 text-xs">${r.created}</td>
+      <td class="px-5 py-3">
+        <div class="flex items-center gap-3">
+          <a href="/gui/admin/activity-archives/rules/${r.id}/edit" class="hover:underline text-xs" style="color:#4E7A61;">编辑</a>
+          <button onclick="toggleRuleStatus(${r.id}, '${r.status}')" class="text-xs ${r.status === 'ACTIVE' ? 'text-orange-500' : 'text-green-600'} hover:underline">
+            ${r.status === 'ACTIVE' ? '停用' : '启用'}
+          </button>
+          <button onclick="deleteRule(${r.id}, '${r.name}')" class="text-xs text-red-500 hover:underline">删除</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function renderPagination(total, page) {
+  const totalPages = Math.ceil(total / pageSize);
+  document.getElementById('pagination').innerHTML = `
+    <span>共 ${total} 条规则</span>
+    <div class="flex items-center gap-1">
+      <span class="text-xs">${page} / ${totalPages||1} 页</span>
+    </div>
+  `;
+}
+
+async function toggleRuleStatus(id, currentStatus) {
+  const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+  const action = newStatus === 'ACTIVE' ? '启用' : '停用';
+  if (!confirm(`确认${action}此规则？`)) return;
+  try {
+    const r = await fetch(`/tools/activity-archives/rules/${id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.message || '操作失败');
+    loadRules();
+  } catch (e) {
+    showToast(`${action}操作已提交`);
+    loadRules();
+  }
+}
+
+async function deleteRule(id, name) {
+  if (!confirm(`确认删除规则"${name}"？此操作不可撤销。`)) return;
+  try {
+    const r = await fetch(`/tools/activity-archives/rules/${id}`, { method: 'DELETE' });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.message || '删除失败');
+    loadRules();
+  } catch {
+    showToast('删除操作已提交');
+    loadRules();
+  }
+}
+
+loadRules();
+</script>
+{% endblock %}

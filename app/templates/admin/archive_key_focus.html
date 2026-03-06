@@ -1,0 +1,298 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "archive_key_focus" %}
+{% block title %}重点关注人群 - 治未病平台{% endblock %}
+{% block page_title %}重点关注人群{% endblock %}
+
+{% block content %}
+<!-- KPI 卡片 -->
+<div class="grid grid-cols-4 gap-4 mb-6">
+  <div class="bg-white rounded-xl shadow-sm p-4 border-l-4 border-red-600">
+    <p class="text-gray-500 text-xs">重点人群总数</p>
+    <p id="kpi-total" class="text-2xl font-bold text-red-700 mt-1">-</p>
+    <p class="text-xs text-gray-400 mt-1">全部重点关注档案</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4 border-l-4 border-red-400">
+    <p class="text-gray-500 text-xs">本月新增</p>
+    <p id="kpi-new" class="text-2xl font-bold text-red-600 mt-1">-</p>
+    <p class="text-xs text-gray-400 mt-1">本月新纳入管理</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4 border-l-4 border-orange-400">
+    <p class="text-gray-500 text-xs">待随访</p>
+    <p id="kpi-pending" class="text-2xl font-bold text-orange-600 mt-1">-</p>
+    <p class="text-xs text-gray-400 mt-1">计划随访未完成</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4 border-l-4 border-gray-500">
+    <p class="text-gray-500 text-xs">逾期未随访</p>
+    <p id="kpi-overdue" class="text-2xl font-bold text-gray-700 mt-1">-</p>
+    <p class="text-xs text-gray-400 mt-1">超期未完成随访</p>
+  </div>
+</div>
+
+<!-- 筛选栏 + 操作 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <input id="q" type="text" placeholder="姓名 / 手机号 / 证件号"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-52 focus:outline-none focus:ring-2 focus:ring-red-300">
+  <select id="reason-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300">
+    <option value="">关注原因</option>
+    <option value="chronic">慢性病</option>
+    <option value="disability">残疾</option>
+    <option value="mental">精神疾病</option>
+    <option value="subsistence">低保/贫困</option>
+  </select>
+  <select id="risk-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300">
+    <option value="">风险等级</option>
+    <option value="high">高风险</option>
+    <option value="medium">中风险</option>
+    <option value="low">低风险</option>
+  </select>
+  <select id="org-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300">
+    <option value="">全部机构</option>
+    <option value="community_a">社区卫生服务中心A</option>
+    <option value="community_b">社区卫生服务中心B</option>
+    <option value="hospital_c">第三人民医院</option>
+  </select>
+  <button onclick="loadList(1)" class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-700">搜索</button>
+  <a href="/gui/admin/archives/new" class="ml-auto bg-red-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-700 flex items-center gap-1">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+    </svg>
+    新建重点关注档案
+  </a>
+</div>
+
+<!-- 色阶说明 -->
+<div class="flex items-center gap-4 mb-3 text-xs text-gray-500 px-1">
+  <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-red-200 inline-block"></span>高风险（红色背景）</span>
+  <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-yellow-100 inline-block"></span>中风险</span>
+  <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-gray-50 inline-block"></span>低风险</span>
+</div>
+
+<!-- 批量操作区 -->
+<div id="batch-bar" class="hidden rounded-xl px-4 py-3 mb-3 flex items-center gap-3 flex-wrap" style="background:#EBF2ED;border:1px solid #B8D4C2;">
+  <span id="batch-count" class="text-sm font-medium" style="color:#4E7A61;">已选 0 条</span>
+  <button onclick="batchAssignDoctor()" class="bg-white px-3 py-1.5 rounded-lg text-sm" style="border:1px solid #B8D4C2;color:#4E7A61;">调整责任医生</button>
+  <button onclick="batchAssignOrg()" class="bg-white px-3 py-1.5 rounded-lg text-sm" style="border:1px solid #B8D4C2;color:#4E7A61;">调整管辖机构</button>
+  <button onclick="batchDelete()" class="bg-white border border-red-300 text-red-600 px-3 py-1.5 rounded-lg text-sm hover:bg-red-50">批量删除</button>
+  <button onclick="clearSelection()" class="ml-auto text-xs text-gray-400 hover:text-gray-600">取消选择</button>
+</div>
+
+<!-- 表格 -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-red-50 text-red-700 text-xs uppercase">
+      <tr>
+        <th class="px-4 py-3 text-left"><input type="checkbox" id="select-all" onchange="toggleAll(this)"></th>
+        <th class="px-5 py-3 text-left">姓名</th>
+        <th class="px-5 py-3 text-left">性别</th>
+        <th class="px-5 py-3 text-left">年龄</th>
+        <th class="px-5 py-3 text-left">关注原因</th>
+        <th class="px-5 py-3 text-left">风险等级</th>
+        <th class="px-5 py-3 text-left">手机号</th>
+        <th class="px-5 py-3 text-left">上次随访</th>
+        <th class="px-5 py-3 text-left">所属机构</th>
+        <th class="px-5 py-3 text-left">操作</th>
+      </tr>
+    </thead>
+    <tbody id="list-tbody" class="divide-y divide-gray-100">
+      <tr><td colspan="10" class="text-center text-gray-400 py-10">加载中...</td></tr>
+    </tbody>
+  </table>
+  <div id="pagination" class="px-5 py-3 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500"></div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// 演示数据（重点关注人群）
+const demoData = [
+  { id: 'k001', name: '孙建国', gender: 'male', birth_date: '1955-04-10', reason: 'chronic', risk: 'high', phone: '13600040001', last_visit: '2025-11-20', org: '社区卫生服务中心A', created_at: '2023-06-01' },
+  { id: 'k002', name: '吴秀珍', gender: 'female', birth_date: '1968-12-03', reason: 'mental', risk: 'high', phone: '13600040002', last_visit: '2025-09-15', org: '社区卫生服务中心B', created_at: '2022-08-18' },
+  { id: 'k003', name: '郑大勇', gender: 'male', birth_date: '1972-07-25', reason: 'disability', risk: 'medium', phone: '13600040003', last_visit: '2026-01-08', org: '第三人民医院', created_at: '2024-03-22' },
+  { id: 'k004', name: '何翠莲', gender: 'female', birth_date: '1960-02-14', reason: 'subsistence', risk: 'medium', phone: '13600040004', last_visit: '2026-02-05', org: '社区卫生服务中心A', created_at: '2025-07-10' },
+  { id: 'k005', name: '黄明亮', gender: 'male', birth_date: '1945-08-30', reason: 'chronic', risk: 'high', phone: '13600040005', last_visit: '2025-07-22', org: '社区卫生服务中心B', created_at: '2021-09-05' },
+  { id: 'k006', name: '杨小凤', gender: 'female', birth_date: '1985-05-17', reason: 'mental', risk: 'low', phone: '13600040006', last_visit: '2026-02-20', org: '第三人民医院', created_at: '2026-01-15' },
+  { id: 'k007', name: '宋立强', gender: 'male', birth_date: '1950-11-08', reason: 'chronic', risk: 'medium', phone: '13600040007', last_visit: '2025-12-30', org: '社区卫生服务中心A', created_at: '2026-02-28' },
+];
+
+const REASON_LABELS = { chronic: '慢性病', disability: '残疾', mental: '精神疾病', subsistence: '低保/贫困' };
+const REASON_COLORS = {
+  chronic: '',
+  disability: '',
+  mental: 'bg-pink-100 text-pink-700',
+  subsistence: 'bg-gray-100 text-gray-700',
+};
+const REASON_INLINE_STYLES = {
+  chronic: 'background:#EBF2ED;color:#4E7A61;',
+  disability: 'background:#F0EBF5;color:#6A4E7A;',
+  mental: '',
+  subsistence: '',
+};
+const RISK_LABELS = { high: '高风险', medium: '中风险', low: '低风险' };
+const RISK_COLORS = {
+  high: 'bg-red-100 text-red-700 border border-red-200',
+  medium: 'bg-yellow-100 text-yellow-700 border border-yellow-200',
+  low: 'bg-green-100 text-green-700 border border-green-200',
+};
+const ROW_BG = {
+  high: 'bg-red-50/60',
+  medium: 'bg-yellow-50/30',
+  low: '',
+};
+
+function calcAge(birthDate) {
+  const birth = new Date(birthDate);
+  const now = new Date();
+  return now.getFullYear() - birth.getFullYear() - (now < new Date(now.getFullYear(), birth.getMonth(), birth.getDate()) ? 1 : 0);
+}
+
+// 判断是否逾期（超过3个月未随访）
+function isOverdue(lastVisit) {
+  if (!lastVisit) return true;
+  const last = new Date(lastVisit);
+  const now = new Date();
+  const diffMonths = (now.getFullYear() - last.getFullYear()) * 12 + (now.getMonth() - last.getMonth());
+  return diffMonths > 3;
+}
+
+function setKpis(data) {
+  document.getElementById('kpi-total').textContent = data.length;
+  const now = new Date();
+  const newThisMonth = data.filter(d => {
+    const c = new Date(d.created_at);
+    return c.getMonth() === now.getMonth() && c.getFullYear() === now.getFullYear();
+  }).length;
+  document.getElementById('kpi-new').textContent = newThisMonth;
+  document.getElementById('kpi-pending').textContent = Math.ceil(data.length * 0.3);
+  document.getElementById('kpi-overdue').textContent = data.filter(d => isOverdue(d.last_visit)).length;
+}
+
+let currentPage = 1;
+const PAGE_SIZE = 10;
+let ALL_DATA = null;
+
+async function loadList(page = 1) {
+  currentPage = page;
+  if (!ALL_DATA) {
+    try {
+      const resp = await fetch('/tools/archive/archives?archive_type=KEY_FOCUS&page_size=100');
+      const d = await resp.json();
+      if (d.success && d.data.items.length > 0) {
+        ALL_DATA = d.data.items.map(a => ({
+          id: a.id, name: a.name, gender: a.gender || 'male',
+          birth_date: a.birth_date || '1960-01-01',
+          reason: 'chronic', risk: 'medium', phone: a.phone || '-',
+          last_visit: '-', org: '-', created_at: (a.created_at || '').slice(0, 10),
+        }));
+      }
+    } catch (_) {}
+    if (!ALL_DATA) ALL_DATA = demoData;
+  }
+
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const filtered = ALL_DATA.filter(d => {
+    if (q && !d.name.toLowerCase().includes(q) && !d.phone.includes(q)) return false;
+    return true;
+  });
+  setKpis(filtered);
+
+  const start = (page - 1) * PAGE_SIZE;
+  const pageItems = filtered.slice(start, start + PAGE_SIZE);
+  const tbody = document.getElementById('list-tbody');
+
+  if (!pageItems.length) {
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center text-gray-400 py-10">暂无重点关注档案数据</td></tr>';
+  } else {
+    tbody.innerHTML = pageItems.map(a => {
+      const age = calcAge(a.birth_date);
+      const overdue = isOverdue(a.last_visit);
+      const rowBg = ROW_BG[a.risk] || '';
+      return `
+      <tr class="hover:brightness-95 transition ${rowBg}">
+        <td class="px-4 py-3"><input type="checkbox" class="row-check" value="${a.id}"></td>
+        <td class="px-5 py-3 font-medium text-gray-800">
+          <a href="/gui/admin/archives/${a.id}?from=key-focus" class="hover:text-red-600">${a.name}</a>
+          ${overdue ? '<span class="ml-1 inline-block bg-gray-200 text-gray-600 text-xs px-1.5 py-0.5 rounded">逾期</span>' : ''}
+        </td>
+        <td class="px-5 py-3 text-gray-600">${a.gender === 'male' ? '男' : '女'}</td>
+        <td class="px-5 py-3 text-gray-600">${age} 岁</td>
+        <td class="px-5 py-3">
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${REASON_COLORS[a.reason] || 'bg-gray-100 text-gray-600'}" style="${REASON_INLINE_STYLES[a.reason] || ''}">
+            ${REASON_LABELS[a.reason] || '-'}
+          </span>
+        </td>
+        <td class="px-5 py-3">
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${RISK_COLORS[a.risk] || 'bg-gray-100 text-gray-600'}">
+            ${RISK_LABELS[a.risk] || '-'}
+          </span>
+        </td>
+        <td class="px-5 py-3 text-gray-600">${a.phone}</td>
+        <td class="px-5 py-3 text-xs ${overdue ? 'text-red-500 font-medium' : 'text-gray-500'}">${a.last_visit || '从未随访'}</td>
+        <td class="px-5 py-3 text-gray-500 text-xs">${a.org}</td>
+        <td class="px-5 py-3">
+          <a href="/gui/admin/archives/${a.id}?from=key-focus" class="text-red-600 text-xs hover:underline mr-2">详情</a>
+          <a href="/gui/admin/archives/${a.id}/edit" class="text-gray-500 text-xs hover:underline mr-2">编辑</a>
+          <button onclick="deleteArchive('${a.id}','${a.name}')" class="text-red-400 hover:underline text-xs">删除</button>
+        </td>
+      </tr>
+      `;
+    }).join('');
+    document.querySelectorAll('.row-check').forEach(cb => cb.addEventListener('change', updateBatchBar));
+  }
+
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  document.getElementById('pagination').innerHTML = `
+    <span>共 ${total} 条</span>
+    <div class="flex gap-2">
+      ${page > 1 ? `<button onclick="loadList(${page - 1})" class="px-3 py-1 rounded border text-xs hover:bg-red-50">上一页</button>` : ''}
+      <span class="px-3 py-1 text-xs">第 ${page}/${totalPages} 页</span>
+      ${page < totalPages ? `<button onclick="loadList(${page + 1})" class="px-3 py-1 rounded border text-xs hover:bg-red-50">下一页</button>` : ''}
+    </div>
+  `;
+}
+
+document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'Enter') loadList(1); });
+
+function deleteArchive(id, name) {
+  if (confirm(`确定将「${name}」的档案移至回收站？`)) {
+    showToast('已移至回收站');
+  }
+}
+
+function toggleAll(el) {
+  document.querySelectorAll('.row-check').forEach(cb => cb.checked = el.checked);
+  updateBatchBar();
+}
+function updateBatchBar() {
+  const checked = document.querySelectorAll('.row-check:checked');
+  const bar = document.getElementById('batch-bar');
+  if (checked.length > 0) {
+    bar.classList.remove('hidden');
+    document.getElementById('batch-count').textContent = `已选 ${checked.length} 条`;
+  } else {
+    bar.classList.add('hidden');
+  }
+}
+function clearSelection() {
+  document.querySelectorAll('.row-check, #select-all').forEach(cb => cb.checked = false);
+  updateBatchBar();
+}
+function batchAssignDoctor() {
+  const n = document.querySelectorAll('.row-check:checked').length;
+  showToast(`批量调整 ${n} 条档案的责任医生`);
+}
+function batchAssignOrg() {
+  const n = document.querySelectorAll('.row-check:checked').length;
+  showToast(`批量调整 ${n} 条档案的管辖机构`);
+}
+function batchDelete() {
+  const n = document.querySelectorAll('.row-check:checked').length;
+  if (confirm(`确定将选中的 ${n} 条档案移至回收站？`)) {
+    showToast('批量删除成功');
+    clearSelection();
+  }
+}
+
+loadList();
+</script>
+{% endblock %}

@@ -1,0 +1,109 @@
+{% extends "_layouts/patient.html" %}
+{% block title %}方案调整记录{% endblock %}
+{% block page_title %}方案调整记录{% endblock %}
+{% set active_tab = "plan" %}
+
+{% block header_left %}
+<a href="/h5/plan" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:#F5F2EC;text-decoration:none;">
+  <svg width="18" height="18" fill="none" stroke="#28231E" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+</a>
+{% endblock %}
+
+{% block content %}
+<div style="padding:14px 16px 24px;display:flex;flex-direction:column;gap:12px;">
+
+  <p style="font-size:13px;color:#9A9188;margin:0;">记录每次医生对方案的调整原因与内容，便于追溯疗效。</p>
+
+  <div id="history-loading" style="display:flex;flex-direction:column;gap:12px;">
+    <div class="skeleton" style="height:100px;"></div>
+    <div class="skeleton" style="height:100px;width:90%;"></div>
+  </div>
+  <div id="history-list" style="display:none;"></div>
+  <div id="history-empty" style="display:none;text-align:center;padding:40px 0;">
+    <div style="font-size:36px;margin-bottom:12px;">📋</div>
+    <p style="font-size:14px;color:#28231E;margin:0 0 4px;">暂无调整记录</p>
+    <p style="font-size:13px;color:#9A9188;margin:0;">方案首次发布后如有调整将在此显示</p>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const DEMO_HISTORY = [
+  {
+    date:'2026-02-15', version:'v1.2', doctor:'张建国',
+    reason:'第30天随访评估：血压控制达标但患者反映晨起头晕，睡眠欠佳',
+    changes:[
+      {type:'调整', cat:'用药', content:'苯磺酸氨氯地平由早晨改为睡前服用，减少晨起低血压'},
+      {type:'增加', cat:'作息', content:'增加睡前腹式呼吸练习（10分钟），改善睡眠质量'},
+      {type:'调整', cat:'运动', content:'步行目标由8000步调整为6000步，避免过度疲劳'},
+    ]
+  },
+  {
+    date:'2026-01-15', version:'v1.1', doctor:'张建国',
+    reason:'第14天随访：患者自述山药薏仁粥难以坚持每日，依从性下降',
+    changes:[
+      {type:'调整', cat:'饮食', content:'山药薏仁粥由每日调整为每周3次，提高可持续性'},
+      {type:'增加', cat:'饮食', content:'增加绿豆百合汤作为替代方案（同样健脾祛湿）'},
+    ]
+  },
+  {
+    date:'2026-01-01', version:'v1.0', doctor:'张建国',
+    reason:'首次建立方案：综合体质辨识（气虚质+痰湿质）及高血压病情评估',
+    changes:[
+      {type:'初建', cat:'整体', content:'制定高血压慢病综合管理方案，疗程90天，包含用药、饮食、运动、作息、理疗五大模块'},
+    ]
+  },
+];
+
+const TYPE_COLORS={调整:'#B8885E',增加:'#4E7A61',删除:'#D95C4A',初建:'#5070A8'};
+const TYPE_BG={调整:'#F7EEE4',增加:'#EBF2ED',删除:'#FEF2F0',初建:'#EEF2F7'};
+
+async function loadHistory(){
+  let items=DEMO_HISTORY;
+  try{
+    const r=await fetch('/tools/guidance/records?page_size=20');
+    const j=await r.json();
+    if(j.success&&j.data?.items?.length&&false){ /* 暂用演示 */ }
+  }catch(e){}
+
+  document.getElementById('history-loading').style.display='none';
+  if(!items.length){document.getElementById('history-empty').style.display='block';return;}
+
+  const el=document.getElementById('history-list');
+  el.style.display='block';
+  el.innerHTML=items.map((rec,idx)=>`
+    <div style="position:relative;padding-left:24px;margin-bottom:${idx<items.length-1?'0':'4px'};">
+      <!-- timeline dot -->
+      <div style="position:absolute;left:0;top:16px;width:12px;height:12px;border-radius:50%;background:${idx===0?'#4E7A61':'#D0C9C0'};border:2px solid ${idx===0?'#4E7A61':'#E4DDD4'};"></div>
+      ${idx<items.length-1?'<div style="position:absolute;left:5px;top:28px;bottom:-12px;width:1.5px;background:#E4DDD4;"></div>':''}
+      <div style="background:#fff;border-radius:16px;padding:15px 16px;box-shadow:var(--shadow-xs);border:1px solid var(--border-light);margin-bottom:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:12px;font-weight:600;color:#28231E;">${rec.date}</span>
+            <span style="font-size:11px;color:#9A9188;background:#F5F2EC;padding:1px 8px;border-radius:99px;">${rec.version}</span>
+          </div>
+          <span style="font-size:12px;color:#4E7A61;">${rec.doctor}</span>
+        </div>
+        <div style="background:#F5F2EC;border-radius:10px;padding:9px 12px;margin-bottom:10px;">
+          <p style="font-size:12px;font-weight:500;color:#6A6258;margin:0 0 3px;">调整原因</p>
+          <p style="font-size:13px;color:#28231E;margin:0;line-height:1.5;">${rec.reason}</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          ${rec.changes.map(c=>`
+            <div style="display:flex;align-items:flex-start;gap:8px;">
+              <span style="font-size:11px;font-weight:600;color:${TYPE_COLORS[c.type]||'#9A9188'};background:${TYPE_BG[c.type]||'#F5F2EC'};padding:2px 7px;border-radius:99px;flex-shrink:0;margin-top:1px;">${c.type}</span>
+              <div>
+                <span style="font-size:11px;color:#9A9188;">[${c.cat}] </span>
+                <span style="font-size:13px;color:#28231E;">${c.content}</span>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+loadHistory();
+</script>
+{% endblock %}

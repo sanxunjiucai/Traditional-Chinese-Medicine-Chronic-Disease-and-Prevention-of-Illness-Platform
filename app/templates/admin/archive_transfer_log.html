@@ -1,0 +1,207 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "my_archives" %}
+{% block title %}档案移交记录 - 治未病平台{% endblock %}
+{% block page_title %}档案移交记录{% endblock %}
+
+{% block content %}
+<!-- 筛选栏 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <!-- 时间范围 -->
+  <div class="flex rounded-lg overflow-hidden border border-gray-200 text-sm">
+    <button id="range-week" onclick="setRange('week')"
+      class="px-3 py-2 text-white transition-colors" style="background:#4E7A61;">本周</button>
+    <button id="range-month" onclick="setRange('month')"
+      class="px-3 py-2 bg-white text-gray-600 hover:bg-gray-50 transition-colors border-l border-gray-200">本月</button>
+    <button id="range-custom" onclick="setRange('custom')"
+      class="px-3 py-2 bg-white text-gray-600 hover:bg-gray-50 transition-colors border-l border-gray-200">自定义</button>
+  </div>
+  <div id="custom-range" class="hidden flex gap-2 items-center text-sm">
+    <input type="date" id="date-start" class="border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
+    <span class="text-gray-400">至</span>
+    <input type="date" id="date-end" class="border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
+  </div>
+  <select id="status-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
+    <option value="">全部状态</option>
+    <option value="PENDING">待确认</option>
+    <option value="DONE">已完成</option>
+    <option value="REJECTED">已拒绝</option>
+  </select>
+  <input id="q" type="text" placeholder="患者姓名 / 医生姓名"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-44 focus:outline-none focus:ring-2 focus:ring-emerald-300">
+  <button onclick="loadLogs(1)" class="text-white px-4 py-2 rounded-lg text-sm" style="background:#4E7A61;" onmouseover="this.style.background='#3F6A52'" onmouseout="this.style.background='#4E7A61'">搜索</button>
+  <a href="/gui/admin/archives/my" class="ml-auto text-sm text-gray-500 hover:text-emerald-600 flex items-center gap-1">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+    返回我的档案
+  </a>
+</div>
+
+<!-- 表格 -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-5 py-3 text-left">移交时间</th>
+        <th class="px-5 py-3 text-left">患者姓名</th>
+        <th class="px-5 py-3 text-left">移交方医生</th>
+        <th class="px-5 py-3 text-left">接收方医生</th>
+        <th class="px-5 py-3 text-left">移交原因</th>
+        <th class="px-5 py-3 text-left">状态</th>
+        <th class="px-5 py-3 text-left">操作</th>
+      </tr>
+    </thead>
+    <tbody id="log-tbody" class="divide-y divide-gray-100">
+      <tr><td colspan="7" class="text-center text-gray-400 py-10">加载中...</td></tr>
+    </tbody>
+  </table>
+  <div id="pagination" class="px-5 py-3 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500"></div>
+</div>
+
+<!-- 详情弹窗 -->
+<div id="detail-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/40">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="text-base font-semibold text-gray-800">移交详情</h3>
+      <button onclick="closeDetailModal()" class="text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div id="detail-content" class="space-y-3 text-sm text-gray-700"></div>
+    <div class="mt-6 text-right">
+      <button onclick="closeDetailModal()" class="border border-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">关闭</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const DEMO_LOGS = [
+  { id: 1, time: '2026-03-02 09:15', patient: '张三', from_doctor: '王医生（我）', to_doctor: '李明医生', reason: '患者转诊至专科门诊', status: 'DONE', notify: true },
+  { id: 2, time: '2026-03-01 14:30', patient: '李梅', from_doctor: '王医生（我）', to_doctor: '王芳医生', reason: '产假期间临时委托管理', status: 'PENDING', notify: false },
+  { id: 3, time: '2026-02-28 11:00', patient: '马秀珍', from_doctor: '陈医生', to_doctor: '王医生（我）', reason: '患者居住地变更', status: 'DONE', notify: true },
+  { id: 4, time: '2026-02-26 16:45', patient: '王建国', from_doctor: '王医生（我）', to_doctor: '刘静医生', reason: '老年专科重点管理需求', status: 'DONE', notify: true },
+  { id: 5, time: '2026-02-25 10:20', patient: '孙丽华', from_doctor: '张医生', to_doctor: '王医生（我）', reason: '孕期综合管理', status: 'REJECTED', notify: false },
+  { id: 6, time: '2026-02-22 15:00', patient: '赵大军', from_doctor: '王医生（我）', to_doctor: '张伟医生', reason: '血压长期控制不佳，转慢病专科', status: 'DONE', notify: true },
+  { id: 7, time: '2026-02-20 09:30', patient: '郑国华', from_doctor: '刘医生', to_doctor: '王医生（我）', reason: '肿瘤随访综合管理', status: 'PENDING', notify: true },
+  { id: 8, time: '2026-02-18 13:15', patient: '吴美玲', from_doctor: '王医生（我）', to_doctor: '刘静医生', reason: '老年综合评估需要专科介入', status: 'DONE', notify: false },
+  { id: 9, time: '2026-02-15 11:45', patient: '冯秀英', from_doctor: '陈医生', to_doctor: '王医生（我）', reason: '更年期综合症中医调理', status: 'DONE', notify: true },
+  { id: 10, time: '2026-02-12 14:00', patient: '陈永强', from_doctor: '王医生（我）', to_doctor: '陈磊医生', reason: '慢性肾病需要专科随访', status: 'REJECTED', notify: false },
+  { id: 11, time: '2026-02-10 10:00', patient: '周强', from_doctor: '李医生', to_doctor: '王医生（我）', reason: '脂肪肝患者中医干预管理', status: 'DONE', notify: true },
+  { id: 12, time: '2026-02-05 16:30', patient: '黄志远', from_doctor: '王医生（我）', to_doctor: '张伟医生', reason: '高尿酸血症慢病规范管理', status: 'PENDING', notify: false },
+];
+
+const STATUS_CONFIG = {
+  PENDING: { label: '待确认', cls: 'bg-yellow-100 text-yellow-700' },
+  DONE:    { label: '已完成', cls: 'bg-green-100 text-green-700' },
+  REJECTED:{ label: '已拒绝', cls: 'bg-red-100 text-red-700' },
+};
+
+let currentRange = 'week';
+const pageSize = 10;
+
+function setRange(range) {
+  currentRange = range;
+  ['week','month','custom'].forEach(r => {
+    const btn = document.getElementById('range-' + r);
+    if (r === range) {
+      btn.className = 'px-3 py-2 text-white transition-colors';
+      btn.style.background = '#4E7A61';
+    } else {
+      btn.className = 'px-3 py-2 bg-white text-gray-600 hover:bg-gray-50 transition-colors border-l border-gray-200';
+      btn.style.background = '';
+    }
+  });
+  document.getElementById('custom-range').className = range === 'custom' ? 'flex gap-2 items-center text-sm' : 'hidden flex gap-2 items-center text-sm';
+}
+
+async function loadLogs(page = 1) {
+  const q = document.getElementById('q').value.toLowerCase();
+  const status = document.getElementById('status-filter').value;
+  try {
+    const params = new URLSearchParams({ page, page_size: pageSize, q, status, range: currentRange });
+    const r = await fetch('/tools/archive/transfers?' + params);
+    const d = await r.json();
+    if (!d.success) throw new Error();
+    renderTable(d.items);
+    renderPagination(d.total, page);
+  } catch {
+    let filtered = DEMO_LOGS.filter(l =>
+      (!q || l.patient.includes(q) || l.from_doctor.includes(q) || l.to_doctor.includes(q)) &&
+      (!status || l.status === status)
+    );
+    const start = (page - 1) * pageSize;
+    renderTable(filtered.slice(start, start + pageSize));
+    renderPagination(filtered.length, page);
+  }
+}
+
+function renderTable(rows) {
+  const tbody = document.getElementById('log-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-gray-400 py-10">暂无记录</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(l => {
+    const sc = STATUS_CONFIG[l.status] || { label: l.status, cls: 'bg-gray-100 text-gray-600' };
+    return `
+    <tr class="hover:bg-gray-50 transition-colors">
+      <td class="px-5 py-3 text-gray-500 text-xs whitespace-nowrap">${l.time}</td>
+      <td class="px-5 py-3 font-medium text-gray-800">${l.patient}</td>
+      <td class="px-5 py-3 text-gray-600">${l.from_doctor}</td>
+      <td class="px-5 py-3 text-gray-600">${l.to_doctor}</td>
+      <td class="px-5 py-3 text-gray-500 max-w-xs">
+        <span class="truncate block" title="${l.reason}">${l.reason.length > 18 ? l.reason.slice(0,18)+'…' : l.reason}</span>
+      </td>
+      <td class="px-5 py-3">
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${sc.cls}">${sc.label}</span>
+      </td>
+      <td class="px-5 py-3">
+        <button onclick='openDetail(${JSON.stringify(l)})' class="hover:underline text-xs" style="color:#4E7A61;">查看详情</button>
+      </td>
+    </tr>
+  `}).join('');
+}
+
+function renderPagination(total, page) {
+  const totalPages = Math.ceil(total / pageSize);
+  document.getElementById('pagination').innerHTML = `
+    <span>共 ${total} 条记录</span>
+    <div class="flex items-center gap-1">
+      <button onclick="loadLogs(${page-1})" ${page<=1?'disabled':''} class="px-2 py-1 rounded border border-gray-200 text-xs hover:bg-gray-50 disabled:opacity-40">上一页</button>
+      <span class="px-3 text-xs">${page} / ${totalPages||1}</span>
+      <button onclick="loadLogs(${page+1})" ${page>=totalPages?'disabled':''} class="px-2 py-1 rounded border border-gray-200 text-xs hover:bg-gray-50 disabled:opacity-40">下一页</button>
+    </div>
+  `;
+}
+
+function openDetail(log) {
+  const sc = STATUS_CONFIG[log.status] || { label: log.status, cls: 'bg-gray-100 text-gray-600' };
+  document.getElementById('detail-content').innerHTML = `
+    <div class="grid grid-cols-2 gap-3">
+      <div><span class="text-gray-400">移交时间：</span><span>${log.time}</span></div>
+      <div><span class="text-gray-400">状态：</span><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${sc.cls}">${sc.label}</span></div>
+      <div><span class="text-gray-400">患者姓名：</span><span class="font-medium">${log.patient}</span></div>
+      <div><span class="text-gray-400">通知患者：</span><span>${log.notify ? '是' : '否'}</span></div>
+      <div><span class="text-gray-400">移交方医生：</span><span>${log.from_doctor}</span></div>
+      <div><span class="text-gray-400">接收方医生：</span><span>${log.to_doctor}</span></div>
+    </div>
+    <div class="mt-3 p-3 bg-gray-50 rounded-lg">
+      <p class="text-gray-400 text-xs mb-1">移交原因</p>
+      <p>${log.reason}</p>
+    </div>
+  `;
+  document.getElementById('detail-modal').classList.remove('hidden');
+}
+
+function closeDetailModal() {
+  document.getElementById('detail-modal').classList.add('hidden');
+}
+
+setRange('week');
+loadLogs(1);
+</script>
+{% endblock %}

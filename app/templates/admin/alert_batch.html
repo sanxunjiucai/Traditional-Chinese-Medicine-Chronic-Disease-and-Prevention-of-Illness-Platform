@@ -1,0 +1,481 @@
+{% extends "_layouts/admin.html" %}
+{% block title %}预警批量处置{% endblock %}
+{% block page_title %}预警批量处置台{% endblock %}
+{% set active_nav = "alerts" %}
+
+{% block extra_head %}
+<style>
+  .sev-HIGH   { background:#fef2f2; color:#dc2626; border-color:#fecaca; }
+  .sev-MEDIUM { background:#fff7ed; color:#ea580c; border-color:#fed7aa; }
+  .sev-LOW    { background:#fefce8; color:#ca8a04; border-color:#fde68a; }
+  .sev-badge-HIGH   { background:#fef2f2; color:#dc2626; }
+  .sev-badge-MEDIUM { background:#fff7ed; color:#ea580c; }
+  .sev-badge-LOW    { background:#fefce8; color:#ca8a04; }
+  .batch-bar { transition: all 0.2s ease; }
+  .alert-row { transition: background 0.1s; }
+  .alert-row:hover { background:#fafafa; }
+  .alert-row.checked-row { background:#fff5f5; }
+  .tab-active   { background:#dc2626; color:#fff; }
+  .tab-inactive { background:#f3f4f6; color:#6b7280; }
+  .tab-inactive:hover { background:#e5e7eb; }
+  .modal-overlay { background:rgba(0,0,0,0.45); }
+  #assign-modal { width:360px; }
+  .action-btn { transition:all 0.15s; }
+  .action-btn:hover { transform:translateY(-1px); }
+  .pulse-dot { animation:pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 顶部统计 -->
+<div class="grid grid-cols-3 gap-4 mb-5">
+  <div class="bg-white rounded-xl p-5 shadow-sm border-l-4 border-red-600 flex items-center gap-4">
+    <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+      <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+      </svg>
+    </div>
+    <div>
+      <div class="text-3xl font-black text-red-600" id="stat-pending">—</div>
+      <div class="text-sm text-gray-500">待处理预警总数</div>
+    </div>
+    <div class="ml-auto">
+      <span class="pulse-dot inline-block w-2 h-2 bg-red-500 rounded-full"></span>
+    </div>
+  </div>
+  <div class="bg-white rounded-xl p-5 shadow-sm border-l-4 border-orange-500 flex items-center gap-4">
+    <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+      <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+      </svg>
+    </div>
+    <div>
+      <div class="text-3xl font-black text-orange-600" id="stat-high">—</div>
+      <div class="text-sm text-gray-500">今日高危</div>
+    </div>
+  </div>
+  <div class="bg-white rounded-xl p-5 shadow-sm border-l-4 border-yellow-500 flex items-center gap-4">
+    <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0">
+      <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/>
+      </svg>
+    </div>
+    <div>
+      <div class="text-3xl font-black text-yellow-600" id="stat-week">—</div>
+      <div class="text-sm text-gray-500">本周未处理</div>
+    </div>
+  </div>
+</div>
+
+<!-- 快速筛选 Tab + 操作栏 -->
+<div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
+  <div class="flex gap-2">
+    <button id="tab-all" onclick="setTab('all')"
+      class="tab-active px-4 py-2 rounded-lg text-sm font-medium transition-all">全部待处理</button>
+    <button id="tab-high" onclick="setTab('high')"
+      class="tab-inactive px-4 py-2 rounded-lg text-sm font-medium transition-all">🔴 高危优先</button>
+    <button id="tab-today" onclick="setTab('today')"
+      class="tab-inactive px-4 py-2 rounded-lg text-sm font-medium transition-all">📅 今日新增</button>
+  </div>
+  <div class="flex items-center gap-3">
+    <select id="filter-doctor"
+      class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-300">
+      <option value="">全部医生</option>
+      <option value="王明">王明医生</option>
+      <option value="李芳">李芳医生</option>
+      <option value="张伟">张伟医生</option>
+      <option value="刘霞">刘霞医生</option>
+    </select>
+    <div class="relative">
+      <svg class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
+      </svg>
+      <input type="search" id="search-alert" placeholder="搜索患者..."
+        class="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-300 bg-white w-44"
+        oninput="filterAlerts()">
+    </div>
+    <button onclick="filterAlerts()" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-2 rounded-lg text-sm transition-colors">刷新</button>
+  </div>
+</div>
+
+<!-- 预警列表 -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 border-b border-gray-200 sticky top-0">
+      <tr>
+        <th class="px-4 py-3 w-10">
+          <input type="checkbox" id="select-all" onchange="toggleSelectAll(this.checked)"
+            class="rounded text-red-600 focus:ring-red-300 cursor-pointer">
+        </th>
+        <th class="text-left px-3 py-3 text-gray-500 font-medium w-20">严重度</th>
+        <th class="text-left px-3 py-3 text-gray-500 font-medium">患者信息</th>
+        <th class="text-left px-3 py-3 text-gray-500 font-medium">预警规则</th>
+        <th class="text-left px-3 py-3 text-gray-500 font-medium">触发值</th>
+        <th class="text-left px-3 py-3 text-gray-500 font-medium">触发时间</th>
+        <th class="text-left px-3 py-3 text-gray-500 font-medium">责任医生</th>
+        <th class="text-left px-3 py-3 text-gray-500 font-medium w-28">操作</th>
+      </tr>
+    </thead>
+    <tbody id="alert-tbody">
+      <tr><td colspan="8" class="text-center py-12 text-gray-400">加载中...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 批量操作栏（悬浮底部） -->
+<div id="batch-bar" class="batch-bar fixed bottom-6 left-1/2 -translate-x-1/2 hidden z-40">
+  <div class="bg-gray-900 text-white rounded-2xl shadow-2xl px-6 py-4 flex items-center gap-4">
+    <div class="flex items-center gap-2">
+      <div class="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-xs font-bold" id="batch-count">0</div>
+      <span class="text-sm text-gray-300">条已选中</span>
+    </div>
+    <div class="w-px h-6 bg-gray-600"></div>
+    <button onclick="batchAck()" class="action-btn flex items-center gap-1.5 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all" style="background:#4E7A61">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+      </svg>
+      批量确认
+    </button>
+    <button onclick="openCloseModal()" class="action-btn flex items-center gap-1.5 bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+      批量关闭
+    </button>
+    <button onclick="openAssignModal()" class="action-btn flex items-center gap-1.5 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all" style="background:#5070A8">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM12 14a7 7 0 0 0-7 7h14a7 7 0 0 0-7-7z"/>
+      </svg>
+      分配医生
+    </button>
+    <button onclick="clearSelection()" class="text-gray-400 hover:text-gray-200 transition-colors text-sm">取消</button>
+  </div>
+</div>
+
+<!-- 批量关闭备注弹窗 -->
+<div id="close-modal-overlay" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center hidden">
+  <div class="bg-white rounded-2xl shadow-2xl w-80 p-6">
+    <h3 class="text-base font-semibold text-gray-800 mb-4">填写统一处置备注</h3>
+    <textarea id="close-remark" rows="3" placeholder="请填写批量关闭的处置说明..."
+      class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 resize-none mb-4"></textarea>
+    <div class="flex gap-3">
+      <button onclick="closeCloseModal()" class="flex-1 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50">取消</button>
+      <button onclick="batchClose()" class="flex-1 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">确认关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 分配医生弹窗 -->
+<div id="assign-modal-overlay" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center hidden">
+  <div id="assign-modal" class="bg-white rounded-2xl shadow-2xl p-6">
+    <h3 class="text-base font-semibold text-gray-800 mb-4">批量分配责任医生</h3>
+    <div class="space-y-2 mb-4">
+      <label class="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 cursor-pointer">
+        <input type="radio" name="assign-doctor" value="王明" class="text-purple-600"> <span class="text-sm">王明 医生（内科）</span>
+      </label>
+      <label class="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 cursor-pointer">
+        <input type="radio" name="assign-doctor" value="李芳" class="text-purple-600"> <span class="text-sm">李芳 医生（全科）</span>
+      </label>
+      <label class="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 cursor-pointer">
+        <input type="radio" name="assign-doctor" value="张伟" class="text-purple-600"> <span class="text-sm">张伟 医生（心内科）</span>
+      </label>
+      <label class="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 cursor-pointer">
+        <input type="radio" name="assign-doctor" value="刘霞" class="text-purple-600"> <span class="text-sm">刘霞 医生（内分泌）</span>
+      </label>
+    </div>
+    <div class="flex gap-3">
+      <button onclick="closeAssignModal()" class="flex-1 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50">取消</button>
+      <button onclick="batchAssign()" class="flex-1 py-2 text-sm text-white rounded-lg font-medium" style="background:#5070A8">确认分配</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// 演示兜底数据（API 不可用时使用）
+const DEMO_ALERTS = [
+  { id:'d1', severity:'HIGH',   patient:'李建国', phone:'****4001', rule:'收缩压危急值', triggerVal:'185 mmHg', time:'2026-03-03 08:12', doctor:'王明', status:'OPEN', today:true },
+  { id:'d2', severity:'HIGH',   patient:'张福林', phone:'****6001', rule:'心率过快预警', triggerVal:'128次/分', time:'2026-03-03 09:05', doctor:'张伟', status:'OPEN', today:true },
+  { id:'d3', severity:'MEDIUM', patient:'王秀英', phone:'****5001', rule:'空腹血糖升高', triggerVal:'12.8 mmol/L', time:'2026-03-03 07:30', doctor:'刘霞', status:'OPEN', today:true },
+];
+let ALL_ALERTS = [...DEMO_ALERTS];  // 将被 API 数据替换
+
+const SEV_LABELS = { HIGH:'高危', MEDIUM:'中危', LOW:'低危' };
+let currentTab = 'all';
+let selectedIds = new Set();
+let displayData = [];
+const todayStr = new Date().toISOString().split('T')[0];
+
+// 将 API 数据映射到显示格式
+function mapAlert(a) {
+  const createdAt = a.created_at || '';
+  const isToday = createdAt.startsWith(todayStr);
+  const timeStr = createdAt ? createdAt.replace('T', ' ').slice(0, 16) : '';
+  return {
+    id: a.id,
+    severity: a.severity || 'LOW',
+    patient: a.user_name || '未知',
+    phone: a.user_phone ? '****' + a.user_phone.slice(-4) : '****',
+    rule: a.rule_name || a.message || '未知规则',
+    triggerVal: a.trigger_value || a.message || '-',
+    time: timeStr,
+    doctor: a.handler_note || '待分配',
+    status: a.status || 'OPEN',
+    today: isToday,
+  };
+}
+
+async function loadAlerts() {
+  try {
+    const params = new URLSearchParams({ status: 'OPEN', page_size: 100 });
+    if (currentTab === 'high') params.set('severity', 'HIGH');
+    const resp = await fetch('/tools/alerts/admin?' + params);
+    const d = await resp.json();
+    if (d.success) {
+      ALL_ALERTS = (Array.isArray(d.data) ? d.data : d.data?.items || []).map(mapAlert);
+      filterAlerts();
+      return;
+    }
+  } catch (_) {}
+  ALL_ALERTS = [...DEMO_ALERTS];
+  filterAlerts();
+}
+
+function setTab(tab) {
+  currentTab = tab;
+  ['all','high','today'].forEach(t => {
+    document.getElementById('tab-'+t).className = t === tab
+      ? 'tab-active px-4 py-2 rounded-lg text-sm font-medium transition-all'
+      : 'tab-inactive px-4 py-2 rounded-lg text-sm font-medium transition-all';
+  });
+  selectedIds.clear();
+  loadAlerts();
+}
+
+function filterAlerts() {
+  const q = document.getElementById('search-alert').value.toLowerCase();
+  const doctor = document.getElementById('filter-doctor').value;
+  displayData = ALL_ALERTS.filter(a => {
+    if (currentTab === 'high' && a.severity !== 'HIGH') return false;
+    if (currentTab === 'today' && !a.today) return false;
+    if (q && !a.patient.includes(q) && !a.rule.includes(q)) return false;
+    if (doctor && a.doctor !== doctor) return false;
+    return a.status === 'OPEN';
+  });
+  renderAlerts();
+  updateStats();
+}
+
+function renderAlerts() {
+  const tbody = document.getElementById('alert-tbody');
+  if (!displayData.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-12 text-gray-400">没有符合条件的待处理预警</td></tr>';
+    document.getElementById('select-all').checked = false;
+    return;
+  }
+  tbody.innerHTML = displayData.map(a => {
+    const checked = selectedIds.has(a.id);
+    const sevCls = `sev-badge-${a.severity}`;
+    return `
+      <tr class="alert-row border-b border-gray-50 ${checked ? 'checked-row' : ''}" id="row-${a.id}">
+        <td class="px-4 py-3">
+          <input type="checkbox" class="row-cb rounded text-red-600 focus:ring-red-300 cursor-pointer"
+            ${checked ? 'checked' : ''} onchange="toggleRow(${a.id}, this.checked)">
+        </td>
+        <td class="px-3 py-3">
+          <span class="text-xs font-semibold px-2 py-1 rounded-full border ${sevCls} sev-${a.severity}">${SEV_LABELS[a.severity]}</span>
+        </td>
+        <td class="px-3 py-3">
+          <div class="font-medium text-gray-800">${a.patient}</div>
+          <div class="text-xs text-gray-400">****${a.phone}</div>
+        </td>
+        <td class="px-3 py-3 text-gray-700 max-w-36 truncate" title="${a.rule}">${a.rule}</td>
+        <td class="px-3 py-3">
+          <span class="text-sm font-medium text-gray-800">${a.triggerVal}</span>
+        </td>
+        <td class="px-3 py-3 text-xs text-gray-500">${a.time}</td>
+        <td class="px-3 py-3">
+          <span class="text-xs px-2 py-0.5 rounded-full" style="background:#EBF2ED;color:#4E7A61">${a.doctor}</span>
+        </td>
+        <td class="px-3 py-3">
+          <div class="flex gap-1.5">
+            <button onclick="singleAck(${a.id})" title="确认"
+              class="text-xs px-2 py-1 rounded transition-colors" style="color:#4E7A61;border:1px solid #C5D9CB" onmouseover="this.style.background='#EBF2ED'" onmouseout="this.style.background=''">确认</button>
+            <button onclick="singleClose(${a.id})" title="关闭"
+              class="text-xs text-gray-500 hover:bg-gray-50 px-2 py-1 rounded border border-gray-200 transition-colors">关闭</button>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+  document.getElementById('select-all').checked = displayData.length > 0 && displayData.every(a => selectedIds.has(a.id));
+  updateBatchBar();
+}
+
+function updateStats() {
+  const open = ALL_ALERTS.filter(a => a.status === 'OPEN');
+  document.getElementById('stat-pending').textContent = open.length;
+  document.getElementById('stat-high').textContent = open.filter(a => a.severity === 'HIGH' && a.today).length;
+  document.getElementById('stat-week').textContent = open.length;
+}
+
+function toggleRow(id, checked) {
+  if (checked) selectedIds.add(id);
+  else selectedIds.delete(id);
+  const row = document.getElementById('row-'+id);
+  if (row) row.className = `alert-row border-b border-gray-50 ${checked ? 'checked-row' : ''}`;
+  document.getElementById('select-all').checked = displayData.length > 0 && displayData.every(a => selectedIds.has(a.id));
+  updateBatchBar();
+}
+
+function toggleSelectAll(checked) {
+  displayData.forEach(a => {
+    if (checked) selectedIds.add(a.id);
+    else selectedIds.delete(a.id);
+    const row = document.getElementById('row-'+a.id);
+    if (row) row.className = `alert-row border-b border-gray-50 ${checked ? 'checked-row' : ''}`;
+  });
+  document.querySelectorAll('.row-cb').forEach(cb => cb.checked = checked);
+  updateBatchBar();
+}
+
+function clearSelection() {
+  selectedIds.clear();
+  displayData.forEach(a => {
+    const row = document.getElementById('row-'+a.id);
+    if (row) row.className = 'alert-row border-b border-gray-50';
+  });
+  document.querySelectorAll('.row-cb').forEach(cb => cb.checked = false);
+  document.getElementById('select-all').checked = false;
+  updateBatchBar();
+}
+
+function updateBatchBar() {
+  const bar = document.getElementById('batch-bar');
+  const cnt = selectedIds.size;
+  document.getElementById('batch-count').textContent = cnt;
+  if (cnt > 0) bar.classList.remove('hidden');
+  else bar.classList.add('hidden');
+}
+
+function removeSelected() {
+  selectedIds.forEach(id => {
+    const a = ALL_ALERTS.find(x => x.id === id);
+    if (a) a.status = 'CLOSED';
+  });
+  selectedIds.clear();
+  filterAlerts();
+}
+
+async function batchAck() {
+  const n = selectedIds.size;
+  const ids = [...selectedIds];
+  await Promise.all(ids.map(id =>
+    fetch(`/tools/alerts/${id}/ack`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: '{}' }).catch(() => null)
+  ));
+  ids.forEach(id => {
+    const a = ALL_ALERTS.find(x => x.id === id);
+    if (a) a.status = 'ACKED';
+  });
+  selectedIds.clear();
+  filterAlerts();
+  showToast(`已批量确认 ${n} 条预警`, 'blue');
+}
+
+function openCloseModal() {
+  document.getElementById('close-remark').value = '';
+  document.getElementById('close-modal-overlay').classList.remove('hidden');
+}
+function closeCloseModal() {
+  document.getElementById('close-modal-overlay').classList.add('hidden');
+}
+async function batchClose() {
+  const remark = document.getElementById('close-remark').value.trim();
+  if (!remark) { showToast('请填写处置备注'); return; }
+  const n = selectedIds.size;
+  const ids = [...selectedIds];
+  await Promise.all(ids.map(id =>
+    fetch(`/tools/alerts/${id}/close`, {
+      method: 'PATCH', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ note: remark })
+    }).catch(() => null)
+  ));
+  ids.forEach(id => {
+    const a = ALL_ALERTS.find(x => x.id === id);
+    if (a) a.status = 'CLOSED';
+  });
+  selectedIds.clear();
+  closeCloseModal();
+  filterAlerts();
+  showToast(`已批量关闭 ${n} 条预警`, 'gray');
+}
+
+function openAssignModal() {
+  document.getElementById('assign-modal-overlay').classList.remove('hidden');
+  document.querySelectorAll('input[name="assign-doctor"]').forEach(r => r.checked = false);
+}
+function closeAssignModal() {
+  document.getElementById('assign-modal-overlay').classList.add('hidden');
+}
+function batchAssign() {
+  const doc = document.querySelector('input[name="assign-doctor"]:checked');
+  if (!doc) { showToast('请选择医生'); return; }
+  const n = selectedIds.size;
+  selectedIds.forEach(id => {
+    const a = ALL_ALERTS.find(x => x.id === id);
+    if (a) a.doctor = doc.value;
+  });
+  selectedIds.clear();
+  closeAssignModal();
+  filterAlerts();
+  showToast(`已将 ${n} 条预警分配给 ${doc.value} 医生`, 'purple');
+}
+
+async function singleAck(id) {
+  try {
+    await fetch(`/tools/alerts/${id}/ack`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: '{}' });
+  } catch (_) {}
+  const a = ALL_ALERTS.find(x => x.id === id);
+  if (a) a.status = 'ACKED';
+  selectedIds.delete(id);
+  filterAlerts();
+  showToast('预警已确认', 'blue');
+}
+
+async function singleClose(id) {
+  const note = prompt('请填写关闭备注：');
+  if (note === null) return;
+  try {
+    await fetch(`/tools/alerts/${id}/close`, {
+      method: 'PATCH', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ note })
+    });
+  } catch (_) {}
+  const a = ALL_ALERTS.find(x => x.id === id);
+  if (a) a.status = 'CLOSED';
+  selectedIds.delete(id);
+  filterAlerts();
+  showToast('预警已关闭', 'gray');
+}
+
+function showToast(msg, color) {
+  const bgMap = { blue:'#4E7A61', gray:'#4b5563', purple:'#B8885E', red:'#dc2626' };
+  const toast = document.createElement('div');
+  toast.className = 'fixed bottom-24 left-1/2 -translate-x-1/2 text-white px-5 py-3 rounded-xl shadow-xl text-sm z-50 transition-opacity';
+  toast.style.background = bgMap[color] || '#374151';
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 2000);
+}
+
+document.getElementById('close-modal-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeCloseModal();
+});
+document.getElementById('assign-modal-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeAssignModal();
+});
+
+loadAlerts();
+</script>
+{% endblock %}

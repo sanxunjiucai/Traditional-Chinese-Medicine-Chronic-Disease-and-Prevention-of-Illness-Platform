@@ -10,11 +10,107 @@ from app.database import get_db
 from app.deps import get_current_user
 from app.models.enums import DiseaseType, IndicatorType
 from app.models.health import ChronicDiseaseRecord, HealthIndicator, HealthProfile
+from app.models.user import User
 from app.services.alert_engine import check_indicator
 from app.services.audit_service import log_action
+from app.services.auth_service import hash_password, verify_password
 from app.tools.response import fail, ok
 
 router = APIRouter(tags=["health-tools"])
+
+
+# ── 个人资料（管理端用）──
+
+class ProfileMeRequest(BaseModel):
+    name: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    title: str | None = None      # 职称（暂存忽略，User 模型无此字段）
+    specialty: str | None = None  # 专长（暂存忽略）
+    bio: str | None = None        # 简介（暂存忽略）
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.get("/profile/me")
+async def get_profile_me(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: User = Depends(get_current_user),
+):
+    """获取当前用户基础信息（管理端个人设置页）。"""
+    return ok({
+        "id": str(current_user.id),
+        "name": current_user.name,
+        "phone": current_user.phone,
+        "email": getattr(current_user, "email", None),
+        "role": current_user.role.value if hasattr(current_user.role, "value") else current_user.role,
+    })
+
+
+@router.patch("/profile/me")
+async def update_profile_me(
+    body: ProfileMeRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: User = Depends(get_current_user),
+):
+    """更新当前用户姓名/手机/邮箱（管理端个人设置页）。"""
+    changed: dict = {}
+    if body.name and body.name != current_user.name:
+        changed["name"] = body.name
+        current_user.name = body.name
+    if body.phone and body.phone != current_user.phone:
+        # 检查手机号唯一性
+        dup = await db.execute(
+            select(User).where(User.phone == body.phone)
+        )
+        if dup.scalar_one_or_none() is not None:
+            return fail("VALIDATION_ERROR", "该手机号已被其他账号使用", status_code=400)
+        changed["phone"] = body.phone
+        current_user.phone = body.phone
+    if body.email is not None and body.email != current_user.email:
+        changed["email"] = body.email
+        current_user.email = body.email or None
+
+    if changed:
+        db.add(current_user)
+        await log_action(
+            db, action="UPDATE_PROFILE_ME", resource_type="User",
+            user_id=current_user.id, resource_id=str(current_user.id),
+            new_values=changed,
+        )
+        await db.commit()
+
+    return ok({
+        "id": str(current_user.id),
+        "name": current_user.name,
+        "phone": current_user.phone,
+        "email": current_user.email,
+    })
+
+
+@router.post("/profile/change-password")
+async def change_password(
+    body: ChangePasswordRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: User = Depends(get_current_user),
+):
+    """修改当前用户密码（管理端个人设置页）。"""
+    if not verify_password(body.current_password, current_user.password_hash):
+        return fail("VALIDATION_ERROR", "当前密码错误", status_code=400)
+    if len(body.new_password) < 8:
+        return fail("VALIDATION_ERROR", "新密码不能少于 8 位", status_code=400)
+
+    current_user.password_hash = hash_password(body.new_password)
+    db.add(current_user)
+    await log_action(
+        db, action="CHANGE_PASSWORD", resource_type="User",
+        user_id=current_user.id, resource_id=str(current_user.id),
+    )
+    await db.commit()
+    return ok({"changed": True})
 
 
 # ── Health Profile ──

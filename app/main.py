@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 import asyncio
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -14,15 +15,20 @@ async def lifespan(app: FastAPI):
     if settings.demo_mode:
         from scripts.seed_demo import run_seed
         await run_seed()
-    # 启动后台定时任务（漏打卡标记）
-    from app.tasks import run_scheduler
-    task = asyncio.create_task(run_scheduler())
+        from scripts.seed_rich_demo import run_rich_seed
+        await run_rich_seed()
+    # 启动后台定时任务（每日 + 5分钟扫描）
+    from app.tasks import run_scheduler, run_5min_scanner
+    task_daily = asyncio.create_task(run_scheduler())
+    task_scan = asyncio.create_task(run_5min_scanner())
     yield
-    task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        pass
+    task_daily.cancel()
+    task_scan.cancel()
+    for t in [task_daily, task_scan]:
+        try:
+            await t
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(
@@ -31,6 +37,16 @@ app = FastAPI(
     docs_url="/api/docs",
     redoc_url=None,
     lifespan=lifespan,
+)
+
+# CORS — 来源列表由 settings.cors_origins 控制（见 config.py / .env CORS_ORIGINS）
+# 注意：allow_origins=["*"] 与 allow_credentials=True 不兼容，必须明确列出来源
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Static files

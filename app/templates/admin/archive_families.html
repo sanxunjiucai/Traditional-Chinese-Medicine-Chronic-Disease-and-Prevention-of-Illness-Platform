@@ -1,0 +1,404 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "archive_families" %}
+{% block title %}家庭档案 - 治未病平台{% endblock %}
+{% block page_title %}家庭档案管理{% endblock %}
+
+{% block content %}
+<!-- 操作栏 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-2 flex flex-wrap gap-3 items-center">
+  <input id="q" type="text" placeholder="搜索家庭名称或地址"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-emerald-300">
+  <button onclick="loadFamilies(1)" class="text-white px-4 py-2 rounded-lg text-sm" style="background:#4E7A61;" onmouseover="this.style.background='#3F6A52'" onmouseout="this.style.background='#4E7A61'">搜索</button>
+  <button onclick="openNewModal()" class="ml-auto bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">+ 新建家庭档案</button>
+</div>
+
+<!-- 批量操作栏 -->
+<div id="batch-bar" class="hidden rounded-xl px-4 py-3 mb-3 flex items-center gap-3" style="background:#EBF2ED;border:1px solid #B8D4C2;">
+  <span id="batch-count" class="text-sm font-medium" style="color:#4E7A61;">已选 0 条</span>
+  <button onclick="batchAssignDoctor()" class="bg-white px-3 py-1.5 rounded-lg text-sm" style="border:1px solid #B8D4C2;color:#4E7A61;">调整责任医生</button>
+  <button onclick="batchAssignOrg()" class="bg-white px-3 py-1.5 rounded-lg text-sm" style="border:1px solid #B8D4C2;color:#4E7A61;">调整管辖机构</button>
+  <button onclick="clearSelection()" class="ml-auto text-xs text-gray-400 hover:text-gray-600">取消选择</button>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-4 py-3 text-left"><input type="checkbox" id="select-all" class="rounded" onchange="toggleAll(this)"></th>
+        <th class="px-5 py-3 text-left">家庭名称</th>
+        <th class="px-5 py-3 text-left">家庭地址</th>
+        <th class="px-5 py-3 text-left">成员数</th>
+        <th class="px-5 py-3 text-left">创建时间</th>
+        <th class="px-5 py-3 text-left">操作</th>
+      </tr>
+    </thead>
+    <tbody id="family-tbody" class="divide-y divide-gray-100">
+      <tr><td colspan="6" class="text-center text-gray-400 py-10">加载中...</td></tr>
+    </tbody>
+  </table>
+  <div id="pagination" class="px-5 py-3 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500"></div>
+</div>
+
+<!-- 新建弹窗 -->
+<div id="new-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+    <h3 class="font-semibold text-gray-800 mb-4">新建家庭档案</h3>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">家庭名称 <span class="text-red-500">*</span></label>
+        <input id="f-name" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="例：张家">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">家庭地址</label>
+        <input id="f-address" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="详细地址">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">备注</label>
+        <textarea id="f-notes" rows="2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"></textarea>
+      </div>
+    </div>
+    <div id="modal-err" class="hidden mt-2 text-sm text-red-500"></div>
+    <div class="flex gap-3 justify-end mt-4">
+      <button onclick="closeModal()" class="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600">取消</button>
+      <button onclick="saveFamily()" class="px-4 py-2 rounded-lg bg-green-600 text-white text-sm hover:bg-green-700">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 成员管理弹窗 -->
+<div id="member-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+      <h3 class="font-semibold text-gray-800">家庭成员管理 — <span id="member-family-name" style="color:#4E7A61;"></span></h3>
+      <button onclick="closeMemberModal()" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+    </div>
+    <!-- Tab -->
+    <div class="flex gap-1 px-6 pt-3">
+      <button onclick="switchMemberTab('list')" id="mtab-list"
+        class="member-tab px-4 py-2 rounded-lg text-sm font-medium text-white" style="background:#4E7A61;">成员列表</button>
+      <button onclick="switchMemberTab('add')" id="mtab-add"
+        class="member-tab px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100">添加成员</button>
+    </div>
+    <!-- 成员列表 -->
+    <div id="member-tab-list" class="flex-1 overflow-y-auto px-6 py-4">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 text-xs">
+          <tr>
+            <th class="px-3 py-2 text-left">姓名</th>
+            <th class="px-3 py-2 text-left">性别</th>
+            <th class="px-3 py-2 text-left">年龄</th>
+            <th class="px-3 py-2 text-left">与户主关系</th>
+            <th class="px-3 py-2 text-left">操作</th>
+          </tr>
+        </thead>
+        <tbody id="member-tbody" class="divide-y divide-gray-100">
+          <tr><td colspan="5" class="text-center text-gray-400 py-6">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <!-- 添加成员 -->
+    <div id="member-tab-add" class="hidden px-6 py-4 space-y-4">
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">搜索已有档案</label>
+        <div class="flex gap-2">
+          <input id="search-archive" type="text" placeholder="输入姓名或手机号搜索档案"
+            class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
+          <button onclick="searchArchive()" class="text-white px-4 py-2 rounded-lg text-sm" style="background:#4E7A61;" onmouseover="this.style.background='#3F6A52'" onmouseout="this.style.background='#4E7A61'">搜索</button>
+        </div>
+      </div>
+      <div id="archive-search-result" class="hidden border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-40 overflow-y-auto"></div>
+      <div id="selected-archive" class="hidden rounded-lg p-3 text-sm" style="background:#EBF2ED;">
+        <p class="font-medium" style="color:#4E7A61;">已选择：<span id="selected-archive-name"></span></p>
+      </div>
+      <div id="add-member-form" class="hidden space-y-3">
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">与户主关系 <span class="text-red-500">*</span></label>
+          <select id="member-relation" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+            <option value="户主">户主</option>
+            <option value="配偶">配偶</option>
+            <option value="子女">子女</option>
+            <option value="父母">父母</option>
+            <option value="祖父母">祖父母</option>
+            <option value="兄弟姐妹">兄弟姐妹</option>
+            <option value="其他">其他</option>
+          </select>
+        </div>
+        <button onclick="addMember()" class="w-full bg-green-600 text-white py-2 rounded-lg text-sm hover:bg-green-700">添加到家庭</button>
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t border-gray-100 flex justify-between items-center">
+      <a id="member-detail-link" href="#" class="text-sm hover:underline" style="color:#4E7A61;">查看家庭详情页 →</a>
+      <button onclick="closeMemberModal()" class="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">关闭</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let currentPage = 1;
+let currentFamilyId = null;
+let selectedArchiveId = null;
+
+async function loadFamilies(page = 1) {
+  currentPage = page;
+  const q = document.getElementById('q').value;
+  const params = new URLSearchParams({page, page_size: 20});
+  if (q) params.set('q', q);
+  const r = await fetch(`/tools/archive/families?${params}`);
+  const j = await r.json();
+  if (!j.success) return;
+  const { items, total } = j.data;
+  const tbody = document.getElementById('family-tbody');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-400 py-10">暂无家庭档案</td></tr>';
+  } else {
+    tbody.innerHTML = items.map(f => `
+      <tr class="hover:bg-gray-50">
+        <td class="px-4 py-3"><input type="checkbox" class="row-check rounded" value="${f.id}" onchange="updateBatchBar()"></td>
+        <td class="px-5 py-3 font-medium text-gray-800">
+          <a href="/gui/admin/archives/families/${f.id}" class="hover:underline" style="color:#4E7A61;">${f.family_name}</a>
+        </td>
+        <td class="px-5 py-3 text-gray-500">${f.address || '-'}</td>
+        <td class="px-5 py-3 text-gray-700">
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs" style="background:#EBF2ED;color:#4E7A61;">${f.member_count} 人</span>
+        </td>
+        <td class="px-5 py-3 text-gray-400 text-xs">${f.created_at?.substring(0,10) || '-'}</td>
+        <td class="px-5 py-3 flex gap-2 flex-wrap">
+          <a href="/gui/admin/archives/families/${f.id}" class="text-xs hover:underline" style="color:#4E7A61;">详情</a>
+          <button onclick="openMemberModal('${f.id}','${f.family_name}')" class="text-green-600 text-xs hover:underline">管理成员</button>
+          <button onclick="deleteFamily('${f.id}','${f.family_name}')" class="text-red-400 text-xs hover:underline">删除</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+  const totalPages = Math.max(1, Math.ceil(total / 20));
+  document.getElementById('pagination').innerHTML = `
+    <span>共 ${total} 条</span>
+    <div class="flex gap-2">
+      ${page > 1 ? `<button onclick="loadFamilies(${page-1})" class="px-3 py-1 rounded border text-xs">上一页</button>` : ''}
+      <span class="text-xs">第 ${page}/${totalPages} 页</span>
+      ${page < totalPages ? `<button onclick="loadFamilies(${page+1})" class="px-3 py-1 rounded border text-xs">下一页</button>` : ''}
+    </div>
+  `;
+}
+
+function openNewModal() { document.getElementById('new-modal').classList.remove('hidden'); }
+function closeModal() { document.getElementById('new-modal').classList.add('hidden'); }
+
+async function saveFamily() {
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) {
+    const el = document.getElementById('modal-err');
+    el.textContent = '请填写家庭名称';
+    el.classList.remove('hidden');
+    return;
+  }
+  const r = await fetch('/tools/archive/families', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      family_name: name,
+      address: document.getElementById('f-address').value || null,
+      notes: document.getElementById('f-notes').value || null,
+    }),
+  });
+  const j = await r.json();
+  if (j.success) { closeModal(); loadFamilies(1); }
+  else {
+    const el = document.getElementById('modal-err');
+    el.textContent = j.error?.message || '保存失败';
+    el.classList.remove('hidden');
+  }
+}
+
+async function deleteFamily(id, name) {
+  if (!confirm(`确定删除家庭档案「${name}」？此操作不可恢复。`)) return;
+  try {
+    const r = await fetch(`/tools/archive/families/${id}`, {method: 'DELETE'});
+    const j = await r.json();
+    if (j.success) {
+      showToast('已删除');
+      loadFamilies(currentPage);
+    } else {
+      showToast(j.error?.message || '删除失败');
+    }
+  } catch {
+    showToast('操作失败，请重试');
+  }
+}
+
+function openMemberModal(familyId, familyName) {
+  currentFamilyId = familyId;
+  selectedArchiveId = null;
+  document.getElementById('member-family-name').textContent = familyName;
+  document.getElementById('member-detail-link').href = `/gui/admin/archives/families/${familyId}`;
+  document.getElementById('search-archive').value = '';
+  document.getElementById('archive-search-result').classList.add('hidden');
+  document.getElementById('selected-archive').classList.add('hidden');
+  document.getElementById('add-member-form').classList.add('hidden');
+  switchMemberTab('list');
+  loadMembers(familyId);
+  document.getElementById('member-modal').classList.remove('hidden');
+}
+
+function closeMemberModal() {
+  document.getElementById('member-modal').classList.add('hidden');
+  currentFamilyId = null;
+}
+
+function switchMemberTab(tab) {
+  ['list','add'].forEach(t => {
+    const btn = document.getElementById('mtab-'+t);
+    const panel = document.getElementById('member-tab-'+t);
+    const isActive = t === tab;
+    btn.className = 'member-tab px-4 py-2 rounded-lg text-sm font-medium ' +
+      (isActive ? 'text-white' : 'text-gray-600 hover:bg-gray-100');
+    btn.style.background = isActive ? '#4E7A61' : '';
+    panel.classList.toggle('hidden', !isActive);
+  });
+}
+
+function calcAge(birthDate) {
+  if (!birthDate) return '-';
+  const b = new Date(birthDate);
+  const now = new Date();
+  return now.getFullYear() - b.getFullYear();
+}
+
+async function loadMembers(familyId) {
+  const tbody = document.getElementById('member-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-400 py-6">加载中...</td></tr>';
+  try {
+    const r = await fetch(`/tools/archive/families/${familyId}/members`);
+    const j = await r.json();
+    if (!j.success) throw new Error(j.error?.message);
+    const members = j.data?.items || [];
+    if (!members.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-400 py-6">暂无成员，请添加</td></tr>';
+      return;
+    }
+    tbody.innerHTML = members.map(m => `
+      <tr class="hover:bg-gray-50">
+        <td class="px-3 py-2 font-medium text-gray-800">
+          <a href="/gui/admin/archives/${m.archive_id}" class="hover:underline" style="color:#4E7A61;">${m.name}</a>
+        </td>
+        <td class="px-3 py-2 text-gray-600">${m.gender === 'male' ? '男' : m.gender === 'female' ? '女' : '-'}</td>
+        <td class="px-3 py-2 text-gray-500">${calcAge(m.birth_date)} 岁</td>
+        <td class="px-3 py-2">
+          <span class="inline-block bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">${m.relation || '-'}</span>
+        </td>
+        <td class="px-3 py-2 flex gap-2">
+          <a href="/gui/admin/archives/${m.archive_id}" class="text-xs hover:underline" style="color:#4E7A61;">查看档案</a>
+          <button onclick="removeMember('${m.id}','${m.name}')" class="text-red-400 text-xs hover:underline">移除</button>
+        </td>
+      </tr>`).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-gray-400 py-6">${e.message || '加载失败'}</td></tr>`;
+  }
+}
+
+async function searchArchive() {
+  const q = document.getElementById('search-archive').value.trim();
+  if (!q) return;
+  const r = await fetch(`/tools/archive/archives?q=${encodeURIComponent(q)}&page_size=5`);
+  const j = await r.json();
+  const resultDiv = document.getElementById('archive-search-result');
+  if (!j.success || !j.data.items.length) {
+    resultDiv.innerHTML = '<div class="px-3 py-3 text-gray-400 text-sm text-center">未找到匹配档案</div>';
+    resultDiv.classList.remove('hidden');
+    return;
+  }
+  resultDiv.innerHTML = j.data.items.map(a => `
+    <div class="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center gap-2 text-sm"
+         onclick="selectArchive('${a.id}','${a.name}')">
+      <span class="font-medium text-gray-800">${a.name}</span>
+      <span class="text-gray-400 text-xs">${a.phone || ''}</span>
+      <span class="text-gray-400 text-xs">${a.gender === 'male' ? '男' : a.gender === 'female' ? '女' : ''}</span>
+    </div>`).join('');
+  resultDiv.classList.remove('hidden');
+}
+
+function selectArchive(id, name) {
+  selectedArchiveId = id;
+  document.getElementById('selected-archive-name').textContent = name;
+  document.getElementById('selected-archive').classList.remove('hidden');
+  document.getElementById('add-member-form').classList.remove('hidden');
+  document.getElementById('archive-search-result').classList.add('hidden');
+}
+
+async function addMember() {
+  if (!selectedArchiveId) { showToast('请先选择要添加的档案'); return; }
+  const relation = document.getElementById('member-relation').value;
+  try {
+    const r = await fetch(`/tools/archive/families/${currentFamilyId}/members`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({archive_id: selectedArchiveId, relation}),
+    });
+    const j = await r.json();
+    if (j.success) {
+      showToast(`已将档案添加为「${relation}」关系的家庭成员`);
+      switchMemberTab('list');
+      selectedArchiveId = null;
+      loadMembers(currentFamilyId);
+      loadFamilies(currentPage);
+    } else {
+      showToast(j.error?.message || '添加失败');
+    }
+  } catch {
+    showToast('操作失败，请重试');
+  }
+}
+
+async function removeMember(memberId, name) {
+  if (!confirm(`确定从家庭中移除成员「${name}」？`)) return;
+  try {
+    const r = await fetch(`/tools/archive/families/${currentFamilyId}/members/${memberId}`, {method: 'DELETE'});
+    const j = await r.json();
+    if (j.success) {
+      showToast('已移除');
+      loadMembers(currentFamilyId);
+      loadFamilies(currentPage);
+    } else {
+      showToast(j.error?.message || '操作失败');
+    }
+  } catch {
+    showToast('操作失败，请重试');
+  }
+}
+
+// ---- 批量操作 ----
+function toggleAll(el) {
+  document.querySelectorAll('.row-check').forEach(cb => cb.checked = el.checked);
+  updateBatchBar();
+}
+
+function updateBatchBar() {
+  const checked = document.querySelectorAll('.row-check:checked');
+  const bar = document.getElementById('batch-bar');
+  if (checked.length > 0) {
+    bar.classList.remove('hidden');
+    document.getElementById('batch-count').textContent = `已选 ${checked.length} 条`;
+  } else {
+    bar.classList.add('hidden');
+  }
+}
+
+function clearSelection() {
+  document.querySelectorAll('.row-check, #select-all').forEach(cb => cb.checked = false);
+  updateBatchBar();
+}
+
+function batchAssignDoctor() {
+  showToast('家庭档案的责任医生请在各成员档案中单独调整');
+}
+
+function batchAssignOrg() {
+  showToast('家庭档案的管辖机构请在各成员档案中单独调整');
+}
+
+document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'Enter') loadFamilies(1); });
+loadFamilies();
+</script>
+{% endblock %}

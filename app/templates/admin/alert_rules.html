@@ -1,0 +1,121 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "alerts" %}
+{% block title %}危急值规则 - 治未病平台{% endblock %}
+{% block page_title %}危急值规则管理{% endblock %}
+
+{% block content %}
+<!-- 统计卡片 -->
+<div class="grid grid-cols-4 gap-4 mb-4">
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-xs text-gray-400">规则总数</p>
+    <p class="text-2xl font-bold text-gray-800 mt-1">12</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-xs text-gray-400">已启用</p>
+    <p class="text-2xl font-bold text-green-600 mt-1">9</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-xs text-gray-400">今日触发</p>
+    <p class="text-2xl font-bold text-red-500 mt-1">3</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-xs text-gray-400">本月触发</p>
+    <p class="text-2xl font-bold text-orange-500 mt-1">47</p>
+  </div>
+</div>
+
+<!-- 操作栏 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <input id="q" type="text" placeholder="规则名称/指标搜索"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-red-300">
+  <select id="indicator-type" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300">
+    <option value="">全部指标</option>
+    <option value="BLOOD_PRESSURE">血压</option>
+    <option value="BLOOD_GLUCOSE">血糖</option>
+    <option value="HEART_RATE">心率</option>
+    <option value="WEIGHT">体重</option>
+    <option value="TEMPERATURE">体温</option>
+  </select>
+  <select id="severity" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300">
+    <option value="">全部等级</option>
+    <option value="HIGH">高危</option>
+    <option value="MEDIUM">中危</option>
+    <option value="LOW">低危</option>
+  </select>
+  <button onclick="loadRules()" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600">搜索</button>
+  <div class="ml-auto flex gap-2">
+    <a href="/gui/admin/alert-rules/new"
+      class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600">+ 新建规则</a>
+  </div>
+</div>
+
+<!-- 规则列表 -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-5 py-3 text-left">规则名称</th>
+        <th class="px-5 py-3 text-left">监测指标</th>
+        <th class="px-5 py-3 text-left">阈值设置</th>
+        <th class="px-5 py-3 text-left">危险等级</th>
+        <th class="px-5 py-3 text-left">通知方式</th>
+        <th class="px-5 py-3 text-left">状态</th>
+        <th class="px-5 py-3 text-left">操作</th>
+      </tr>
+    </thead>
+    <tbody id="rules-list" class="divide-y divide-gray-100">
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const SEVERITY_COLORS = {HIGH:'bg-red-100 text-red-700',MEDIUM:'bg-orange-100 text-orange-700',LOW:'bg-yellow-100 text-yellow-600'};
+const SEVERITY_LABELS = {HIGH:'高危',MEDIUM:'中危',LOW:'低危'};
+
+const demoRules = [
+  {id:'1',name:'高血压危象',indicator:'收缩压',threshold:'≥ 180 mmHg 或 ≤ 70 mmHg',severity:'HIGH',notify:'短信+站内',is_active:true},
+  {id:'2',name:'低血压预警',indicator:'收缩压',threshold:'< 90 mmHg',severity:'HIGH',notify:'短信+站内',is_active:true},
+  {id:'3',name:'高血糖预警',indicator:'空腹血糖',threshold:'> 13.9 mmol/L',severity:'HIGH',notify:'短信+站内',is_active:true},
+  {id:'4',name:'低血糖预警',indicator:'血糖',threshold:'< 3.9 mmol/L',severity:'HIGH',notify:'短信+电话',is_active:true},
+  {id:'5',name:'血压偏高提醒',indicator:'收缩压',threshold:'140-180 mmHg',severity:'MEDIUM',notify:'站内消息',is_active:true},
+  {id:'6',name:'血糖偏高提醒',indicator:'空腹血糖',threshold:'7.0-13.9 mmol/L',severity:'MEDIUM',notify:'站内消息',is_active:true},
+  {id:'7',name:'心动过速',indicator:'心率',threshold:'> 120 次/分',severity:'MEDIUM',notify:'短信+站内',is_active:true},
+  {id:'8',name:'心动过缓',indicator:'心率',threshold:'< 50 次/分',severity:'HIGH',notify:'短信+电话',is_active:true},
+  {id:'9',name:'体重急增预警',indicator:'体重',threshold:'7天内增加 > 2kg',severity:'LOW',notify:'站内消息',is_active:false},
+];
+
+function loadRules() {
+  document.getElementById('rules-list').innerHTML = demoRules.map(r => `
+    <tr class="hover:bg-gray-50">
+      <td class="px-5 py-3 font-medium text-gray-800">${r.name}</td>
+      <td class="px-5 py-3 text-gray-600">${r.indicator}</td>
+      <td class="px-5 py-3 text-gray-600 font-mono text-xs">${r.threshold}</td>
+      <td class="px-5 py-3">
+        <span class="px-2 py-0.5 rounded-full text-xs font-medium ${SEVERITY_COLORS[r.severity]}">${SEVERITY_LABELS[r.severity]}</span>
+      </td>
+      <td class="px-5 py-3 text-gray-500 text-xs">${r.notify}</td>
+      <td class="px-5 py-3">
+        <button onclick="toggleRule('${r.id}',${r.is_active})"
+          class="px-2 py-1 rounded text-xs ${r.is_active?'bg-green-100 text-green-700 hover:bg-green-200':'bg-gray-100 text-gray-500 hover:bg-gray-200'}">
+          ${r.is_active?'已启用':'已停用'}
+        </button>
+      </td>
+      <td class="px-5 py-3 flex gap-2">
+        <a href="/gui/admin/alert-rules/${r.id}/edit" class="text-red-500 hover:underline text-xs">编辑</a>
+        <button onclick="deleteRule('${r.id}')" class="text-gray-400 hover:underline text-xs">删除</button>
+      </td>
+    </tr>`).join('');
+}
+
+function toggleRule(id, current) {
+  showToast(`${current?'停用':'启用'}规则 ${id}`);
+}
+function deleteRule(id) {
+  if (confirm('确定删除该规则？删除后相关预警将停止触发。')) showToast('删除成功');
+}
+
+loadRules();
+</script>
+{% endblock %}

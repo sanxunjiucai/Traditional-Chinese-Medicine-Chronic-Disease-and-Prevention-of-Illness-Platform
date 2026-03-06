@@ -6,9 +6,9 @@
 <!-- 筛选栏 -->
 <div class="flex flex-wrap items-center gap-3 mb-5">
   <input id="filter-user" type="text" placeholder="用户 ID 或手机号"
-    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-white w-44">
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light bg-white w-44">
   <select id="filter-action" onchange="load()"
-    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-white">
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light bg-white">
     <option value="">全部操作</option>
     <option value="USER_REGISTER">注册</option>
     <option value="USER_LOGIN">登录</option>
@@ -25,10 +25,10 @@
     <option value="CONTENT_OFFLINE">内容下线</option>
   </select>
   <input id="filter-from" type="date"
-    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-white">
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light bg-white">
   <input id="filter-to" type="date"
-    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-white">
-  <button onclick="load()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">查询</button>
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light bg-white">
+  <button onclick="load()" class="text-white px-4 py-2 rounded-lg text-sm" style="background:#4E7A61;">查询</button>
   <span id="total-count" class="ml-auto text-sm text-gray-500"></span>
 </div>
 
@@ -98,7 +98,7 @@ async function load(page = 1) {
     <tr class="border-b border-gray-100 hover:bg-gray-50">
       <td class="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">${log.created_at ? log.created_at.slice(0,16).replace('T',' ') : '-'}</td>
       <td class="px-4 py-3">
-        <span class="bg-blue-50 text-blue-600 text-xs px-2 py-0.5 rounded font-mono">${log.action || '-'}</span>
+        <span class="bg-jade-light text-jade text-xs px-2 py-0.5 rounded font-mono">${log.action || '-'}</span>
       </td>
       <td class="px-4 py-3 text-gray-500 text-xs">${log.resource_type || '-'}</td>
       <td class="px-4 py-3 text-gray-700">${log.user_phone || (log.user_id ? log.user_id.slice(0,8) + '...' : '系统')}</td>

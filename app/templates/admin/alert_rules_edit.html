@@ -1,0 +1,298 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "alerts" %}
+{% block title %}{% if rule_id %}编辑危急值规则{% else %}新建危急值规则{% endif %} - 治未病平台{% endblock %}
+{% block page_title %}{% if rule_id %}编辑危急值规则{% else %}新建危急值规则{% endif %}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-4">
+  <!-- 基本信息 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h3 class="font-semibold text-gray-700 mb-4">规则基本信息</h3>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">规则名称 <span class="text-red-500">*</span></label>
+        <input type="text" id="rule-name" placeholder="如：高血压危象预警"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300">
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">监测指标 <span class="text-red-500">*</span></label>
+          <select id="indicator-type"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+            onchange="updateThresholdUI()">
+            <option value="BLOOD_PRESSURE">血压（mmHg）</option>
+            <option value="BLOOD_GLUCOSE">血糖（mmol/L）</option>
+            <option value="HEART_RATE">心率（次/分）</option>
+            <option value="WEIGHT">体重（kg）</option>
+            <option value="TEMPERATURE">体温（℃）</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">危险等级 <span class="text-red-500">*</span></label>
+          <select id="severity"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300">
+            <option value="HIGH">高危</option>
+            <option value="MEDIUM">中危</option>
+            <option value="LOW">低危</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">规则说明</label>
+        <textarea id="rule-desc" rows="2" placeholder="规则适用场景说明..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- 阈值配置 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h3 class="font-semibold text-gray-700 mb-4">阈值设置</h3>
+    <div id="threshold-config" class="space-y-4">
+      <!-- 动态渲染 -->
+    </div>
+  </div>
+
+  <!-- 适用人群 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h3 class="font-semibold text-gray-700 mb-4">适用人群</h3>
+    <div class="space-y-4">
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">适用档案类型</label>
+          <select id="archive-type-filter"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300">
+            <option value="">全部档案</option>
+            <option value="NORMAL">普通档案</option>
+            <option value="ELDERLY">老年人</option>
+            <option value="KEY_FOCUS">重点关注</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">年龄范围</label>
+          <div class="flex gap-2 items-center">
+            <input type="number" id="age-min" placeholder="最低" class="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300">
+            <span class="text-gray-400">~</span>
+            <input type="number" id="age-max" placeholder="最高" class="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300">
+            <span class="text-sm text-gray-400">岁</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-2">合并疾病筛选（仅对患有以下疾病的患者触发）</label>
+        <div class="flex flex-wrap gap-3">
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" value="HYPERTENSION" class="disease-check rounded"> <span class="text-sm">高血压</span>
+          </label>
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" value="DIABETES" class="disease-check rounded"> <span class="text-sm">糖尿病</span>
+          </label>
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" value="CHD" class="disease-check rounded"> <span class="text-sm">冠心病</span>
+          </label>
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" value="STROKE" class="disease-check rounded"> <span class="text-sm">脑卒中</span>
+          </label>
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" value="CKD" class="disease-check rounded"> <span class="text-sm">慢性肾病</span>
+          </label>
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" value="COPD" class="disease-check rounded"> <span class="text-sm">COPD</span>
+          </label>
+        </div>
+        <p class="text-xs text-gray-400 mt-1">不选则不限疾病类型，对所有符合档案类型/年龄条件的患者生效</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 分人群阈值（可选）-->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h3 class="font-semibold text-gray-700">分人群阈值配置</h3>
+        <p class="text-xs text-gray-400 mt-0.5">为不同特征的人群设置差异化的阈值标准（可选）</p>
+      </div>
+      <button onclick="addPopGroup()" class="text-xs bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100">+ 新增人群组</button>
+    </div>
+    <div id="pop-groups" class="space-y-3">
+      <div class="text-sm text-gray-400 text-center py-4 border border-dashed border-gray-200 rounded-lg">
+        未配置分人群阈值，将对所有适用人群使用统一阈值
+      </div>
+    </div>
+  </div>
+
+  <!-- 通知配置 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h3 class="font-semibold text-gray-700 mb-4">通知配置</h3>
+    <div class="space-y-4">
+      <div>
+        <p class="text-sm text-gray-600 mb-2">通知方式（可多选）</p>
+        <div class="flex gap-4">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="notify-station" checked class="rounded">
+            <span class="text-sm">站内消息</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="notify-sms" class="rounded">
+            <span class="text-sm">短信通知</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="notify-phone" class="rounded">
+            <span class="text-sm">电话提醒</span>
+          </label>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">通知接收人</label>
+        <select id="notify-target"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300">
+          <option value="DOCTOR">责任医生</option>
+          <option value="DEPARTMENT">科室负责人</option>
+          <option value="BOTH">责任医生 + 科室负责人</option>
+          <option value="CUSTOM">自定义</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">通知间隔（防重复）</label>
+        <div class="flex gap-2 items-center">
+          <input type="number" id="notify-interval" value="60" class="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300">
+          <span class="text-sm text-gray-400">分钟内同一患者不重复通知</span>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">通知消息模板</label>
+        <textarea id="notify-template" rows="3"
+          placeholder="如：患者{患者姓名}（{档案号}）{指标名称}异常，当前值{当前值}，请及时处置。"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono text-xs focus:outline-none focus:ring-2 focus:ring-red-300"></textarea>
+        <p class="text-xs text-gray-400 mt-1">可用变量：{患者姓名} {档案号} {指标名称} {当前值} {触发时间}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 按钮 -->
+  <div class="flex gap-3 justify-between">
+    <a href="/gui/admin/alert-rules"
+      class="px-5 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">取消</a>
+    <div class="flex gap-2">
+      <button onclick="saveRule(false)"
+        class="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">保存停用</button>
+      <button onclick="saveRule(true)"
+        class="bg-red-500 text-white px-5 py-2 rounded-lg text-sm hover:bg-red-600 font-medium">保存并启用</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const THRESHOLD_CONFIGS = {
+  BLOOD_PRESSURE: [
+    {label:'收缩压上限（mmHg）',id:'sbp-max',default:180,hint:'超过此值触发预警'},
+    {label:'收缩压下限（mmHg）',id:'sbp-min',default:90,hint:'低于此值触发预警'},
+    {label:'舒张压上限（mmHg）',id:'dbp-max',default:120,hint:'超过此值触发预警'},
+    {label:'舒张压下限（mmHg）',id:'dbp-min',default:60,hint:'低于此值触发预警'},
+  ],
+  BLOOD_GLUCOSE: [
+    {label:'血糖上限（mmol/L）',id:'glucose-max',default:13.9,hint:'超过此值触发预警'},
+    {label:'血糖下限（mmol/L）',id:'glucose-min',default:3.9,hint:'低于此值触发预警'},
+  ],
+  HEART_RATE: [
+    {label:'心率上限（次/分）',id:'hr-max',default:120,hint:'超过此值触发预警'},
+    {label:'心率下限（次/分）',id:'hr-min',default:50,hint:'低于此值触发预警'},
+  ],
+  WEIGHT: [
+    {label:'7天内体重增幅（kg）',id:'weight-gain',default:2,hint:'7天内增加超过此值触发预警'},
+    {label:'7天内体重降幅（kg）',id:'weight-loss',default:3,hint:'7天内减少超过此值触发预警'},
+  ],
+  TEMPERATURE: [
+    {label:'体温上限（℃）',id:'temp-max',default:38.5,hint:'超过此值触发预警'},
+    {label:'体温下限（℃）',id:'temp-min',default:35,hint:'低于此值触发预警'},
+  ],
+};
+
+function updateThresholdUI() {
+  const type = document.getElementById('indicator-type').value;
+  const configs = THRESHOLD_CONFIGS[type] || [];
+  document.getElementById('threshold-config').innerHTML = `
+    <div class="grid grid-cols-2 gap-4">
+      ${configs.map(c => `
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">${c.label}</label>
+          <input type="number" step="0.1" id="${c.id}" value="${c.default}"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300">
+          <p class="text-xs text-gray-400 mt-0.5">${c.hint}</p>
+        </div>`).join('')}
+    </div>`;
+}
+
+let popGroupCount = 0;
+
+function addPopGroup() {
+  const type = document.getElementById('indicator-type').value;
+  const configs = THRESHOLD_CONFIGS[type] || [];
+  const idx = ++popGroupCount;
+  const container = document.getElementById('pop-groups');
+  // Remove empty placeholder
+  const placeholder = container.querySelector('.text-center.border-dashed');
+  if (placeholder) placeholder.remove();
+
+  const div = document.createElement('div');
+  div.id = `pop-group-${idx}`;
+  div.className = 'border border-gray-200 rounded-xl p-4 relative';
+  div.innerHTML = `
+    <button onclick="removePopGroup(${idx})" class="absolute top-3 right-3 text-gray-300 hover:text-red-400 text-xs">✕ 移除</button>
+    <div class="grid grid-cols-3 gap-3 mb-3">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">人群名称</label>
+        <input type="text" placeholder="如：老年患者" value="人群组${idx}"
+          class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">年龄范围</label>
+        <div class="flex gap-1 items-center">
+          <input type="number" placeholder="下限" class="w-16 border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none">
+          <span class="text-gray-400 text-xs">~</span>
+          <input type="number" placeholder="上限" class="w-16 border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none">
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">性别</label>
+        <select class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none">
+          <option value="">不限</option>
+          <option value="MALE">男</option>
+          <option value="FEMALE">女</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+      ${configs.map(c => `
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">${c.label}</label>
+          <input type="number" step="0.1" value="${c.default}"
+            class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200">
+          <p class="text-xs text-gray-400 mt-0.5">${c.hint}</p>
+        </div>`).join('')}
+    </div>
+  `;
+  container.appendChild(div);
+}
+
+function removePopGroup(idx) {
+  const el = document.getElementById(`pop-group-${idx}`);
+  if (el) el.remove();
+  const container = document.getElementById('pop-groups');
+  if (!container.children.length) {
+    container.innerHTML = '<div class="text-sm text-gray-400 text-center py-4 border border-dashed border-gray-200 rounded-lg">未配置分人群阈值，将对所有适用人群使用统一阈值</div>';
+  }
+}
+
+function saveRule(active) {
+  const name = document.getElementById('rule-name').value.trim();
+  if (!name) { showToast('请填写规则名称'); return; }
+  showToast(`规则${active?'启用':'停用'}保存成功`);
+  window.location.href = '/gui/admin/alert-rules';
+}
+
+updateThresholdUI();
+</script>
+{% endblock %}

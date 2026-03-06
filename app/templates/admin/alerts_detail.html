@@ -46,7 +46,7 @@
       </div>
       <div id="note-row" class="col-span-2 hidden">
         <dt class="text-gray-400">处置备注</dt>
-        <dd id="det-note" class="text-gray-800 mt-0.5 bg-blue-50 rounded p-2">-</dd>
+        <dd id="det-note" class="text-gray-800 mt-0.5 rounded p-2" style="background:#EBF2ED">-</dd>
       </div>
     </dl>
   </div>
@@ -61,7 +61,7 @@
     </div>
     <div class="flex space-x-3">
       <button id="btn-ack" onclick="ackAlert()"
-        class="flex-1 border border-blue-300 text-blue-600 font-medium py-2.5 rounded-lg text-sm hover:bg-blue-50">
+        class="flex-1 font-medium py-2.5 rounded-lg text-sm" style="border:1px solid #C5D9CB;color:#4E7A61;background:transparent">
         确认预警（ACKED）
       </button>
       <button id="btn-close" onclick="closeAlert()"
@@ -80,7 +80,8 @@
 const ALERT_ID = "{{ event_id }}";
 const SEV_BADGE = {HIGH: 'bg-red-100 text-red-700', MEDIUM: 'bg-orange-100 text-orange-700', LOW: 'bg-yellow-100 text-yellow-700'};
 const SEV_LABELS = {HIGH: '高风险', MEDIUM: '中风险', LOW: '低风险'};
-const STATUS_BADGE = {OPEN: 'bg-red-50 text-red-600', ACKED: 'bg-blue-50 text-blue-600', CLOSED: 'bg-gray-100 text-gray-500'};
+const STATUS_BADGE = {OPEN: 'bg-red-100 text-red-700', ACKED: '', CLOSED: 'bg-gray-100 text-gray-500'};
+const STATUS_BADGE_STYLE = {ACKED: 'background:#EBF2ED;color:#4E7A61'};
 const STATUS_LABELS = {OPEN: '待处理', ACKED: '已确认', CLOSED: '已关闭'};
 
 let currentStatus = '';
@@ -117,7 +118,8 @@ async function load() {
     btnClose.disabled = false;
   } else if (a.status === 'ACKED') {
     btnAck.disabled = true;
-    btnAck.className = btnAck.className.replace('text-blue-600', 'text-gray-400').replace('border-blue-300', 'border-gray-200');
+    btnAck.style.color = '#9A9188';
+    btnAck.style.borderColor = '#E4DDD4';
     btnClose.disabled = false;
   } else {
     document.getElementById('action-panel').innerHTML = '<p class="text-center text-gray-400 py-4 text-sm">该预警已关闭</p>';

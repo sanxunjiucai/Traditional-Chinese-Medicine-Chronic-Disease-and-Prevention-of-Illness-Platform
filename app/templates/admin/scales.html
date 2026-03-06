@@ -1,0 +1,155 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "scales" %}
+{% block title %}量表配置 - 治未病平台{% endblock %}
+{% block page_title %}量表配置（体质辨识）{% endblock %}
+
+{% block content %}
+<!-- 统计摘要 -->
+<div id="scale-summary" class="grid grid-cols-3 gap-4 mb-6">
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <p class="text-gray-500 text-sm">题目总数</p>
+    <p id="total-questions" class="text-3xl font-bold text-rose-600 mt-1">-</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <p class="text-gray-500 text-sm">体质类型数</p>
+    <p class="text-3xl font-bold text-blue-600 mt-1">9</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <p class="text-gray-500 text-sm">量表版本</p>
+    <p class="text-3xl font-bold text-green-600 mt-1">v1.0</p>
+    <p class="text-xs text-gray-400 mt-1">中华中医药学会标准</p>
+  </div>
+</div>
+
+<!-- 搜索和筛选 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <select id="body-type-filter" onchange="loadQuestions()"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300">
+    <option value="">全部体质</option>
+    <option value="BALANCED">平和质</option>
+    <option value="QI_DEFICIENCY">气虚质</option>
+    <option value="YANG_DEFICIENCY">阳虚质</option>
+    <option value="YIN_DEFICIENCY">阴虚质</option>
+    <option value="PHLEGM_DAMPNESS">痰湿质</option>
+    <option value="DAMP_HEAT">湿热质</option>
+    <option value="BLOOD_STASIS">血瘀质</option>
+    <option value="QI_STAGNATION">气郁质</option>
+    <option value="SPECIAL_DIATHESIS">特禀质</option>
+  </select>
+  <span class="text-gray-400 text-sm ml-auto">共 <span id="filtered-count">-</span> 道题目</span>
+</div>
+
+<!-- 题目列表（按体质分组） -->
+<div id="questions-container" class="space-y-4">
+  <div class="text-center text-gray-400 py-10">加载中...</div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const BODY_TYPE_LABELS = {
+  BALANCED: '平和质', QI_DEFICIENCY: '气虚质', YANG_DEFICIENCY: '阳虚质',
+  YIN_DEFICIENCY: '阴虚质', PHLEGM_DAMPNESS: '痰湿质', DAMP_HEAT: '湿热质',
+  BLOOD_STASIS: '血瘀质', QI_STAGNATION: '气郁质', SPECIAL_DIATHESIS: '特禀质'
+};
+const BODY_TYPE_ORDER = [
+  'BALANCED', 'QI_DEFICIENCY', 'YANG_DEFICIENCY', 'YIN_DEFICIENCY',
+  'PHLEGM_DAMPNESS', 'DAMP_HEAT', 'BLOOD_STASIS', 'QI_STAGNATION', 'SPECIAL_DIATHESIS'
+];
+const BODY_TYPE_COLORS = {
+  BALANCED: 'border-green-300 bg-green-50',
+  QI_DEFICIENCY: '',
+  YANG_DEFICIENCY: '',
+  YIN_DEFICIENCY: 'border-teal-300 bg-teal-50',
+  PHLEGM_DAMPNESS: '',
+  DAMP_HEAT: 'border-amber-300 bg-amber-50',
+  BLOOD_STASIS: 'border-rose-300 bg-rose-50',
+  QI_STAGNATION: '',
+  SPECIAL_DIATHESIS: 'border-orange-300 bg-orange-50',
+};
+const BODY_TYPE_INLINE_STYLES = {
+  QI_DEFICIENCY:  'border-color:#4E7A61;background:#EBF2ED;',
+  YANG_DEFICIENCY:'border-color:#C8955A;background:#FEF9F4;',
+  PHLEGM_DAMPNESS:'border-color:#5070A8;background:#EEF2F8;',
+  QI_STAGNATION:  'border-color:#9A9188;background:#F5F2EC;',
+};
+
+let allQuestions = [];
+
+async function loadQuestions() {
+  const resp = await fetch('/tools/constitution/questions');
+  const json = await resp.json();
+  if (!json.success) return;
+
+  allQuestions = json.data;
+  document.getElementById('total-questions').textContent = allQuestions.length;
+  renderQuestions();
+}
+
+function renderQuestions() {
+  const filterType = document.getElementById('body-type-filter').value;
+  const filtered = filterType ? allQuestions.filter(q => q.body_type === filterType) : allQuestions;
+  document.getElementById('filtered-count').textContent = filtered.length;
+
+  // 按体质分组
+  const grouped = {};
+  filtered.forEach(q => {
+    if (!grouped[q.body_type]) grouped[q.body_type] = [];
+    grouped[q.body_type].push(q);
+  });
+
+  const container = document.getElementById('questions-container');
+  const order = filterType ? [filterType] : BODY_TYPE_ORDER;
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="text-center text-gray-400 py-10">暂无题目数据</div>';
+    return;
+  }
+
+  container.innerHTML = order
+    .filter(bt => grouped[bt] && grouped[bt].length > 0)
+    .map(bt => {
+      const qs = grouped[bt];
+      const colorClass = BODY_TYPE_COLORS[bt] || 'border-gray-300 bg-gray-50';
+      const inlineStyle = BODY_TYPE_INLINE_STYLES[bt] ? ` style="${BODY_TYPE_INLINE_STYLES[bt]}"` : '';
+      return `
+        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div class="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between ${colorClass} border-l-4"${inlineStyle}>
+            <h4 class="font-semibold text-gray-800">${BODY_TYPE_LABELS[bt] || bt}</h4>
+            <span class="text-sm text-gray-500">${qs.length} 道题</span>
+          </div>
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+              <tr>
+                <th class="px-5 py-2 text-left w-16">序号</th>
+                <th class="px-5 py-2 text-left">题目内容</th>
+                <th class="px-5 py-2 text-left w-24">计分方向</th>
+                <th class="px-5 py-2 text-left w-16">状态</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              ${qs.sort((a, b) => a.seq - b.seq).map(q => `
+                <tr class="hover:bg-gray-50">
+                  <td class="px-5 py-2.5 text-gray-400 text-xs font-mono">${q.seq}</td>
+                  <td class="px-5 py-2.5 text-gray-700">${q.content}</td>
+                  <td class="px-5 py-2.5">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                      ${q.is_reverse ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}">
+                      ${q.is_reverse ? '反向计分' : '正向计分'}
+                    </span>
+                  </td>
+                  <td class="px-5 py-2.5">
+                    <span class="text-xs text-green-600">启用</span>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }).join('');
+}
+
+loadQuestions();
+</script>
+{% endblock %}

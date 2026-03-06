@@ -1,0 +1,189 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "followup" %}
+{% block title %}随访任务详情 - 治未病平台{% endblock %}
+{% block page_title %}随访任务详情{% endblock %}
+
+{% block content %}
+<!-- 面包屑 -->
+<nav class="flex items-center justify-between mb-4">
+  <div class="flex items-center gap-1.5 text-sm">
+    <a href="/gui/admin/followup/tasks" class="text-gray-500 hover:text-amber-600">随访管理</a>
+    <svg class="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+    </svg>
+    <span class="text-gray-700 font-medium">随访任务详情</span>
+  </div>
+  <a href="/gui/admin/followup/tasks" class="flex items-center gap-1 text-sm text-gray-500 hover:text-amber-600">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+    返回列表
+  </a>
+</nav>
+
+<div id="loading" class="text-center py-12 text-gray-400">
+  <div class="animate-spin w-8 h-8 border-4 border-amber-200 border-t-amber-500 rounded-full mx-auto mb-3"></div>
+  加载中...
+</div>
+
+<div id="main-content" class="hidden grid grid-cols-3 gap-4">
+  <!-- 左侧：患者信息 -->
+  <div class="col-span-1 space-y-4">
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-4">患者信息</h3>
+      <div class="flex items-center gap-3 mb-4">
+        <div id="d-avatar" class="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 font-bold text-lg">-</div>
+        <div>
+          <p id="d-patient-name" class="font-semibold text-gray-800">-</p>
+          <p id="d-patient-sub" class="text-sm text-gray-400">-</p>
+        </div>
+      </div>
+      <div class="space-y-2 text-sm">
+        <div class="flex justify-between"><span class="text-gray-400">随访计划</span><span id="d-plan" class="text-gray-700">-</span></div>
+        <div class="flex justify-between"><span class="text-gray-400">任务类型</span><span id="d-type" class="text-gray-700">-</span></div>
+      </div>
+      <a id="d-archive-link" href="#" class="block mt-4 text-center py-2 bg-amber-100 text-amber-700 rounded-lg text-sm hover:bg-amber-200 hidden">
+        查看完整档案 →
+      </a>
+    </div>
+
+    <!-- 打卡历史 -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-3">打卡记录</h3>
+      <div id="d-checkins" class="space-y-3 text-sm text-gray-500 text-center py-2">加载中...</div>
+    </div>
+  </div>
+
+  <!-- 右侧：任务信息 -->
+  <div class="col-span-2 space-y-4">
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-gray-700">当前随访任务</h3>
+        <span id="d-status-badge" class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm font-medium">-</span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div><p class="text-xs text-gray-400">任务名称</p><p id="d-task-name" class="font-medium text-gray-700">-</p></div>
+        <div><p class="text-xs text-gray-400">随访方式</p><p id="d-method" class="font-medium text-gray-700">-</p></div>
+        <div><p class="text-xs text-gray-400">计划时间</p><p id="d-scheduled" class="font-medium text-gray-700">-</p></div>
+        <div><p class="text-xs text-gray-400">创建时间</p><p id="d-created" class="font-medium text-gray-700">-</p></div>
+      </div>
+
+      <!-- 操作按钮 -->
+      <div id="d-actions" class="flex gap-3 hidden">
+        <a id="btn-process" href="#"
+          class="flex-1 text-center py-2 bg-amber-600 text-white rounded-lg text-sm hover:bg-amber-700 font-medium">
+          开始随访记录
+        </a>
+        <button onclick="delayTask()"
+          class="px-4 py-2 border border-orange-300 text-orange-600 rounded-lg text-sm hover:bg-orange-50">延期</button>
+        <button onclick="markMissed()"
+          class="px-4 py-2 border border-red-300 text-red-500 rounded-lg text-sm hover:bg-red-50">标记漏访</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 延期弹窗 -->
+<div id="delay-modal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50" onclick="if(event.target===this){this.classList.add('hidden');this.style.display='';}">
+  <div class="bg-white rounded-xl p-6 w-96 shadow-xl">
+    <h3 class="font-semibold text-gray-800 mb-4">延期随访</h3>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">延期至</label>
+        <input type="date" id="delay-date" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">延期原因</label>
+        <textarea id="delay-reason" rows="2" placeholder="请填写延期原因..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"></textarea>
+      </div>
+    </div>
+    <div class="flex gap-2 justify-end mt-4">
+      <button onclick="const dm=document.getElementById('delay-modal');dm.classList.add('hidden');dm.style.display='';"
+        class="px-4 py-2 border border-gray-200 rounded-lg text-sm">取消</button>
+      <button onclick="confirmDelay()" class="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-orange-600">确认延期</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const TASK_ID = '{{ task_id }}';
+const STATUS_LABELS = {PENDING:'待随访',DONE:'已完成',MISSED:'已漏访'};
+const STATUS_CLS = {PENDING:'bg-yellow-100 text-yellow-700',DONE:'bg-green-100 text-green-700',MISSED:'bg-red-100 text-red-600'};
+const METHOD_LABELS = {PHONE:'📞 电话随访',VISIT:'🚗 上门随访',ONLINE:'💻 在线随访',APP:'📱 APP随访'};
+
+async function loadDetail() {
+  try {
+    const res = await fetch(`/tools/admin/followup/tasks/${TASK_ID}`);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error?.message || '加载失败');
+    const d = data.data;
+
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('main-content').classList.remove('hidden');
+
+    const firstChar = (d.patient_name||'?')[0];
+    document.getElementById('d-avatar').textContent = firstChar;
+    document.getElementById('d-patient-name').textContent = d.patient_name || '-';
+    document.getElementById('d-patient-sub').textContent = d.task_type || '-';
+    document.getElementById('d-plan').textContent = d.plan_name || '-';
+    document.getElementById('d-type').textContent = d.task_type || '-';
+    document.getElementById('d-task-name').textContent = d.task_name || '-';
+    document.getElementById('d-method').textContent = METHOD_LABELS[d.method] || d.method || '-';
+    document.getElementById('d-scheduled').textContent = d.scheduled_at || '-';
+    document.getElementById('d-created').textContent = d.created_at ? d.created_at.slice(0,10) : '-';
+
+    if (d.archive_id) {
+      const link = document.getElementById('d-archive-link');
+      link.href = `/gui/admin/archives/${d.archive_id}`;
+      link.classList.remove('hidden');
+    }
+
+    const s = STATUS_CLS[d.status] || 'bg-gray-100 text-gray-500';
+    const badge = document.getElementById('d-status-badge');
+    badge.textContent = STATUS_LABELS[d.status] || d.status || '-';
+    badge.className = `px-3 py-1 rounded-full text-sm font-medium ${s}`;
+
+    if (d.status === 'PENDING') {
+      document.getElementById('d-actions').classList.remove('hidden');
+      document.getElementById('btn-process').href = `/gui/admin/followup/${TASK_ID}/process`;
+    }
+
+    // 打卡记录
+    const checkins = d.checkins || [];
+    if (!checkins.length) {
+      document.getElementById('d-checkins').innerHTML = '<p class="text-gray-400">暂无打卡记录</p>';
+    } else {
+      document.getElementById('d-checkins').innerHTML = checkins.map(ci => {
+        const cls = {DONE:'border-green-400',MISSED:'border-red-300',PENDING:'border-gray-300'}[ci.status] || 'border-gray-300';
+        const at = ci.checked_at ? new Date(ci.checked_at).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'}).slice(0,16) : '-';
+        return `<div class="border-l-2 ${cls} pl-3">
+          <p class="text-xs text-gray-400">${at}</p>
+          <p class="text-sm text-gray-700">${ci.note || STATUS_LABELS[ci.status] || ci.status}</p>
+        </div>`;
+      }).join('');
+    }
+  } catch(e) {
+    document.getElementById('loading').innerHTML = `<p class="text-red-500">${e.message || '加载失败'}</p>`;
+  }
+}
+
+function delayTask() {
+  document.getElementById('delay-modal').classList.remove('hidden');
+  document.getElementById('delay-modal').style.display = 'flex';
+}
+function confirmDelay() {
+  showToast('延期功能开发中');
+  const dm = document.getElementById('delay-modal');
+  dm.classList.add('hidden'); dm.style.display = '';
+}
+function markMissed() {
+  if (confirm('确定将该任务标记为漏访？')) showToast('已标记漏访');
+}
+
+loadDetail();
+</script>
+{% endblock %}

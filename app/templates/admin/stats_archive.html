@@ -1,0 +1,206 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "stats" %}
+{% block title %}机构档案统计 - 治未病平台{% endblock %}
+{% block page_title %}机构档案统计{% endblock %}
+
+{% block content %}
+<!-- 时间筛选 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <select id="time-dim" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300">
+    <option value="day">日维度</option>
+    <option value="month" selected>月维度</option>
+    <option value="year">年维度</option>
+  </select>
+  <input type="date" id="date-from" value="2026-01-01"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300">
+  <span class="text-gray-400">至</span>
+  <input type="date" id="date-to" value="2026-03-03"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300">
+  <select id="filter-org" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300">
+    <option value="">全部机构</option>
+    <option value="中心医院">中心医院</option>
+    <option value="社区卫生院">社区卫生院</option>
+    <option value="第二医院">第二医院</option>
+  </select>
+  <select id="filter-archive-type" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300">
+    <option value="">全部类型</option>
+    <option value="NORMAL">普通居民</option>
+    <option value="ELDERLY">老年人</option>
+    <option value="CHILD">儿童</option>
+    <option value="FEMALE">女性</option>
+    <option value="KEY_FOCUS">重点关注</option>
+  </select>
+  <button onclick="loadStats()" style="background:#4E7A61;" class="text-white px-4 py-2 rounded-lg text-sm hover:opacity-90">查询</button>
+  <button onclick="exportStats()" class="ml-auto bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-700">导出 Excel</button>
+</div>
+
+<!-- KPI 卡片 -->
+<div class="grid grid-cols-5 gap-4 mb-6">
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <p class="text-xs text-gray-400 mb-1">档案总数</p>
+    <p id="kpi-total" class="text-3xl font-bold" style="color:#4E7A61">-</p>
+    <p id="kpi-total-sub" class="text-xs text-green-500 mt-1">加载中...</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <p class="text-xs text-gray-400 mb-1">普通档案</p>
+    <p id="kpi-normal" class="text-3xl font-bold text-gray-700">-</p>
+    <p id="kpi-normal-pct" class="text-xs text-gray-400 mt-1">占比 -</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <p class="text-xs text-gray-400 mb-1">老年人档案</p>
+    <p id="kpi-elderly" class="text-3xl font-bold text-orange-500">-</p>
+    <p id="kpi-elderly-pct" class="text-xs text-gray-400 mt-1">占比 -</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <p class="text-xs text-gray-400 mb-1">重点关注</p>
+    <p id="kpi-keyfocus" class="text-3xl font-bold text-red-500">-</p>
+    <p id="kpi-keyfocus-pct" class="text-xs text-gray-400 mt-1">占比 -</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <p class="text-xs text-gray-400 mb-1">儿童档案</p>
+    <p id="kpi-child" class="text-3xl font-bold" style="color:#5070A8">-</p>
+    <p id="kpi-child-pct" class="text-xs text-gray-400 mt-1">占比 -</p>
+  </div>
+</div>
+
+<div class="grid grid-cols-2 gap-4 mb-4">
+  <!-- 档案新增趋势 -->
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <h3 class="font-semibold text-gray-700 mb-4">档案新增趋势</h3>
+    <div class="h-48 flex items-end gap-2">
+      {% for val, label in [(15,'1月'),(22,'2月'),(32,'3月'),(18,'4月'),(28,'5月'),(35,'6月')] %}
+      <div class="flex-1 flex flex-col items-center gap-1">
+        <span class="text-xs text-gray-500">{{ val }}</span>
+        <div class="w-full rounded-t" style="height: {{ val * 4 }}px; background:#4E7A61;"></div>
+        <span class="text-xs text-gray-400">{{ label }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- 档案类型分布 -->
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <h3 class="font-semibold text-gray-700 mb-4">档案类型分布</h3>
+    <div id="type-dist" class="space-y-3">
+      {% for label, key, barcolor in [('普通档案','NORMAL','#4E7A61'),('老年人档案','ELDERLY','#B8885E'),('重点关注','KEY_FOCUS','#ef4444'),('儿童档案','CHILD','#5070A8')] %}
+      <div class="flex items-center gap-3">
+        <span class="text-sm text-gray-600 w-24">{{ label }}</span>
+        <div class="flex-1 rounded-full h-2" style="background:#EDE8E2">
+          <div id="bar-{{ key }}" class="h-2 rounded-full transition-all" style="width:0%;background:{{ barcolor }}"></div>
+        </div>
+        <span id="pct-{{ key }}" class="text-sm font-semibold text-gray-700 w-12 text-right">-</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- 机构分布 -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <div class="px-5 py-4 border-b border-gray-100">
+    <h3 class="font-semibold text-gray-700">各机构档案统计</h3>
+  </div>
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-5 py-3 text-left">机构名称</th>
+        <th class="px-5 py-3 text-left">档案总数</th>
+        <th class="px-5 py-3 text-left">本月新增</th>
+        <th class="px-5 py-3 text-left">重点人群</th>
+        <th class="px-5 py-3 text-left">占比</th>
+      </tr>
+    </thead>
+    <tbody id="org-stats-tbody" class="divide-y divide-gray-100"></tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const DEMO_ORG_DATA = [
+  { name: '示范中医院', orgKey: '中心医院', total: 523, newCount: 14, key: 38 },
+  { name: '社区卫生中心A', orgKey: '社区卫生院', total: 312, newCount: 8, key: 22 },
+  { name: '社区卫生中心B', orgKey: '社区卫生院', total: 218, newCount: 6, key: 15 },
+  { name: '第二医院老年科', orgKey: '第二医院', total: 135, newCount: 3, key: 12 },
+  { name: '全科诊所', orgKey: '中心医院', total: 60, newCount: 1, key: 0 },
+];
+
+function renderOrgTable(data) {
+  const grandTotal = data.reduce((s, r) => s + r.total, 0) || 1;
+  const tbody = document.getElementById('org-stats-tbody');
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-400 py-8">暂无数据</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(r => `
+    <tr class="hover:bg-gray-50">
+      <td class="px-5 py-3 font-medium text-gray-800">${r.name}</td>
+      <td class="px-5 py-3 text-gray-700">${r.total}</td>
+      <td class="px-5 py-3 text-green-600 font-semibold">+${r.newCount}</td>
+      <td class="px-5 py-3 text-red-500">${r.key}</td>
+      <td class="px-5 py-3 text-gray-500">${(r.total / grandTotal * 100).toFixed(1)}%</td>
+    </tr>
+  `).join('');
+}
+
+async function loadStats() {
+  const org = document.getElementById('filter-org').value;
+  const archiveType = document.getElementById('filter-archive-type').value;
+
+  // 先渲染演示机构表格
+  let filtered = DEMO_ORG_DATA.filter(r => !org || r.orgKey === org);
+  renderOrgTable(filtered);
+
+  // 调用真实 archive stats API
+  try {
+    const resp = await fetch('/tools/archive/stats');
+    const d = await resp.json();
+    if (d.success && d.data) {
+      const s = d.data;
+      const total = s.total || 1;
+      const bt = s.by_type || {};
+
+      const pct = (n) => total > 0 ? (n / total * 100).toFixed(1) : '0.0';
+
+      document.getElementById('kpi-total').textContent = total.toLocaleString();
+      document.getElementById('kpi-total-sub').textContent = `回收站 ${s.recycle_count ?? 0} 份`;
+
+      const typeMap = {
+        NORMAL: { kpi: 'kpi-normal', pctEl: 'kpi-normal-pct' },
+        ELDERLY: { kpi: 'kpi-elderly', pctEl: 'kpi-elderly-pct' },
+        KEY_FOCUS: { kpi: 'kpi-keyfocus', pctEl: 'kpi-keyfocus-pct' },
+        CHILD: { kpi: 'kpi-child', pctEl: 'kpi-child-pct' },
+      };
+      for (const [key, els] of Object.entries(typeMap)) {
+        const cnt = bt[key] ?? 0;
+        const p = pct(cnt);
+        document.getElementById(els.kpi).textContent = cnt.toLocaleString();
+        document.getElementById(els.pctEl).textContent = `占比 ${p}%`;
+        const barEl = document.getElementById('bar-' + key);
+        const pctEl = document.getElementById('pct-' + key);
+        if (barEl) barEl.style.width = p + '%';
+        if (pctEl) pctEl.textContent = p + '%';
+      }
+    }
+  } catch (_) {
+    // 显示演示数据兜底
+    document.getElementById('kpi-total').textContent = '1,248';
+    document.getElementById('kpi-normal').textContent = '856';
+    document.getElementById('kpi-elderly').textContent = '238';
+    document.getElementById('kpi-keyfocus').textContent = '87';
+    document.getElementById('kpi-child').textContent = '67';
+    [['NORMAL',68.6],['ELDERLY',19.1],['KEY_FOCUS',7.0],['CHILD',5.4]].forEach(([k,v]) => {
+      const b = document.getElementById('bar-'+k); const p = document.getElementById('pct-'+k);
+      if (b) b.style.width = v+'%'; if (p) p.textContent = v+'%';
+    });
+  }
+}
+
+function exportStats() {
+  showToast('统计报表导出中，文件将在几秒内下载');
+}
+
+// 初始化渲染
+loadStats();
+</script>
+{% endblock %}

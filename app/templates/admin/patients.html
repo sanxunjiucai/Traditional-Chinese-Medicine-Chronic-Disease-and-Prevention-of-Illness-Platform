@@ -7,13 +7,13 @@
 <!-- 搜索栏 -->
 <div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
   <input id="q" type="text" placeholder="姓名 / 手机号搜索"
-    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-green-300">
-  <select id="is_active" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-jade-light">
+  <select id="is_active" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light">
     <option value="">全部状态</option>
     <option value="true">启用</option>
     <option value="false">禁用</option>
   </select>
-  <button onclick="loadPatients(1)" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">搜索</button>
+  <button onclick="loadPatients(1)" class="text-white px-4 py-2 rounded-lg text-sm" style="background:#4E7A61;" onmouseover="this.style.background='#3F6A52'" onmouseout="this.style.background='#4E7A61'">搜索</button>
   <span class="text-gray-400 text-sm ml-auto">共 <span id="total">-</span> 名患者</span>
 </div>
 
@@ -52,7 +52,7 @@ async function loadPatients(page = 1) {
   const is_active = document.getElementById('is_active').value;
   const params = new URLSearchParams({ page, page_size: 20 });
   if (q) params.set('q', q);
-  if (is_active !== '') params.set('is_active', is_active);
+  if (is_active) params.set('is_active', is_active);
 
   const resp = await fetch('/tools/admin/patients?' + params.toString());
   const json = await resp.json();
@@ -72,7 +72,7 @@ async function loadPatients(page = 1) {
       <td class="px-5 py-3 text-gray-600">${u.phone}</td>
       <td class="px-5 py-3 text-gray-500">${u.created_at.slice(0,10)}</td>
       <td class="px-5 py-3">
-        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${u.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}">
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${u.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
           ${u.is_active ? '启用' : '禁用'}
         </span>
       </td>
@@ -92,7 +92,7 @@ async function loadPatients(page = 1) {
   pg.classList.remove('hidden');
   pg.innerHTML = Array.from({length: totalPages}, (_, i) => i + 1).map(p => `
     <button onclick="loadPatients(${p})"
-      class="px-3 py-1.5 rounded-lg text-sm ${p === currentPage ? 'bg-green-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}">
+      class="px-3 py-1.5 rounded-lg text-sm ${p === currentPage ? 'text-jade bg-jade-light' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}">
       ${p}
     </button>
   `).join('');

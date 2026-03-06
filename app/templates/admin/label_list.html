@@ -1,0 +1,507 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "label_list" %}
+{% block title %}档案标签管理 - 治未病平台{% endblock %}
+{% block page_title %}档案标签管理{% endblock %}
+
+{% block content %}
+<div class="flex gap-4">
+  <!-- 左侧：标签分类树 -->
+  <div class="w-64 flex-shrink-0">
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="font-semibold text-gray-700 text-sm">标签分类</h3>
+        <button onclick="openCategoryModal()" class="text-xs text-teal-600 hover:underline font-medium">+ 新增分类</button>
+      </div>
+      <div id="category-list" class="divide-y divide-gray-100">
+        <!-- 全部 -->
+        <button onclick="selectCategory(null, '全部标签')"
+          id="cat-btn-all"
+          class="w-full text-left px-4 py-2.5 text-sm hover:bg-teal-50 transition-colors bg-teal-50 text-teal-700 font-medium">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-gray-400 flex-shrink-0"></span>
+            <span>全部标签</span>
+          </div>
+        </button>
+        <div id="category-items">
+          <div class="px-4 py-3 text-center text-gray-400 text-sm">加载中...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 分类统计小卡片 -->
+    <div class="mt-4 bg-white rounded-xl shadow-sm p-4 space-y-2">
+      <p class="text-xs text-gray-500 font-medium mb-2">快速统计</p>
+      <div class="flex justify-between text-xs">
+        <span class="text-gray-500">标签总数</span>
+        <span id="stat-total" class="font-semibold text-gray-800">-</span>
+      </div>
+      <div class="flex justify-between text-xs">
+        <span class="text-gray-500">系统标签</span>
+        <span id="stat-system" class="font-semibold text-teal-600">-</span>
+      </div>
+      <div class="flex justify-between text-xs">
+        <span class="text-gray-500">自定义标签</span>
+        <span id="stat-custom" class="font-semibold" style="color:#4E7A61;">-</span>
+      </div>
+      <div class="flex justify-between text-xs">
+        <span class="text-gray-500">已停用</span>
+        <span id="stat-inactive" class="font-semibold text-gray-400">-</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右侧：标签列表 -->
+  <div class="flex-1">
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <h3 id="panel-title" class="font-semibold text-gray-700 text-sm">全部标签</h3>
+          <input id="search-q" type="text" placeholder="搜索标签名称..."
+            class="border border-gray-200 rounded-lg px-3 py-1.5 text-xs w-48 focus:outline-none focus:ring-2 focus:ring-teal-300"
+            oninput="filterLabels()">
+        </div>
+        <button onclick="openLabelModal(null)"
+          class="flex items-center gap-1 bg-teal-600 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-teal-700 transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          新增标签
+        </button>
+      </div>
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+          <tr>
+            <th class="px-5 py-3 text-left">标签名称</th>
+            <th class="px-5 py-3 text-left">所属分类</th>
+            <th class="px-5 py-3 text-left">类型</th>
+            <th class="px-5 py-3 text-left">使用人数</th>
+            <th class="px-5 py-3 text-left">状态</th>
+            <th class="px-5 py-3 text-left">操作</th>
+          </tr>
+        </thead>
+        <tbody id="label-tbody" class="divide-y divide-gray-100">
+          <tr><td colspan="6" class="text-center text-gray-400 py-10">加载中...</td></tr>
+        </tbody>
+      </table>
+      <div id="label-empty" class="hidden px-5 py-10 text-center text-gray-400 text-sm">
+        该分类下暂无标签
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增分类弹窗 -->
+<div id="category-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+    <h3 class="font-semibold text-gray-800 mb-4">新增标签分类</h3>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">分类名称 <span class="text-red-500">*</span></label>
+        <input id="cat-name" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+          placeholder="如：慢病管理">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">分类颜色</label>
+        <div class="flex items-center gap-2 flex-wrap">
+          <div id="cat-color-preview" class="w-7 h-7 rounded-full border-2 border-white shadow-md" style="background:#14b8a6"></div>
+          <input id="cat-color-val" type="hidden" value="#14b8a6">
+          <button type="button" data-color="#ef4444" onclick="pickColor('cat','#ef4444')"
+            class="color-dot w-6 h-6 rounded-full border-2 border-transparent hover:border-gray-400 transition-all" style="background:#ef4444"></button>
+          <button type="button" data-color="#f97316" onclick="pickColor('cat','#f97316')"
+            class="color-dot w-6 h-6 rounded-full border-2 border-transparent hover:border-gray-400 transition-all" style="background:#f97316"></button>
+          <button type="button" data-color="#eab308" onclick="pickColor('cat','#eab308')"
+            class="color-dot w-6 h-6 rounded-full border-2 border-transparent hover:border-gray-400 transition-all" style="background:#eab308"></button>
+          <button type="button" data-color="#22c55e" onclick="pickColor('cat','#22c55e')"
+            class="color-dot w-6 h-6 rounded-full border-2 border-transparent hover:border-gray-400 transition-all" style="background:#22c55e"></button>
+          <button type="button" data-color="#14b8a6" onclick="pickColor('cat','#14b8a6')"
+            class="color-dot w-6 h-6 rounded-full border-2 border-white shadow transition-all" style="background:#14b8a6"></button>
+          <button type="button" data-color="#4E7A61" onclick="pickColor('cat','#4E7A61')"
+            class="color-dot w-6 h-6 rounded-full border-2 border-transparent hover:border-gray-400 transition-all" style="background:#4E7A61"></button>
+          <button type="button" data-color="#9B6080" onclick="pickColor('cat','#9B6080')"
+            class="color-dot w-6 h-6 rounded-full border-2 border-transparent hover:border-gray-400 transition-all" style="background:#9B6080"></button>
+          <button type="button" data-color="#6b7280" onclick="pickColor('cat','#6b7280')"
+            class="color-dot w-6 h-6 rounded-full border-2 border-transparent hover:border-gray-400 transition-all" style="background:#6b7280"></button>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">排序（数字越小越靠前）</label>
+        <input id="cat-sort" type="number" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" value="0">
+      </div>
+    </div>
+    <div id="cat-err" class="hidden mt-2 text-sm text-red-500"></div>
+    <div class="flex gap-3 justify-end mt-5">
+      <button onclick="closeCategoryModal()" class="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">取消</button>
+      <button onclick="saveCategory()" class="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm hover:bg-teal-700">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新增/编辑标签弹窗 -->
+<div id="label-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+    <h3 id="label-modal-title" class="font-semibold text-gray-800 mb-4">新增标签</h3>
+    <input id="lm-id" type="hidden" value="">
+    <div class="space-y-4">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">标签名称 <span class="text-red-500">*</span></label>
+        <input id="lm-name" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+          placeholder="如：高血压患者">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">所属分类</label>
+        <select id="lm-category" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+          <option value="">无分类</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">标签颜色</label>
+        <div class="flex items-center gap-2 flex-wrap">
+          <div id="lm-color-preview" class="w-7 h-7 rounded-full border-2 border-white shadow-md" style="background:#6b7280"></div>
+          <input id="lm-color-val" type="hidden" value="#6b7280">
+          <button type="button" data-color="#ef4444" onclick="pickColor('lm','#ef4444')"
+            class="color-dot w-6 h-6 rounded-full border-2 border-transparent hover:border-gray-400 transition-all" style="background:#ef4444"></button>
+          <button type="button" data-color="#f97316" onclick="pickColor('lm','#f97316')"
+            class="color-dot w-6 h-6 rounded-full border-2 border-transparent hover:border-gray-400 transition-all" style="background:#f97316"></button>
+          <button type="button" data-color="#eab308" onclick="pickColor('lm','#eab308')"
+            class="color-dot w-6 h-6 rounded-full border-2 border-transparent hover:border-gray-400 transition-all" style="background:#eab308"></button>
+          <button type="button" data-color="#22c55e" onclick="pickColor('lm','#22c55e')"
+            class="color-dot w-6 h-6 rounded-full border-2 border-transparent hover:border-gray-400 transition-all" style="background:#22c55e"></button>
+          <button type="button" data-color="#14b8a6" onclick="pickColor('lm','#14b8a6')"
+            class="color-dot w-6 h-6 rounded-full border-2 border-transparent hover:border-gray-400 transition-all" style="background:#14b8a6"></button>
+          <button type="button" data-color="#4E7A61" onclick="pickColor('lm','#4E7A61')"
+            class="color-dot w-6 h-6 rounded-full border-2 border-transparent hover:border-gray-400 transition-all" style="background:#4E7A61"></button>
+          <button type="button" data-color="#9B6080" onclick="pickColor('lm','#9B6080')"
+            class="color-dot w-6 h-6 rounded-full border-2 border-transparent hover:border-gray-400 transition-all" style="background:#9B6080"></button>
+          <button type="button" data-color="#6b7280" onclick="pickColor('lm','#6b7280')"
+            class="color-dot w-6 h-6 rounded-full border-2 border-white shadow transition-all" style="background:#6b7280"></button>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">说明</label>
+        <textarea id="lm-desc" rows="2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none"
+          placeholder="标签用途说明（可选）"></textarea>
+      </div>
+      <div class="flex items-center gap-2">
+        <input id="lm-active" type="checkbox" checked class="w-4 h-4 accent-teal-600">
+        <label for="lm-active" class="text-sm text-gray-600">启用此标签</label>
+      </div>
+    </div>
+    <div id="lm-err" class="hidden mt-2 text-sm text-red-500"></div>
+    <div class="flex gap-3 justify-end mt-5">
+      <button onclick="closeLabelModal()" class="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">取消</button>
+      <button onclick="saveLabel()" class="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm hover:bg-teal-700">保存</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ── Demo 数据 ──────────────────────────────────────────────────────────────
+const DEMO_CATEGORIES = [
+  { id: 1, name: '慢病管理', color: '#ef4444', sort_order: 1, is_active: true },
+  { id: 2, name: '体质类型', color: '#9B6080', sort_order: 2, is_active: true },
+  { id: 3, name: '随访状态', color: '#4E7A61', sort_order: 3, is_active: true },
+  { id: 4, name: '风险等级', color: '#f97316', sort_order: 4, is_active: true },
+  { id: 5, name: '特殊人群', color: '#22c55e', sort_order: 5, is_active: true },
+];
+
+const DEMO_LABELS = [
+  { id: 1,  name: '高血压',     category_id: 1, category_name: '慢病管理', scope: 'SYSTEM', color: '#ef4444', description: '确诊高血压患者', is_active: true,  usage_count: 128, created_at: '2026-01-01' },
+  { id: 2,  name: '糖尿病',     category_id: 1, category_name: '慢病管理', scope: 'SYSTEM', color: '#ef4444', description: '确诊2型糖尿病患者', is_active: true, usage_count: 96,  created_at: '2026-01-01' },
+  { id: 3,  name: '高血脂',     category_id: 1, category_name: '慢病管理', scope: 'CUSTOM', color: '#f97316', description: '血脂异常患者', is_active: true,     usage_count: 74,  created_at: '2026-01-15' },
+  { id: 4,  name: '平和质',     category_id: 2, category_name: '体质类型', scope: 'SYSTEM', color: '#22c55e', description: '平和体质', is_active: true,         usage_count: 55,  created_at: '2026-01-01' },
+  { id: 5,  name: '气虚质',     category_id: 2, category_name: '体质类型', scope: 'SYSTEM', color: '#9B6080', description: '气虚体质', is_active: true,         usage_count: 49,  created_at: '2026-01-01' },
+  { id: 6,  name: '阳虚质',     category_id: 2, category_name: '体质类型', scope: 'SYSTEM', color: '#9B6080', description: '阳虚体质', is_active: true,         usage_count: 37,  created_at: '2026-01-01' },
+  { id: 7,  name: '随访中',     category_id: 3, category_name: '随访状态', scope: 'SYSTEM', color: '#4E7A61', description: '当前在随访计划中', is_active: true,  usage_count: 112, created_at: '2026-01-01' },
+  { id: 8,  name: '随访完成',   category_id: 3, category_name: '随访状态', scope: 'SYSTEM', color: '#14b8a6', description: '已完成随访计划', is_active: true,    usage_count: 68,  created_at: '2026-01-01' },
+  { id: 9,  name: '高风险',     category_id: 4, category_name: '风险等级', scope: 'SYSTEM', color: '#ef4444', description: '健康风险评估高危', is_active: true,  usage_count: 43,  created_at: '2026-01-01' },
+  { id: 10, name: '中风险',     category_id: 4, category_name: '风险等级', scope: 'SYSTEM', color: '#f97316', description: '健康风险评估中危', is_active: true,  usage_count: 89,  created_at: '2026-01-01' },
+  { id: 11, name: '老年人',     category_id: 5, category_name: '特殊人群', scope: 'SYSTEM', color: '#6b7280', description: '60岁及以上老年患者', is_active: true, usage_count: 201, created_at: '2026-01-01' },
+  { id: 12, name: '孕产妇',     category_id: 5, category_name: '特殊人群', scope: 'CUSTOM', color: '#ec4899', description: '孕期或产后患者', is_active: false,   usage_count: 18,  created_at: '2026-02-01' },
+];
+
+let allLabels = [...DEMO_LABELS];
+let allCategories = [...DEMO_CATEGORIES];
+let selectedCategoryId = null; // null = 全部
+
+// ── 颜色选择器 ───────────────────────────────────────────────────────────────
+function pickColor(prefix, hex) {
+  document.getElementById(prefix + '-color-val').value = hex;
+  document.getElementById(prefix + '-color-preview').style.background = hex;
+  document.querySelectorAll(`#${prefix === 'cat' ? 'category-modal' : 'label-modal'} .color-dot`).forEach(btn => {
+    if (btn.dataset.color === hex) {
+      btn.classList.add('border-white', 'shadow');
+      btn.classList.remove('border-transparent');
+    } else {
+      btn.classList.remove('border-white', 'shadow');
+      btn.classList.add('border-transparent');
+    }
+  });
+}
+
+// ── 分类列表渲染 ─────────────────────────────────────────────────────────────
+function renderCategories() {
+  const el = document.getElementById('category-items');
+  el.innerHTML = allCategories.map(c => `
+    <button onclick="selectCategory(${c.id}, '${c.name}')"
+      id="cat-btn-${c.id}"
+      class="w-full text-left px-4 py-2.5 text-sm hover:bg-teal-50 transition-colors ${selectedCategoryId === c.id ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}">
+      <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${c.color}"></span>
+        <span>${c.name}</span>
+        <span class="ml-auto text-xs text-gray-400">${allLabels.filter(l => l.category_id === c.id).length}</span>
+      </div>
+    </button>
+  `).join('');
+
+  // 更新快速统计
+  document.getElementById('stat-total').textContent = allLabels.length;
+  document.getElementById('stat-system').textContent = allLabels.filter(l => l.scope === 'SYSTEM').length;
+  document.getElementById('stat-custom').textContent = allLabels.filter(l => l.scope === 'CUSTOM').length;
+  document.getElementById('stat-inactive').textContent = allLabels.filter(l => !l.is_active).length;
+}
+
+function selectCategory(id, name) {
+  selectedCategoryId = id;
+  document.getElementById('panel-title').textContent = name;
+  // 更新全部按钮高亮
+  document.getElementById('cat-btn-all').className =
+    `w-full text-left px-4 py-2.5 text-sm hover:bg-teal-50 transition-colors ${id === null ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`;
+  // 更新分类按钮高亮
+  allCategories.forEach(c => {
+    const btn = document.getElementById(`cat-btn-${c.id}`);
+    if (btn) {
+      btn.className = `w-full text-left px-4 py-2.5 text-sm hover:bg-teal-50 transition-colors ${id === c.id ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'}`;
+    }
+  });
+  renderLabelTable();
+}
+
+// ── 标签表格渲染 ─────────────────────────────────────────────────────────────
+function filterLabels() {
+  renderLabelTable();
+}
+
+function renderLabelTable() {
+  const q = (document.getElementById('search-q').value || '').toLowerCase();
+  let items = allLabels;
+  if (selectedCategoryId !== null) {
+    items = items.filter(l => l.category_id === selectedCategoryId);
+  }
+  if (q) {
+    items = items.filter(l => l.name.toLowerCase().includes(q));
+  }
+
+  const tbody = document.getElementById('label-tbody');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-400 py-10 text-sm">暂无标签数据</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = items.map(l => `
+    <tr class="hover:bg-gray-50 ${!l.is_active ? 'opacity-60' : ''}">
+      <td class="px-5 py-3">
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full flex-shrink-0" style="background:${l.color}"></span>
+          <span class="font-medium text-gray-800">${l.name}</span>
+          ${l.description ? `<span class="text-xs text-gray-400 truncate max-w-xs">${l.description}</span>` : ''}
+        </div>
+      </td>
+      <td class="px-5 py-3 text-gray-600 text-sm">
+        ${l.category_name
+          ? `<span class="inline-flex items-center gap-1">
+               <span class="w-2 h-2 rounded-full" style="background:${getCategoryColor(l.category_id)}"></span>
+               ${l.category_name}
+             </span>`
+          : '<span class="text-gray-300">无分类</span>'}
+      </td>
+      <td class="px-5 py-3">
+        <span class="text-xs px-2 py-0.5 rounded-full ${l.scope === 'SYSTEM' ? 'bg-teal-50 text-teal-700' : ''}" style="${l.scope !== 'SYSTEM' ? 'background:#EBF2ED;color:#4E7A61;' : ''}">
+          ${l.scope === 'SYSTEM' ? '系统预设' : '自定义'}
+        </span>
+      </td>
+      <td class="px-5 py-3 text-gray-600 text-sm">${l.usage_count} 人</td>
+      <td class="px-5 py-3">
+        <span class="text-xs px-2 py-0.5 rounded-full ${l.is_active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}">
+          ${l.is_active ? '启用' : '停用'}
+        </span>
+      </td>
+      <td class="px-5 py-3">
+        <button onclick="openLabelModal(${l.id})" class="text-xs text-teal-600 hover:underline mr-2">编辑</button>
+        <button onclick="toggleLabel(${l.id})" class="text-xs text-gray-500 hover:underline mr-2">
+          ${l.is_active ? '停用' : '启用'}
+        </button>
+        ${l.scope !== 'SYSTEM'
+          ? `<button onclick="deleteLabel(${l.id})" class="text-xs text-red-400 hover:underline">删除</button>`
+          : `<span class="text-xs text-gray-300" title="系统预设标签不可删除">删除</span>`}
+      </td>
+    </tr>
+  `).join('');
+}
+
+function getCategoryColor(catId) {
+  const cat = allCategories.find(c => c.id === catId);
+  return cat ? cat.color : '#6b7280';
+}
+
+function toggleLabel(id) {
+  const label = allLabels.find(l => l.id === id);
+  if (!label) return;
+  label.is_active = !label.is_active;
+  renderCategories();
+  renderLabelTable();
+}
+
+function deleteLabel(id) {
+  if (!confirm('确认删除该标签？删除后已打标记录不受影响。')) return;
+  allLabels = allLabels.filter(l => l.id !== id);
+  renderCategories();
+  renderLabelTable();
+}
+
+// ── 分类弹窗 ─────────────────────────────────────────────────────────────────
+function openCategoryModal() {
+  document.getElementById('cat-name').value = '';
+  document.getElementById('cat-sort').value = '0';
+  document.getElementById('cat-err').classList.add('hidden');
+  pickColor('cat', '#14b8a6');
+  document.getElementById('category-modal').classList.remove('hidden');
+}
+
+function closeCategoryModal() {
+  document.getElementById('category-modal').classList.add('hidden');
+}
+
+function saveCategory() {
+  const name = document.getElementById('cat-name').value.trim();
+  if (!name) {
+    const el = document.getElementById('cat-err');
+    el.textContent = '请填写分类名称';
+    el.classList.remove('hidden');
+    return;
+  }
+  const newId = Math.max(...allCategories.map(c => c.id), 0) + 1;
+  allCategories.push({
+    id: newId,
+    name,
+    color: document.getElementById('cat-color-val').value,
+    sort_order: parseInt(document.getElementById('cat-sort').value) || 0,
+    is_active: true,
+  });
+  closeCategoryModal();
+  renderCategories();
+  // 填充标签弹窗中的分类选项
+  populateCategorySelect();
+}
+
+// ── 标签弹窗 ─────────────────────────────────────────────────────────────────
+function populateCategorySelect() {
+  const sel = document.getElementById('lm-category');
+  sel.innerHTML = '<option value="">无分类</option>' +
+    allCategories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+}
+
+function openLabelModal(id) {
+  populateCategorySelect();
+  document.getElementById('lm-err').classList.add('hidden');
+
+  if (id === null) {
+    // 新增
+    document.getElementById('label-modal-title').textContent = '新增标签';
+    document.getElementById('lm-id').value = '';
+    document.getElementById('lm-name').value = '';
+    document.getElementById('lm-category').value = selectedCategoryId || '';
+    document.getElementById('lm-desc').value = '';
+    document.getElementById('lm-active').checked = true;
+    pickColor('lm', '#6b7280');
+  } else {
+    // 编辑
+    const label = allLabels.find(l => l.id === id);
+    if (!label) return;
+    document.getElementById('label-modal-title').textContent = '编辑标签';
+    document.getElementById('lm-id').value = id;
+    document.getElementById('lm-name').value = label.name;
+    document.getElementById('lm-category').value = label.category_id || '';
+    document.getElementById('lm-desc').value = label.description || '';
+    document.getElementById('lm-active').checked = label.is_active;
+    pickColor('lm', label.color || '#6b7280');
+  }
+
+  document.getElementById('label-modal').classList.remove('hidden');
+}
+
+function closeLabelModal() {
+  document.getElementById('label-modal').classList.add('hidden');
+}
+
+function saveLabel() {
+  const name = document.getElementById('lm-name').value.trim();
+  if (!name) {
+    const el = document.getElementById('lm-err');
+    el.textContent = '请填写标签名称';
+    el.classList.remove('hidden');
+    return;
+  }
+  const id = document.getElementById('lm-id').value;
+  const catId = parseInt(document.getElementById('lm-category').value) || null;
+  const catObj = catId ? allCategories.find(c => c.id === catId) : null;
+
+  if (id) {
+    // 编辑
+    const label = allLabels.find(l => l.id === parseInt(id));
+    if (label) {
+      label.name = name;
+      label.category_id = catId;
+      label.category_name = catObj ? catObj.name : '';
+      label.color = document.getElementById('lm-color-val').value;
+      label.description = document.getElementById('lm-desc').value.trim() || null;
+      label.is_active = document.getElementById('lm-active').checked;
+    }
+  } else {
+    // 新增
+    const newId = Math.max(...allLabels.map(l => l.id), 0) + 1;
+    allLabels.push({
+      id: newId,
+      name,
+      category_id: catId,
+      category_name: catObj ? catObj.name : '',
+      scope: 'CUSTOM',
+      color: document.getElementById('lm-color-val').value,
+      description: document.getElementById('lm-desc').value.trim() || null,
+      is_active: document.getElementById('lm-active').checked,
+      usage_count: 0,
+      created_at: '2026-03-03',
+    });
+  }
+
+  closeLabelModal();
+  renderCategories();
+  renderLabelTable();
+}
+
+// ── 初始化：调用真实 API ───────────────────────────────────────────────────
+(async function init() {
+  try {
+    const [catResp, lblResp] = await Promise.all([
+      fetch('/tools/label/categories'),
+      fetch('/tools/label/labels?page_size=200'),
+    ]);
+    const catData = await catResp.json();
+    const lblData = await lblResp.json();
+    if (catData.success && catData.data.items.length > 0) {
+      allCategories = catData.data.items;
+    }
+    if (lblData.success && lblData.data.items.length > 0) {
+      allLabels = lblData.data.items.map(l => ({
+        ...l,
+        usage_count: l.usage_count ?? 0,
+        created_at: (l.created_at || '').slice(0, 10),
+      }));
+    }
+  } catch (_) { /* 使用演示数据 */ }
+  renderCategories();
+  renderLabelTable();
+})();
+</script>
+{% endblock %}

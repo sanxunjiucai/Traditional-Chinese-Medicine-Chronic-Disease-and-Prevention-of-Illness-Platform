@@ -1,0 +1,206 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "health_education" %}
+{% block title %}新增中医宣教 - 治未病平台{% endblock %}
+{% block page_title %}新增中医宣教{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-4">
+  <!-- 患者选择 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h3 class="font-semibold text-gray-700 mb-4">发送对象</h3>
+    <div class="flex gap-3 mb-2">
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="radio" name="send-scope" value="single" checked onchange="toggleScope(this.value)">
+        <span class="text-sm">单个患者</span>
+      </label>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="radio" name="send-scope" value="batch" onchange="toggleScope(this.value)">
+        <span class="text-sm">批量发送（按条件筛选）</span>
+      </label>
+    </div>
+    <div id="scope-single">
+      <input id="patient-search" type="text" placeholder="点击或输入姓名/手机号搜索患者"
+        onfocus="showPatientDropdown()" oninput="debouncePatientSearch()" autocomplete="off"
+        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8DDD0]">
+      <div id="patient-result" class="hidden border border-gray-200 rounded-lg divide-y max-h-36 overflow-y-auto text-sm mt-1"></div>
+      <div id="patient-selected" class="hidden rounded-lg p-3 mt-2 flex items-center justify-between" style="background:#EBF2ED;border:1px solid #C8DDD0;">
+        <span class="font-medium" id="sel-name" style="color:#3D6A52;"></span>
+        <span class="text-xs text-gray-500 ml-2" id="sel-info"></span>
+        <button onclick="clearPatient()" class="text-xs text-gray-400 hover:text-red-500 ml-auto">更换</button>
+      </div>
+    </div>
+    <div id="scope-batch" class="hidden">
+      <div class="grid grid-cols-3 gap-3">
+        <select class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8DDD0]">
+          <option value="">全部体质</option>
+          <option>气虚质</option><option>阳虚质</option><option>痰湿质</option>
+        </select>
+        <select class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8DDD0]">
+          <option value="">全部档案类型</option>
+          <option>普通档案</option><option>老年人</option><option>重点关注</option>
+        </select>
+        <select class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8DDD0]">
+          <option value="">全部机构</option>
+          <option>示范中医院</option><option>社区卫生中心A</option>
+        </select>
+      </div>
+      <p class="text-xs text-gray-400 mt-2">批量发送将向符合条件的所有患者推送此宣教内容。</p>
+    </div>
+  </div>
+
+  <!-- 内容选择 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-semibold text-gray-700">宣教内容</h3>
+      <button onclick="showTemplateModal()"
+        class="text-sm hover:underline" style="color:#4E7A61;">从模板库选择 →</button>
+    </div>
+    <div class="space-y-4">
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">宣教类型 <span class="text-red-500">*</span></label>
+          <select id="edu-type"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8DDD0]">
+            <option value="CONSTITUTION">体质宣教</option>
+            <option value="DISEASE">疾病知识</option>
+            <option value="DIET">饮食指导</option>
+            <option value="EXERCISE">运动健康</option>
+            <option value="SEASONAL">节气养生</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">发送方式</label>
+          <div class="flex gap-3 mt-1.5">
+            <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+              <input type="checkbox" id="method-app" checked class="rounded"> APP推送
+            </label>
+            <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+              <input type="checkbox" id="method-station" class="rounded"> 站内消息
+            </label>
+            <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+              <input type="checkbox" id="method-sms" class="rounded"> 短信
+            </label>
+          </div>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">宣教主题 <span class="text-red-500">*</span></label>
+        <input type="text" id="edu-title" placeholder="如：气虚体质日常保健指南"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8DDD0]">
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">宣教内容 <span class="text-red-500">*</span></label>
+        <textarea id="edu-content" rows="8" placeholder="输入宣教内容，支持换行...&#10;&#10;例如：&#10;一、体质特点&#10;气虚体质人群常见气短懒言、疲倦乏力...&#10;&#10;二、日常建议&#10;1. 饮食：宜食黄芪、山药、红枣..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8DDD0]"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">发送时间</label>
+        <div class="flex gap-3 items-center">
+          <label class="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="radio" name="send-time" value="now" checked> 立即发送
+          </label>
+          <label class="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="radio" name="send-time" value="scheduled"> 定时发送
+          </label>
+          <input type="datetime-local" id="scheduled-time"
+            class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8DDD0] hidden">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex gap-3 justify-between">
+    <a href="/gui/admin/health-education"
+      class="px-5 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">取消</a>
+    <div class="flex gap-2">
+      <button onclick="saveEducation(false)"
+        class="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">保存草稿</button>
+      <button onclick="saveEducation(true)"
+        class="text-white px-6 py-2 rounded-lg text-sm font-medium" style="background:#4E7A61;" onmouseover="this.style.background='#3F6A52'" onmouseout="this.style.background='#4E7A61'">发送</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.querySelectorAll('input[name="send-time"]').forEach(r => {
+  r.addEventListener('change', () => {
+    document.getElementById('scheduled-time').classList.toggle('hidden', r.value !== 'scheduled');
+  });
+});
+
+function toggleScope(val) {
+  document.getElementById('scope-single').classList.toggle('hidden', val !== 'single');
+  document.getElementById('scope-batch').classList.toggle('hidden', val !== 'batch');
+}
+
+let _allPatients = null;
+let _searchTimer = null;
+
+async function loadAllPatients() {
+  if (_allPatients !== null) return _allPatients;
+  try {
+    const res = await fetch('/tools/archive/archives?page_size=100');
+    const data = await res.json();
+    _allPatients = (data.success && data.data?.items) ? data.data.items : [];
+  } catch { _allPatients = []; }
+  return _allPatients;
+}
+
+async function showPatientDropdown() {
+  await renderPatientList(document.getElementById('patient-search').value.trim());
+}
+
+function debouncePatientSearch() {
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(showPatientDropdown, 200);
+}
+
+async function renderPatientList(q) {
+  const patients = await loadAllPatients();
+  const filtered = q
+    ? patients.filter(p => p.name.includes(q) || (p.phone||'').includes(q))
+    : patients;
+  const el = document.getElementById('patient-result');
+  if (!filtered.length) { el.classList.add('hidden'); return; }
+  el.innerHTML = filtered.slice(0, 30).map(p => {
+    const age = p.birth_date ? Math.floor((Date.now() - new Date(p.birth_date)) / 31557600000) + '岁' : '';
+    return `<div class="px-4 py-2.5 hover:bg-gray-50 cursor-pointer" onclick='selectPatient(${JSON.stringify({id:p.id,name:p.name,phone:p.phone||'',age}).replace(/'/g,"&#39;")})'>
+      <span class="font-medium">${p.name}</span>
+      <span class="text-gray-400 text-xs ml-2">${age} · ${p.phone||''}</span>
+    </div>`;
+  }).join('');
+  el.classList.remove('hidden');
+}
+
+function selectPatient(p) {
+  document.getElementById('patient-search').value = '';
+  document.getElementById('patient-result').classList.add('hidden');
+  document.getElementById('sel-name').textContent = p.name;
+  document.getElementById('sel-info').textContent = `${p.age} · ${p.phone}`;
+  document.getElementById('patient-selected').classList.remove('hidden');
+}
+
+function clearPatient() {
+  document.getElementById('patient-selected').classList.add('hidden');
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#patient-search') && !e.target.closest('#patient-result')) {
+    document.getElementById('patient-result').classList.add('hidden');
+  }
+});
+
+function showTemplateModal() {
+  showToast('模板库选择\n可选：气虚体质保健指南 / 春分节气养生 / 高血压饮食指导...');
+}
+
+function saveEducation(send) {
+  const title = document.getElementById('edu-title').value.trim();
+  if (!title) { showToast('请填写宣教主题'); return; }
+  showToast(send ? '宣教内容发送成功' : '草稿保存成功');
+  if (send) window.location.href = '/gui/admin/health-education';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,176 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "intervention" %}
+{% block title %}干预详情 - 治未病平台{% endblock %}
+{% block page_title %}干预记录详情{% endblock %}
+
+{% block content %}
+<!-- 面包屑 -->
+<nav class="flex items-center justify-between mb-4">
+  <div class="flex items-center gap-1.5 text-sm">
+    <a href="/gui/admin/intervention" class="text-gray-500 hover:text-green-600">干预管理</a>
+    <svg class="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+    </svg>
+    <span class="text-gray-700 font-medium">干预记录详情</span>
+  </div>
+  <a href="/gui/admin/intervention" class="flex items-center gap-1 text-sm text-gray-500 hover:text-green-600">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+    返回列表
+  </a>
+</nav>
+
+<div id="loading" class="text-center py-12 text-gray-400">
+  <div class="animate-spin w-8 h-8 border-4 border-green-200 border-t-green-500 rounded-full mx-auto mb-3"></div>
+  加载中...
+</div>
+
+<div id="main-content" class="hidden grid grid-cols-3 gap-4">
+  <!-- 左：患者 + 干预信息 -->
+  <div class="space-y-4">
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-3">患者信息</h3>
+      <div class="flex items-center gap-3 mb-3">
+        <div id="d-avatar" class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-xl font-bold text-green-600">-</div>
+        <div>
+          <p id="d-patient-name" class="font-semibold text-gray-800">-</p>
+          <p id="d-patient-sub" class="text-xs text-gray-400">-</p>
+        </div>
+      </div>
+      <div class="space-y-1.5 text-sm">
+        <div class="flex justify-between"><span class="text-gray-400">目标体质</span><span id="d-constitution" class="text-gray-700">-</span></div>
+        <div class="flex justify-between"><span class="text-gray-400">干预目标</span><span id="d-goal" class="text-gray-700 text-xs text-right max-w-[60%]">-</span></div>
+      </div>
+      <a id="d-archive-link" href="#" class="block mt-3 text-xs text-green-600 hover:underline hidden">查看完整档案 →</a>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-3">干预概要</h3>
+      <div class="space-y-2 text-sm">
+        <div class="flex justify-between"><span class="text-gray-400">干预类型</span><span id="d-type" class="text-gray-700">-</span></div>
+        <div class="flex justify-between"><span class="text-gray-400">开始日期</span><span id="d-start" class="text-gray-700">-</span></div>
+        <div class="flex justify-between"><span class="text-gray-400">预计周期</span><span id="d-weeks" class="text-gray-700">-</span></div>
+        <div class="flex justify-between"><span class="text-gray-400">频率</span><span id="d-freq" class="text-gray-700">-</span></div>
+        <div class="flex justify-between"><span class="text-gray-400">状态</span><span id="d-status" class="px-2 py-0.5 rounded-full text-xs">-</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右：干预内容 + 执行记录 -->
+  <div class="col-span-2 space-y-4">
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-3">干预方案</h3>
+      <h4 id="d-plan-name" class="font-medium text-gray-800 mb-2">-</h4>
+      <div id="d-content" class="text-sm text-gray-600 whitespace-pre-line"></div>
+      <div id="d-precaution-box" class="mt-3 p-3 bg-amber-50 border border-amber-100 rounded-lg hidden">
+        <p class="text-xs font-semibold text-amber-700 mb-1">注意事项</p>
+        <p id="d-precaution" class="text-xs text-amber-600"></p>
+      </div>
+    </div>
+
+    <!-- 执行记录 -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-gray-700">执行记录</h3>
+        <button onclick="addExecRecord()" class="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-green-700">+ 记录执行</button>
+      </div>
+      <div id="d-records" class="space-y-4 text-sm text-gray-500 text-center py-4">加载执行记录...</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const RECORD_ID = '{{ record_id }}';
+const TYPE_LABELS = {ACUPUNCTURE:'针灸',MASSAGE:'推拿',HERBAL:'中药',DIET:'食疗',EXERCISE:'运动',BATH:'药浴',COMBINED:'综合干预'};
+const STATUS_MAP = {
+  IN_PROGRESS:{label:'进行中',cls:'bg-green-100 text-green-700'},
+  COMPLETED:{label:'已完成',cls:'bg-gray-100 text-gray-600'},
+  PAUSED:{label:'已暂停',cls:'bg-orange-100 text-orange-600'},
+};
+const EFF_LABELS = {EFFECTIVE:'有效',PARTIAL:'部分有效',INEFFECTIVE:'无效',NOT_ASSESSED:'未评估'};
+const EFF_CLS = {EFFECTIVE:'bg-green-100 text-green-700',PARTIAL:'bg-yellow-100 text-yellow-600',INEFFECTIVE:'bg-red-100 text-red-600',NOT_ASSESSED:'bg-gray-100 text-gray-500'};
+
+async function loadDetail() {
+  try {
+    const res = await fetch(`/tools/intervention/interventions/${RECORD_ID}`);
+    const data = await res.json();
+    if (!data.success) throw new Error();
+    const d = data.data;
+
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('main-content').classList.remove('hidden');
+
+    const firstChar = (d.patient_name||'?')[0];
+    document.getElementById('d-avatar').textContent = firstChar;
+    document.getElementById('d-patient-name').textContent = d.patient_name || '-';
+    document.getElementById('d-patient-sub').textContent = d.patient_id ? d.patient_id.slice(0,8)+'...' : '';
+
+    if (d.archive_id) {
+      const link = document.getElementById('d-archive-link');
+      link.href = `/gui/admin/archives/${d.archive_id}`;
+      link.classList.remove('hidden');
+    }
+
+    document.getElementById('d-constitution').textContent = d.target_constitution || '-';
+    document.getElementById('d-goal').textContent = d.goal || '-';
+    document.getElementById('d-plan-name').textContent = d.plan_name || '-';
+    document.getElementById('d-content').textContent = d.content_detail || '（暂无详细内容）';
+
+    if (d.precaution) {
+      document.getElementById('d-precaution').textContent = d.precaution;
+      document.getElementById('d-precaution-box').classList.remove('hidden');
+    }
+
+    document.getElementById('d-type').textContent = TYPE_LABELS[d.intervention_type] || d.intervention_type || '-';
+    document.getElementById('d-start').textContent = d.start_date || '-';
+    document.getElementById('d-weeks').textContent = d.duration_weeks ? d.duration_weeks + '周' : '-';
+    document.getElementById('d-freq').textContent = d.frequency || '-';
+    const s = STATUS_MAP[d.status] || {label:d.status||'-',cls:'bg-gray-100 text-gray-500'};
+    const statusEl = document.getElementById('d-status');
+    statusEl.textContent = s.label;
+    statusEl.className = 'px-2 py-0.5 rounded-full text-xs ' + s.cls;
+
+    loadRecords();
+  } catch(e) {
+    document.getElementById('loading').innerHTML = '<p class="text-red-500">加载失败，请刷新重试</p>';
+  }
+}
+
+async function loadRecords() {
+  try {
+    const res = await fetch(`/tools/intervention/interventions/${RECORD_ID}/records`);
+    const data = await res.json();
+    const records = data.success ? (data.data.items || data.data || []) : [];
+    if (!records.length) {
+      document.getElementById('d-records').innerHTML = '<p class="text-gray-400 text-center py-4">暂无执行记录</p>';
+      return;
+    }
+    document.getElementById('d-records').innerHTML = records.map((r, idx) => `
+      <div class="flex gap-3">
+        <div class="flex flex-col items-center">
+          <div class="w-2 h-2 rounded-full bg-green-400 mt-1.5 flex-shrink-0"></div>
+          ${idx < records.length-1 ? '<div class="w-px flex-1 bg-gray-200 mt-1"></div>' : ''}
+        </div>
+        <div class="pb-4 flex-1">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-sm font-medium text-gray-700">第${r.session_no}次</span>
+            <span class="text-xs text-gray-400">${r.executed_at ? r.executed_at.slice(0,10) : '-'}</span>
+          </div>
+          <span class="text-xs px-1.5 py-0.5 rounded ${EFF_CLS[r.effectiveness]||'bg-gray-100 text-gray-500'}">${EFF_LABELS[r.effectiveness]||r.effectiveness||'-'}</span>
+          ${r.notes ? `<p class="text-sm text-gray-500 mt-1">${r.notes}</p>` : ''}
+          ${r.patient_feedback ? `<p class="text-xs text-gray-400 mt-0.5">患者反馈：${r.patient_feedback}</p>` : ''}
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    document.getElementById('d-records').innerHTML = '<p class="text-gray-400 text-center py-4">暂无执行记录</p>';
+  }
+}
+
+function addExecRecord() { showToast('记录执行情况'); }
+
+loadDetail();
+</script>
+{% endblock %}

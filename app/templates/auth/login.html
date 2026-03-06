@@ -5,66 +5,236 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>登录 - 治未病平台</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }</style>
-</head>
-<body class="bg-gradient-to-br from-green-50 to-emerald-100 min-h-screen flex items-center justify-center px-4">
+  <style>
+    :root {
+      --bg:             #F5F2EC;
+      --surface:        #FFFFFF;
+      --surface-warm:   #FDFCF9;
+      --primary:        #4E7A61;
+      --primary-hover:  #3F6A52;
+      --text:           #28231E;
+      --text-secondary: #6A6258;
+      --text-muted:     #9A9188;
+      --border:         #E4DDD4;
+      --error:          #D95C4A;
+      --error-bg:       #FEF2F0;
+      --error-border:   #FECDCA;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC",
+        "Noto Sans SC", "Microsoft YaHei", sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      margin: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    .input-field {
+      border: 1.5px solid var(--border);
+      border-radius: 13px;
+      padding: 13px 16px;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      width: 100%;
+      background: var(--surface-warm);
+      color: var(--text);
+      font-family: inherit;
+    }
+    .input-field:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(78, 122, 97, 0.12);
+    }
+    .input-field::placeholder { color: var(--text-muted); }
 
-<div class="w-full max-w-sm">
-  <!-- Logo -->
-  <div class="text-center mb-8">
-    <div class="inline-flex items-center justify-center w-16 h-16 bg-green-600 rounded-2xl mb-4 shadow-lg">
-      <span class="text-white text-3xl">🌿</span>
+    .btn-login {
+      background: var(--primary);
+      color: #fff;
+      border-radius: 14px;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      font-family: inherit;
+      width: 100%;
+    }
+    .btn-login:hover { background: var(--primary-hover); }
+    .btn-login:active { transform: scale(0.98); }
+    .btn-login:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .anim-1 { animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+    .anim-2 { animation: fadeUp 0.5s 0.08s cubic-bezier(0.16, 1, 0.3, 1) both; }
+    .anim-3 { animation: fadeUp 0.5s 0.16s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .anim-1, .anim-2, .anim-3 { animation: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- 背景光晕装饰 -->
+<div aria-hidden="true" style="position: fixed; inset: 0; overflow: hidden; pointer-events: none;">
+  <div style="position: absolute; top: -100px; right: -80px; width: 340px; height: 340px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(78,122,97,0.10) 0%, transparent 68%);"></div>
+  <div style="position: absolute; bottom: -60px; left: -100px; width: 380px; height: 380px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(184,136,94,0.07) 0%, transparent 68%);"></div>
+</div>
+
+<div style="position: relative; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px;">
+
+  <!-- Logo & 标题 -->
+  <div style="text-align: center; margin-bottom: 36px;" class="anim-1">
+    <!-- 叶脉 SVG 徽标 -->
+    <div style="
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 76px; height: 76px;
+      background: var(--primary);
+      border-radius: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 28px rgba(78,122,97,0.30);
+    ">
+      <svg width="42" height="42" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- 叶片外轮廓 -->
+        <path d="M21 7 C21 7, 34 12, 34 24 C34 32, 28 37, 21 37 C14 37, 8 32, 8 24 C8 12, 21 7, 21 7Z"
+          fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.9)" stroke-width="1.5"/>
+        <!-- 主脉 -->
+        <path d="M21 37 L21 13" stroke="rgba(255,255,255,0.9)" stroke-width="1.6" stroke-linecap="round"/>
+        <!-- 侧脉 -->
+        <path d="M21 23 L15 19" stroke="rgba(255,255,255,0.75)" stroke-width="1.1" stroke-linecap="round"/>
+        <path d="M21 23 L27 19" stroke="rgba(255,255,255,0.75)" stroke-width="1.1" stroke-linecap="round"/>
+        <path d="M21 29 L16 26" stroke="rgba(255,255,255,0.55)" stroke-width="1.0" stroke-linecap="round"/>
+        <path d="M21 29 L26 26" stroke="rgba(255,255,255,0.55)" stroke-width="1.0" stroke-linecap="round"/>
+      </svg>
     </div>
-    <h1 class="text-2xl font-bold text-gray-800">治未病平台</h1>
-    <p class="text-gray-500 text-sm mt-1">中医慢病管理与健康调护</p>
+    <h1 style="font-size: 26px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; margin: 0;">治未病平台</h1>
+    <p style="color: var(--text-muted); font-size: 14px; margin-top: 8px; letter-spacing: 0.04em;">中医慢病管理 · 健康调护</p>
   </div>
 
-  <!-- 登录表单 -->
-  <div class="bg-white rounded-2xl shadow-md p-6">
-    <div id="error-msg" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm"></div>
+  <!-- 登录卡片 -->
+  <div style="
+    background: var(--surface);
+    border-radius: 24px;
+    box-shadow: 0 4px 36px rgba(68,60,48,0.11);
+    padding: 28px 24px 24px;
+    width: 100%;
+    max-width: 420px;
+  " class="anim-2">
 
-    <div class="space-y-4">
+    <!-- 错误提示 -->
+    <div id="error-msg" style="
+      display: none;
+      background: var(--error-bg);
+      border: 1px solid var(--error-border);
+      color: var(--error);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      line-height: 1.5;
+    "></div>
+
+    <div style="display: flex; flex-direction: column; gap: 16px;">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1.5">手机号 / 账号</label>
-        <input id="phone" type="text" placeholder="请输入手机号"
-          class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition">
+        <label style="display: block; font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 7px;">
+          手机号 / 账号
+        </label>
+        <input id="phone" type="text" placeholder="请输入手机号或账号" class="input-field" autocomplete="username">
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1.5">密码</label>
-        <input id="password" type="password" placeholder="请输入密码"
-          class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition">
+        <label style="display: block; font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 7px;">
+          密码
+        </label>
+        <input id="password" type="password" placeholder="请输入密码" class="input-field" autocomplete="current-password">
       </div>
-      <button onclick="doLogin()"
-        class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 rounded-xl transition text-sm">
+      <button id="login-btn" onclick="doLogin()" class="btn-login" style="margin-top: 4px;">
         登录
       </button>
     </div>
 
-    <div class="mt-4 text-center">
-      <span class="text-gray-500 text-sm">还没有账号？</span>
-      <a href="/register" class="text-green-600 text-sm font-medium ml-1">立即注册</a>
+    <div style="text-align: center; margin-top: 20px;">
+      <span style="color: var(--text-muted); font-size: 14px;">还没有账号？</span>
+      <a href="/register" style="color: var(--primary); font-size: 14px; font-weight: 500; margin-left: 4px; text-decoration: none;">立即注册</a>
     </div>
   </div>
 
-  <!-- 演示账号提示 -->
-  <div class="mt-4 bg-white/60 rounded-xl px-4 py-3 text-xs text-gray-500">
-    <p class="font-medium mb-1 text-gray-600">演示账号（密码：Demo@123456）</p>
-    <p>患者端：patient@tcm</p>
-    <p>管理端：admin@tcm</p>
+  <!-- 演示账号快捷登录 -->
+  <div style="
+    margin-top: 16px;
+    background: rgba(255,255,255,0.65);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 16px 18px;
+    width: 100%;
+    max-width: 420px;
+    border: 1px solid rgba(228,221,212,0.6);
+  " class="anim-3">
+    <p style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin: 0 0 10px; text-align: center;">
+      演示账号（点击快速填入）
+    </p>
+    <div style="display: flex; gap: 10px;">
+      <button onclick="fillAccount('admin@tcm','Demo@123456')" style="
+        flex: 1; padding: 10px 6px; border-radius: 12px; border: 1.5px solid var(--border);
+        background: var(--surface-warm); cursor: pointer; transition: all 0.2s; font-family: inherit;
+      " onmouseover="this.style.borderColor='var(--primary)';this.style.background='rgba(78,122,97,0.06)'"
+         onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface-warm)'">
+        <div style="font-size: 20px; margin-bottom: 4px;">&#128119;</div>
+        <div style="font-size: 13px; font-weight: 600; color: var(--text);">管理员</div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">admin@tcm</div>
+      </button>
+      <button onclick="fillAccount('doctor@tcm','Demo@123456')" style="
+        flex: 1; padding: 10px 6px; border-radius: 12px; border: 1.5px solid var(--border);
+        background: var(--surface-warm); cursor: pointer; transition: all 0.2s; font-family: inherit;
+      " onmouseover="this.style.borderColor='var(--primary)';this.style.background='rgba(78,122,97,0.06)'"
+         onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface-warm)'">
+        <div style="font-size: 20px; margin-bottom: 4px;">&#129657;</div>
+        <div style="font-size: 13px; font-weight: 600; color: var(--text);">医生</div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">doctor@tcm</div>
+      </button>
+      <button onclick="fillAccount('patient@tcm','Demo@123456')" style="
+        flex: 1; padding: 10px 6px; border-radius: 12px; border: 1.5px solid var(--border);
+        background: var(--surface-warm); cursor: pointer; transition: all 0.2s; font-family: inherit;
+      " onmouseover="this.style.borderColor='var(--primary)';this.style.background='rgba(78,122,97,0.06)'"
+         onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface-warm)'">
+        <div style="font-size: 20px; margin-bottom: 4px;">&#128100;</div>
+        <div style="font-size: 13px; font-weight: 600; color: var(--text);">患者</div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">patient@tcm</div>
+      </button>
+    </div>
   </div>
+
 </div>
 
 <script>
+function fillAccount(phone, password) {
+  document.getElementById('phone').value = phone;
+  document.getElementById('password').value = password;
+  document.getElementById('error-msg').style.display = 'none';
+}
+
 async function doLogin() {
   const phone = document.getElementById('phone').value.trim();
   const password = document.getElementById('password').value;
   const errEl = document.getElementById('error-msg');
+  const btn = document.getElementById('login-btn');
 
   if (!phone || !password) {
     errEl.textContent = '请填写手机号和密码';
-    errEl.classList.remove('hidden');
+    errEl.style.display = 'block';
     return;
   }
+
+  btn.disabled = true;
+  btn.textContent = '登录中…';
+  errEl.style.display = 'none';
 
   try {
     const resp = await fetch('/tools/auth/login', {
@@ -76,22 +246,23 @@ async function doLogin() {
 
     if (data.success) {
       const role = data.data.role;
-      if (role === 'ADMIN' || role === 'PROFESSIONAL') {
-        window.location.href = '/gui/admin/alerts';
-      } else {
-        window.location.href = '/h5/home';
-      }
+      window.location.href = (role === 'ADMIN' || role === 'PROFESSIONAL')
+        ? '/gui/admin/alerts'
+        : '/h5/home';
     } else {
       errEl.textContent = data.error.message;
-      errEl.classList.remove('hidden');
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = '登录';
     }
   } catch (e) {
-    errEl.textContent = '网络错误，请重试';
-    errEl.classList.remove('hidden');
+    errEl.textContent = '网络错误，请稍后重试';
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = '登录';
   }
 }
 
-// Enter 键提交
 document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 </script>
 </body>

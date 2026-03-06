@@ -1,0 +1,151 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "archive_audit" %}
+{% block title %}档案审核详情 - 治未病平台{% endblock %}
+{% block page_title %}档案审核{% endblock %}
+
+{% block content %}
+<!-- 面包屑 -->
+<nav class="flex items-center justify-between mb-4">
+  <div class="flex items-center gap-1.5 text-sm">
+    <a href="/gui/admin/archives/audit" class="text-gray-500 hover:text-amber-600">档案审核</a>
+    <svg class="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+    </svg>
+    <span class="text-gray-700 font-medium">审核详情</span>
+  </div>
+  <a href="/gui/admin/archives/audit" class="flex items-center gap-1 text-sm text-gray-500 hover:text-amber-600">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+    返回列表
+  </a>
+</nav>
+<div class="max-w-4xl mx-auto space-y-4">
+  <!-- 审核任务头 -->
+  <div class="bg-white rounded-xl shadow-sm p-5 flex items-start justify-between">
+    <div>
+      <div class="flex items-center gap-3 mb-2">
+        <span class="px-2.5 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">待审核</span>
+        <span class="text-xs text-gray-400">修改信息 · 提交于 2026-03-03 09:15</span>
+      </div>
+      <h2 class="text-lg font-bold text-gray-800">档案信息变更审核</h2>
+      <p class="text-sm text-gray-500 mt-1">
+        患者：<span class="font-medium text-gray-700">吴建民</span>
+        <span class="mx-2 text-gray-300">|</span>
+        档案号：<span class="font-medium text-gray-700">A10134</span>
+        <span class="mx-2 text-gray-300">|</span>
+        操作人：<span class="font-medium text-gray-700">李医生</span>
+      </p>
+    </div>
+  </div>
+
+  <!-- 变更对比 -->
+  <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-gray-100">
+      <h3 class="font-semibold text-gray-700">变更内容对比</h3>
+      <p class="text-xs text-gray-400 mt-0.5">红色为修改前，绿色为修改后</p>
+    </div>
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+        <tr>
+          <th class="px-5 py-3 text-left w-32">字段</th>
+          <th class="px-5 py-3 text-left">修改前</th>
+          <th class="px-5 py-3 text-left">修改后</th>
+          <th class="px-5 py-3 text-left w-24">变更</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for field, before, after, changed in [
+          ('联系电话', '138****1234', '138****5678', true),
+          ('家庭住址', '北京市朝阳区某某路1号', '北京市朝阳区光明路28号', true),
+          ('紧急联系人', '吴小明（儿子）', '吴小明（儿子）', false),
+          ('联系电话2', '无', '139****8888', true),
+        ] %}
+        <tr class="{% if changed %}bg-yellow-50/30{% endif %}">
+          <td class="px-5 py-3 text-gray-500 font-medium">{{ field }}</td>
+          <td class="px-5 py-3 {% if changed %}text-red-500 line-through{% else %}text-gray-600{% endif %}">{{ before }}</td>
+          <td class="px-5 py-3 {% if changed %}text-green-600 font-medium{% else %}text-gray-600{% endif %}">{{ after }}</td>
+          <td class="px-5 py-3">
+            {% if changed %}
+            <span class="px-1.5 py-0.5 bg-yellow-100 text-yellow-600 rounded text-xs">已变更</span>
+            {% else %}
+            <span class="px-1.5 py-0.5 bg-gray-100 text-gray-400 rounded text-xs">未变更</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 操作说明 -->
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <h3 class="font-semibold text-gray-700 mb-2">操作说明</h3>
+    <p class="text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">
+      因患者吴建民本人到访，提供了最新联系方式并更新了家庭住址（已验证身份证）。变更原因：患者搬家且更换了手机号码。
+    </p>
+  </div>
+
+  <!-- 审核意见 -->
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <h3 class="font-semibold text-gray-700 mb-3">审核意见</h3>
+    <textarea id="audit-comment" rows="3" placeholder="输入审核意见（选填）..."
+      class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"></textarea>
+    <div class="flex gap-3 mt-4 justify-end">
+      <a href="/gui/admin/archives/audit"
+        class="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">返回列表</a>
+      <button onclick="doAudit('reject')"
+        class="px-5 py-2 border border-red-200 text-red-600 rounded-lg text-sm hover:bg-red-50">驳回</button>
+      <button onclick="doAudit('approve')"
+        class="bg-green-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-green-700 font-medium">通过审核</button>
+    </div>
+  </div>
+
+  <!-- 审核历史 -->
+  <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-gray-100">
+      <h3 class="font-semibold text-gray-700">该档案历史审核记录</h3>
+    </div>
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+        <tr>
+          <th class="px-5 py-3 text-left">变更类型</th>
+          <th class="px-5 py-3 text-left">操作人</th>
+          <th class="px-5 py-3 text-left">审核人</th>
+          <th class="px-5 py-3 text-left">审核时间</th>
+          <th class="px-5 py-3 text-left">结果</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for typ, op, reviewer, time, result, cls in [
+          ('修改信息', '李医生', '张主任', '2026-01-15 14:30', '通过', 'bg-green-100 text-green-700'),
+          ('新建档案', '王护士', '张主任', '2025-08-20 10:00', '通过', 'bg-green-100 text-green-700'),
+        ] %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-5 py-3 text-gray-600">{{ typ }}</td>
+          <td class="px-5 py-3 text-gray-500">{{ op }}</td>
+          <td class="px-5 py-3 text-gray-500">{{ reviewer }}</td>
+          <td class="px-5 py-3 text-gray-400 text-xs">{{ time }}</td>
+          <td class="px-5 py-3"><span class="px-2 py-0.5 rounded-full text-xs {{ cls }}">{{ result }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function doAudit(action) {
+  const comment = document.getElementById('audit-comment').value;
+  if (action === 'reject' && !comment.trim()) {
+    showToast('驳回时请填写审核意见');
+    return;
+  }
+  const msg = action === 'approve' ? '审核通过' : '已驳回';
+  showToast(`${msg}`);
+  window.location.href = '/gui/admin/archives/audit';
+}
+</script>
+{% endblock %}

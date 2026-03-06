@@ -1,0 +1,249 @@
+{% extends "_layouts/patient.html" %}
+{% block title %}我的调理方案{% endblock %}
+{% block page_title %}我的调理方案{% endblock %}
+
+{% block extra_css %}
+.tab-bar {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 0 2px 8px;
+  scrollbar-width: none;
+}
+.tab-bar::-webkit-scrollbar { display: none; }
+.tab-btn {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  border-radius: var(--radius-chip);
+  font-size: 13px;
+  font-weight: 500;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.18s;
+  white-space: nowrap;
+  font-family: inherit;
+}
+.tab-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.plan-item {
+  background: #fff;
+  border-radius: 16px;
+  padding: 15px 16px;
+  box-shadow: var(--shadow-xs);
+  border: 1px solid var(--border-light);
+}
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 5px;
+}
+{% endblock %}
+
+{% block content %}
+<div style="padding:16px;display:flex;flex-direction:column;gap:14px;">
+
+  <!-- 顶部方案概览 -->
+  <div id="plan-header" style="background:linear-gradient(140deg,#4E7A61,#3D6A52);border-radius:20px;padding:18px 20px;color:#fff;">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <p style="font-size:12px;color:rgba(255,255,255,0.65);margin:0 0 4px;">当前方案</p>
+        <h3 id="plan-title" style="font-size:17px;font-weight:600;margin:0;">加载中…</h3>
+      </div>
+      <div id="plan-badge" style="background:rgba(255,255,255,0.18);border-radius:12px;padding:6px 12px;text-align:center;">
+        <p style="font-size:20px;font-weight:700;margin:0;" id="plan-days">-</p>
+        <p style="font-size:11px;color:rgba(255,255,255,0.7);margin:0;">天计划</p>
+      </div>
+    </div>
+    <div style="display:flex;gap:16px;margin-top:14px;">
+      <div>
+        <p style="font-size:11px;color:rgba(255,255,255,0.6);margin:0;">开始日期</p>
+        <p id="plan-start" style="font-size:13px;font-weight:500;margin:3px 0 0;">-</p>
+      </div>
+      <div>
+        <p style="font-size:11px;color:rgba(255,255,255,0.6);margin:0;">结束日期</p>
+        <p id="plan-end" style="font-size:13px;font-weight:500;margin:3px 0 0;">-</p>
+      </div>
+      <div>
+        <p style="font-size:11px;color:rgba(255,255,255,0.6);margin:0;">执行进度</p>
+        <p id="plan-progress" style="font-size:13px;font-weight:500;margin:3px 0 0;">-</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 分类 Tab -->
+  <div class="tab-bar" id="tab-bar">
+    <button class="tab-btn active" data-cat="all" onclick="switchTab(this,'all')">全部</button>
+    <button class="tab-btn" data-cat="diet" onclick="switchTab(this,'diet')">🍵 饮食</button>
+    <button class="tab-btn" data-cat="exercise" onclick="switchTab(this,'exercise')">🏃 运动</button>
+    <button class="tab-btn" data-cat="sleep" onclick="switchTab(this,'sleep')">🌙 作息</button>
+    <button class="tab-btn" data-cat="emotion" onclick="switchTab(this,'emotion')">🧘 情志</button>
+    <button class="tab-btn" data-cat="medicine" onclick="switchTab(this,'medicine')">💊 用药</button>
+    <button class="tab-btn" data-cat="therapy" onclick="switchTab(this,'therapy')">🌿 理疗</button>
+    <button class="tab-btn" data-cat="revisit" onclick="switchTab(this,'revisit')">📅 复诊</button>
+  </div>
+
+  <!-- 方案条目列表 -->
+  <div id="items-loading" style="display:flex;flex-direction:column;gap:10px;">
+    <div class="skeleton" style="height:80px;"></div>
+    <div class="skeleton" style="height:80px;width:90%;"></div>
+    <div class="skeleton" style="height:80px;width:80%;"></div>
+  </div>
+
+  <div id="items-empty" style="display:none;text-align:center;padding:36px 0;">
+    <div style="width:56px;height:56px;background:#EBF2ED;border-radius:18px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;">
+      <svg width="26" height="26" fill="none" stroke="#4E7A61" viewBox="0 0 24 24" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+    </div>
+    <p style="font-size:15px;font-weight:500;color:#28231E;margin:0 0 6px;">该分类暂无方案</p>
+    <p style="font-size:13px;color:#9A9188;margin:0;">医生尚未制定相关调理内容</p>
+  </div>
+
+  <div id="items-list" style="display:none;flex-direction:column;gap:10px;"></div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const CAT_MAP = {
+  diet:     { label:'饮食', color:'#4E7A61', bg:'#EBF2ED' },
+  exercise: { label:'运动', color:'#3D7A72', bg:'#E6F2F0' },
+  sleep:    { label:'作息', color:'#5070A8', bg:'#EEF2F7' },
+  emotion:  { label:'情志', color:'#7A5EA0', bg:'#EEE8F5' },
+  medicine: { label:'用药', color:'#B8885E', bg:'#F7EEE4' },
+  therapy:  { label:'理疗', color:'#7A6C4E', bg:'#F5F0E8' },
+  revisit:  { label:'复诊', color:'#D95C4A', bg:'#FEF2F0' },
+};
+
+// 演示数据（API 无数据时兜底）
+const DEMO_ITEMS = [
+  { id:1, cat:'diet',     title:'低盐低脂饮食', content:'每日食盐不超过5g，减少动物内脏及高脂肪食物摄入，多食新鲜蔬菜及粗粮。', priority:'HIGH',  status:'ONGOING',   days:'每日执行' },
+  { id:2, cat:'diet',     title:'穴位食疗方',   content:'山药薏仁粥：山药30g、薏仁20g，每周3次，健脾祛湿，适合痰湿体质。',     priority:'MEDIUM', status:'ONGOING',   days:'每周3次' },
+  { id:3, cat:'exercise', title:'有氧步行',      content:'每日步行6000步，心率维持在(220-年龄)×60%范围内，避免剧烈运动。',     priority:'HIGH',  status:'ONGOING',   days:'每日' },
+  { id:4, cat:'exercise', title:'八段锦练习',    content:'每日晨起练习八段锦完整套路一遍（约20分钟），舒展筋骨，调和气血。',    priority:'MEDIUM', status:'ONGOING',   days:'每日晨起' },
+  { id:5, cat:'sleep',    title:'规律作息',      content:'每晚22:30前入睡，早晨6:30起床，中午可午休30分钟，避免熬夜。',         priority:'HIGH',  status:'ONGOING',   days:'每日' },
+  { id:6, cat:'emotion',  title:'情志调摄',      content:'保持心情舒畅，避免过度紧张焦虑，可练习腹式呼吸或冥想，每次10分钟。',  priority:'MEDIUM', status:'ONGOING',   days:'每日' },
+  { id:7, cat:'medicine', title:'苯磺酸氨氯地平', content:'5mg/次，每日1次，晨起口服。注意监测血压，出现明显头痛头晕及时就诊。',  priority:'HIGH',  status:'ONGOING',   days:'每日晨起' },
+  { id:8, cat:'medicine', title:'六味地黄丸',    content:'水蜜丸6g，每日2次，饭前半小时口服，连续服用1个月后复诊评估。',        priority:'MEDIUM', status:'ONGOING',   days:'每日两次' },
+  { id:9, cat:'therapy',  title:'艾灸调理',      content:'取穴：足三里、关元、气海，每次每穴灸10-15分钟，每周2-3次，益气温阳。', priority:'MEDIUM', status:'ONGOING',   days:'每周2-3次' },
+  { id:10,cat:'therapy',  title:'推拿按摩',      content:'自行按揉内关穴、百会穴，每次每穴2-3分钟，可缓解头痛不适。',           priority:'LOW',    status:'OPTIONAL',  days:'有不适时' },
+  { id:11,cat:'revisit',  title:'门诊复诊',      content:'请于方案结束后1周内至心内科门诊复诊，携带近期血压记录及用药情况。',    priority:'HIGH',  status:'PENDING',   days:'方案结束后' },
+  { id:12,cat:'revisit',  title:'血压监测上报',  content:'每日晨起及晚睡前各测量一次血压，记录至随访打卡，如连续3日收缩压≥160mmHg请立即就诊。', priority:'HIGH', status:'ONGOING', days:'每日两次' },
+];
+
+let allItems = [];
+let currentCat = 'all';
+
+function switchTab(btn, cat) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentCat = cat;
+  renderItems();
+}
+
+function renderItems() {
+  const filtered = currentCat === 'all' ? allItems : allItems.filter(i => i.cat === currentCat);
+  const list = document.getElementById('items-list');
+  const empty = document.getElementById('items-empty');
+  if (filtered.length === 0) {
+    list.style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  list.style.display = 'flex';
+  list.innerHTML = filtered.map(item => {
+    const c = CAT_MAP[item.cat] || { label: item.cat, color:'#4E7A61', bg:'#EBF2ED' };
+    const priorityColor = item.priority === 'HIGH' ? '#D95C4A' : item.priority === 'MEDIUM' ? '#B8885E' : '#9A9188';
+    const priorityLabel = item.priority === 'HIGH' ? '重要' : item.priority === 'MEDIUM' ? '建议' : '可选';
+    const statusColor = item.status === 'ONGOING' ? '#4E7A61' : item.status === 'PENDING' ? '#B8885E' : '#9A9188';
+    const statusLabel = item.status === 'ONGOING' ? '进行中' : item.status === 'PENDING' ? '待执行' : '选做';
+    return `
+      <div class="plan-item">
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+          <div style="width:36px;height:36px;border-radius:12px;background:${c.bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;">
+            ${{ diet:'🍵', exercise:'🏃', sleep:'🌙', emotion:'🧘', medicine:'💊', therapy:'🌿', revisit:'📅' }[item.cat] || '📋'}
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:5px;">
+              <span style="font-size:14px;font-weight:600;color:#28231E;">${item.title}</span>
+              <span style="font-size:11px;font-weight:500;color:${priorityColor};background:${priorityColor}18;padding:2px 7px;border-radius:99px;">${priorityLabel}</span>
+              <span style="font-size:11px;color:${statusColor};background:${statusColor}18;padding:2px 7px;border-radius:99px;">${statusLabel}</span>
+            </div>
+            <p style="font-size:13px;color:#6A6258;margin:0 0 8px;line-height:1.55;">${item.content}</p>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <span style="font-size:12px;color:#9A9188;">
+                <svg style="vertical-align:-2px;margin-right:3px;" width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                ${item.days}
+              </span>
+              <span style="font-size:11px;color:${c.color};background:${c.bg};padding:2px 8px;border-radius:99px;">${c.label}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function loadPlan() {
+  // 尝试获取当前随访计划（取最近一条 ACTIVE 计划）
+  try {
+    const r = await fetch('/tools/followup/plans');
+    const j = await r.json();
+    if (j.success && Array.isArray(j.data) && j.data.length) {
+      const active = j.data.find(p => p.status === 'ACTIVE') || j.data[0];
+      const DISEASE_LABELS = { HYPERTENSION:'高血压', DIABETES:'糖尿病', CORONARY_HEART:'冠心病', STROKE:'脑卒中', COPD:'慢阻肺', TUMOR:'肿瘤', OTHER:'慢病综合' };
+      document.getElementById('plan-title').textContent = DISEASE_LABELS[active.disease_type] || '慢病综合调理方案';
+      const start = active.start_date?.substring(0,10) || '-';
+      const end = active.end_date?.substring(0,10) || '-';
+      const startMs = start !== '-' ? new Date(start).getTime() : Date.now();
+      const endMs = end !== '-' ? new Date(end).getTime() : Date.now() + 30*86400000;
+      const total = Math.max(1, Math.round((endMs - startMs) / 86400000));
+      const done = Math.max(0, Math.round((Date.now() - startMs) / 86400000));
+      document.getElementById('plan-start').textContent = start;
+      document.getElementById('plan-end').textContent = end;
+      document.getElementById('plan-days').textContent = total;
+      document.getElementById('plan-progress').textContent = `${Math.min(done,total)}/${total}天`;
+    }
+  } catch(e) {}
+
+  // 尝试获取中医指导方案
+  let items = [];
+  try {
+    const r = await fetch('/tools/guidance/records?page_size=50');
+    const j = await r.json();
+    if (j.success && j.data?.items?.length) {
+      const TYPE_CAT = { LIFESTYLE:'diet', EXERCISE:'exercise', SLEEP:'sleep', EMOTION:'emotion', MEDICATION:'medicine', THERAPY:'therapy', FOLLOW_UP:'revisit', DIET:'diet', GUIDANCE:'diet', EDUCATION:'therapy', INTERVENTION:'therapy' };
+      items = j.data.items.map(rec => ({
+        id: rec.id,
+        cat: TYPE_CAT[rec.guidance_type] || 'diet',
+        title: rec.title || rec.guidance_type,
+        content: rec.content || rec.summary || '',
+        priority: rec.priority || 'MEDIUM',
+        status: rec.status === 'PUBLISHED' ? 'ONGOING' : 'PENDING',
+        days: rec.frequency || rec.cycle || '遵医嘱',
+      }));
+    }
+  } catch(e) {}
+
+  allItems = items.length ? items : DEMO_ITEMS;
+  document.getElementById('items-loading').style.display = 'none';
+  renderItems();
+
+  // 方案头部默认演示文案
+  if (document.getElementById('plan-title').textContent === '加载中…') {
+    document.getElementById('plan-title').textContent = '慢病综合调理方案';
+    document.getElementById('plan-days').textContent = '90';
+    document.getElementById('plan-start').textContent = '2026-01-01';
+    document.getElementById('plan-end').textContent = '2026-03-31';
+    document.getElementById('plan-progress').textContent = '63/90天';
+  }
+}
+
+loadPlan();
+</script>
+{% endblock %}

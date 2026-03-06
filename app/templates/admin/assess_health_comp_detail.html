@@ -1,0 +1,534 @@
+{% extends "_layouts/admin.html" %}
+
+{% block title %}综合健康报告详情{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-6">
+
+  <!-- Breadcrumb -->
+  <nav class="flex items-center gap-2 text-sm text-gray-500 mb-6">
+    <a href="/gui/admin/health-assess" class="hover:text-teal-600 transition-colors">健康评估</a>
+    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+    </svg>
+    <span class="text-gray-900 font-semibold">综合报告详情</span>
+    <span class="ml-auto">
+      <a href="/gui/admin/health-assess"
+         class="inline-flex items-center gap-1 text-teal-600 hover:text-teal-800 font-medium transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+        返回
+      </a>
+    </span>
+  </nav>
+
+  <!-- Main Layout: Left content + Right sidebar -->
+  <div class="flex flex-col lg:flex-row gap-6">
+
+    <!-- Left Main Content (2/3) -->
+    <div class="flex-1 min-w-0 space-y-5">
+
+      <!-- Patient Top Card -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-5">
+          <!-- Avatar -->
+          <div class="flex-shrink-0 w-16 h-16 rounded-full bg-teal-100 flex items-center justify-center">
+            <span class="text-2xl font-bold text-teal-600">张</span>
+          </div>
+          <!-- Patient Info -->
+          <div class="flex-1">
+            <div class="flex flex-wrap items-center gap-2 mb-1">
+              <h2 class="text-xl font-bold text-gray-900">张三</h2>
+              <span class="px-2 py-0.5 rounded text-xs font-medium bg-teal-50 text-teal-700">男</span>
+              <span class="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">52 岁</span>
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">已发布</span>
+            </div>
+            <div class="text-sm text-gray-500">档案编号：HA-2026-0301-001 &nbsp;|&nbsp; 评估日期：2026-03-01 &nbsp;|&nbsp; 主治医生：李医生</div>
+          </div>
+          <!-- Score Display -->
+          <div class="flex-shrink-0 text-center bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl px-6 py-4 text-white shadow-md">
+            <div class="text-xs font-medium text-teal-100 mb-1">综合健康评分</div>
+            <div class="text-5xl font-black leading-none">68</div>
+            <div class="text-xs text-teal-100 mt-1">满分 100 分</div>
+          </div>
+        </div>
+        <!-- Score Progress Bar -->
+        <div class="mt-5 pt-5 border-t border-gray-100">
+          <div class="flex items-center justify-between text-xs text-gray-500 mb-1.5">
+            <span>0</span>
+            <span class="font-medium text-teal-600">当前：68 分（中等）</span>
+            <span>100</span>
+          </div>
+          <div class="h-3 bg-gray-100 rounded-full overflow-hidden">
+            <div class="h-full bg-gradient-to-r from-teal-400 to-teal-500 rounded-full transition-all" style="width: 68%"></div>
+          </div>
+          <div class="flex justify-between text-xs text-gray-400 mt-1">
+            <span>差</span>
+            <span class="text-yellow-500">| 60 较差</span>
+            <span class="text-amber-500">| 70 中等</span>
+            <span class="text-green-500">| 85 良好</span>
+            <span>优秀</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Health Dimensions CSS Bar Charts -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h3 class="text-base font-semibold text-gray-800 mb-5 flex items-center gap-2">
+          <svg class="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+          健康维度分析
+          <span class="ml-auto text-xs font-normal text-gray-400">各维度满分 100 分</span>
+        </h3>
+
+        <div class="space-y-5">
+
+          <!-- 心理健康 65 amber -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                <span class="text-sm font-medium text-gray-700">心理健康</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">中等</span>
+                <span class="text-sm font-bold text-gray-800 w-16 text-right">65 / 100</span>
+              </div>
+            </div>
+            <div class="h-4 bg-gray-100 rounded-full overflow-hidden">
+              <div class="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full" style="width: 65%"></div>
+            </div>
+            <p class="text-xs text-gray-400 mt-1">PHQ-9 中度抑郁（12分），GAD-7 轻度焦虑（8分），需重点关注。</p>
+          </div>
+
+          <!-- 躯体健康 72 green -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                <span class="text-sm font-medium text-gray-700">躯体健康</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">良好</span>
+                <span class="text-sm font-bold text-gray-800 w-16 text-right">72 / 100</span>
+              </div>
+            </div>
+            <div class="h-4 bg-gray-100 rounded-full overflow-hidden">
+              <div class="h-full bg-gradient-to-r from-green-400 to-green-500 rounded-full" style="width: 72%"></div>
+            </div>
+            <p class="text-xs text-gray-400 mt-1">体格检查指标基本正常，血压偏高需持续监控。</p>
+          </div>
+
+          <!-- 社会功能 75 green -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-green-600"></span>
+                <span class="text-sm font-medium text-gray-700">社会功能</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">良好</span>
+                <span class="text-sm font-bold text-gray-800 w-16 text-right">75 / 100</span>
+              </div>
+            </div>
+            <div class="h-4 bg-gray-100 rounded-full overflow-hidden">
+              <div class="h-full bg-gradient-to-r from-green-500 to-green-600 rounded-full" style="width: 75%"></div>
+            </div>
+            <p class="text-xs text-gray-400 mt-1">ADL 日常生活能力良好（85分），社会参与度较高。</p>
+          </div>
+
+          <!-- 生活质量 60 amber -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                <span class="text-sm font-medium text-gray-700">生活质量</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">中等</span>
+                <span class="text-sm font-bold text-gray-800 w-16 text-right">60 / 100</span>
+              </div>
+            </div>
+            <div class="h-4 bg-gray-100 rounded-full overflow-hidden">
+              <div class="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full" style="width: 60%"></div>
+            </div>
+            <p class="text-xs text-gray-400 mt-1">睡眠质量下降，饮食规律欠佳，情绪影响较明显。</p>
+          </div>
+
+          <!-- 中医体质 70 teal -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-teal-500"></span>
+                <span class="text-sm font-medium text-gray-700">中医体质</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-100 text-teal-700">良好</span>
+                <span class="text-sm font-bold text-gray-800 w-16 text-right">70 / 100</span>
+              </div>
+            </div>
+            <div class="h-4 bg-gray-100 rounded-full overflow-hidden">
+              <div class="h-full bg-gradient-to-r from-teal-400 to-teal-500 rounded-full" style="width: 70%"></div>
+            </div>
+            <p class="text-xs text-gray-400 mt-1">体质偏气郁质，兼夹痰湿，建议疏肝理气、化痰祛湿调理。</p>
+          </div>
+
+        </div><!-- end space-y-5 -->
+      </div><!-- end dimensions card -->
+
+      <!-- 纳入评估 Table Card -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h3 class="text-base font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <svg class="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+          </svg>
+          纳入评估量表
+        </h3>
+        <div class="overflow-hidden rounded-lg border border-gray-200">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">量表名称</th>
+                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">得分</th>
+                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">结论</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">评估日期</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">审核人</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-100">
+              <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                    <span class="text-sm font-medium text-gray-800">PHQ-9 抑郁症筛查</span>
+                  </div>
+                </td>
+                <td class="px-4 py-3 text-center">
+                  <span class="text-lg font-bold text-amber-600">12</span>
+                  <span class="text-xs text-gray-400 ml-0.5">分</span>
+                </td>
+                <td class="px-4 py-3 text-center">
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">中度抑郁</span>
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-500">2026-03-01</td>
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-1.5">
+                    <div class="w-6 h-6 rounded-full bg-teal-100 flex items-center justify-center">
+                      <span class="text-xs font-semibold text-teal-700">李</span>
+                    </div>
+                    <span class="text-sm text-gray-600">李医生</span>
+                  </div>
+                </td>
+              </tr>
+              <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-yellow-400"></span>
+                    <span class="text-sm font-medium text-gray-800">GAD-7 焦虑障碍筛查</span>
+                  </div>
+                </td>
+                <td class="px-4 py-3 text-center">
+                  <span class="text-lg font-bold text-yellow-600">8</span>
+                  <span class="text-xs text-gray-400 ml-0.5">分</span>
+                </td>
+                <td class="px-4 py-3 text-center">
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">轻度焦虑</span>
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-500">2026-03-01</td>
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-1.5">
+                    <div class="w-6 h-6 rounded-full bg-teal-100 flex items-center justify-center">
+                      <span class="text-xs font-semibold text-teal-700">李</span>
+                    </div>
+                    <span class="text-sm text-gray-600">李医生</span>
+                  </div>
+                </td>
+              </tr>
+              <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                    <span class="text-sm font-medium text-gray-800">ADL 日常生活能力</span>
+                  </div>
+                </td>
+                <td class="px-4 py-3 text-center">
+                  <span class="text-lg font-bold text-green-600">85</span>
+                  <span class="text-xs text-gray-400 ml-0.5">分</span>
+                </td>
+                <td class="px-4 py-3 text-center">
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">正常</span>
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-500">2026-02-28</td>
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-1.5">
+                    <div class="w-6 h-6 rounded-full bg-teal-100 flex items-center justify-center">
+                      <span class="text-xs font-semibold text-teal-600">王</span>
+                    </div>
+                    <span class="text-sm text-gray-600">王医生</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div><!-- end assessments card -->
+
+      <!-- 综合结论 Card -->
+      <div class="bg-gradient-to-br from-teal-50 to-emerald-50 rounded-2xl border border-teal-200 p-6">
+        <h3 class="text-base font-semibold text-teal-800 mb-3 flex items-center gap-2">
+          <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          综合结论
+        </h3>
+        <div class="text-sm text-teal-900 leading-relaxed space-y-2">
+          <p>
+            综合本次三项评估结果，患者张三（男，52岁）整体健康状况<strong>中等偏下</strong>，综合评分 68 分。
+          </p>
+          <p>
+            心理健康方面，PHQ-9 评分 12 分，提示中度抑郁；GAD-7 评分 8 分，提示轻度焦虑。两者共病，可能互相加重，需作为<strong>本次干预的重点方向</strong>。患者近期主诉情绪低落、兴趣减退，与评估结果一致。
+          </p>
+          <p>
+            躯体功能方面，ADL 评分 85 分，日常生活能力保持良好，但患者反映近期出现睡眠质量下降（入睡困难）及食欲波动，与心理状态密切相关，需关注身心交互影响。
+          </p>
+          <p>
+            中医体质辨识为<strong>气郁质兼夹痰湿质</strong>，建议以疏肝理气、健脾化湿为调理原则，配合情志调摄、运动疗法及饮食指导。
+          </p>
+          <p>
+            建议重点关注<strong>心理健康</strong>，安排专科转诊或心理咨询，制定个性化的综合干预方案，并在 4 周后进行复评，评估干预效果。
+          </p>
+        </div>
+      </div><!-- end conclusion card -->
+
+      <!-- 整体干预建议 Card -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h3 class="text-base font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <svg class="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+          </svg>
+          整体干预建议
+        </h3>
+        <div class="space-y-3">
+
+          <div class="flex items-start gap-3 p-4 rounded-xl bg-teal-50 border border-teal-100">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center text-sm font-bold">1</div>
+            <div>
+              <div class="text-sm font-semibold text-teal-800 mb-0.5">心理支持与专科转诊</div>
+              <p class="text-xs text-teal-700 leading-relaxed">建议将患者转介至心理科或精神科进行专业评估，考虑认知行为治疗（CBT）或必要时的药物治疗。与患者建立良好的治疗联盟，定期随访。</p>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-3 p-4 rounded-xl bg-teal-50 border border-teal-100">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-teal-500 text-white flex items-center justify-center text-sm font-bold">2</div>
+            <div>
+              <div class="text-sm font-semibold text-teal-800 mb-0.5">中医体质调理</div>
+              <p class="text-xs text-teal-600 leading-relaxed">针对气郁质兼痰湿质，推荐逍遥散合二陈汤加减调理。配合针刺太冲、内关、丰隆等穴位，每周2次，连续6周。</p>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-100">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center text-sm font-bold">3</div>
+            <div>
+              <div class="text-sm font-semibold text-amber-800 mb-0.5">睡眠与生活方式改善</div>
+              <p class="text-xs text-amber-600 leading-relaxed">指导患者建立规律睡眠习惯，睡前1小时避免电子设备，推荐八段锦或太极拳等中等强度运动，每日30分钟。饮食宜清淡，少食辛辣肥甘。</p>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-100">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center text-sm font-bold">4</div>
+            <div>
+              <div class="text-sm font-semibold text-amber-800 mb-0.5">定期复评与随访计划</div>
+              <p class="text-xs text-amber-700 leading-relaxed">4周后进行 PHQ-9 和 GAD-7 复评，比较干预效果。建立每月一次健康档案更新机制，由李医生负责综合随访，必要时召集多学科团队会诊。</p>
+            </div>
+          </div>
+
+        </div>
+      </div><!-- end recommendations card -->
+
+    </div><!-- end left main -->
+
+    <!-- Right Sidebar (1/3) -->
+    <div class="lg:w-80 xl:w-96 flex-shrink-0 space-y-5">
+
+      <!-- 报告信息 Card -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <h4 class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+          <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          报告信息
+        </h4>
+        <dl class="space-y-3 text-sm">
+          <div class="flex justify-between items-start">
+            <dt class="text-gray-400 flex-shrink-0 mr-2">报告编号</dt>
+            <dd class="text-gray-700 font-mono font-medium text-right text-xs">CR-2026-0301-{{ report_id }}</dd>
+          </div>
+          <div class="flex justify-between items-start">
+            <dt class="text-gray-400 flex-shrink-0 mr-2">生成时间</dt>
+            <dd class="text-gray-700 text-right">2026-03-01 14:32:08</dd>
+          </div>
+          <div class="flex justify-between items-start">
+            <dt class="text-gray-400 flex-shrink-0 mr-2">主责医生</dt>
+            <dd class="text-gray-700 font-medium text-right">李医生</dd>
+          </div>
+          <div class="flex justify-between items-start">
+            <dt class="text-gray-400 flex-shrink-0 mr-2">发布时间</dt>
+            <dd class="text-gray-700 text-right">2026-03-01 16:00:00</dd>
+          </div>
+          <div class="flex justify-between items-start">
+            <dt class="text-gray-400 flex-shrink-0 mr-2">报告状态</dt>
+            <dd>
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">已发布</span>
+            </dd>
+          </div>
+          <div class="flex justify-between items-start">
+            <dt class="text-gray-400 flex-shrink-0 mr-2">纳入量表数</dt>
+            <dd class="text-gray-700 font-semibold text-right">3 份</dd>
+          </div>
+        </dl>
+      </div><!-- end report info card -->
+
+      <!-- 推送状态 Card -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <h4 class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+          <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+          </svg>
+          推送状态
+        </h4>
+        <div class="space-y-3">
+          <div class="flex items-center justify-between p-3 rounded-lg bg-green-50 border border-green-100">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+              </svg>
+              <span class="text-sm text-gray-700">患者端通知</span>
+            </div>
+            <div class="flex items-center gap-1 text-green-600">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+              </svg>
+              <span class="text-xs font-semibold">已通知</span>
+            </div>
+          </div>
+          <div class="text-xs text-gray-400 px-1">推送时间：2026-03-01 16:00:08</div>
+          <div class="flex items-center justify-between p-3 rounded-lg bg-green-50 border border-green-100">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+              </svg>
+              <span class="text-sm text-gray-700">医生端审核</span>
+            </div>
+            <div class="flex items-center gap-1 text-green-600">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+              </svg>
+              <span class="text-xs font-semibold">已通知</span>
+            </div>
+          </div>
+          <div class="text-xs text-gray-400 px-1">审核时间：2026-03-01 15:58:22</div>
+          <div class="flex items-center justify-between p-3 rounded-lg bg-gray-50 border border-gray-100">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+              </svg>
+              <span class="text-sm text-gray-700">邮件通知</span>
+            </div>
+            <div class="flex items-center gap-1 text-gray-400">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 12H6"/>
+              </svg>
+              <span class="text-xs font-medium">未启用</span>
+            </div>
+          </div>
+        </div>
+      </div><!-- end push status card -->
+
+      <!-- 相关档案 Card -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <h4 class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+          <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z"/>
+          </svg>
+          相关档案
+        </h4>
+        <a href="/gui/admin/archives/10001"
+           class="flex items-center gap-3 p-3 rounded-xl border border-teal-200 bg-teal-50 hover:bg-teal-100 transition-colors group">
+          <div class="flex-shrink-0 w-9 h-9 rounded-full bg-teal-200 flex items-center justify-center">
+            <span class="text-sm font-bold text-teal-700">张</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold text-teal-800 group-hover:text-teal-900">张三 的健康档案</div>
+            <div class="text-xs text-teal-500 truncate">档案编号：ARCH-10001 · 男 52岁</div>
+          </div>
+          <svg class="w-4 h-4 text-teal-400 flex-shrink-0 group-hover:text-teal-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </a>
+
+        <div class="mt-4 pt-4 border-t border-gray-100">
+          <div class="text-xs font-medium text-gray-500 mb-2">相关评估记录</div>
+          <div class="space-y-2">
+            <a href="/gui/admin/scale-records?patient=10001&scale=phq9"
+               class="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors group">
+              <span class="text-xs text-gray-600 group-hover:text-teal-600">PHQ-9 历史记录</span>
+              <svg class="w-3 h-3 text-gray-300 group-hover:text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </a>
+            <a href="/gui/admin/scale-records?patient=10001&scale=gad7"
+               class="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors group">
+              <span class="text-xs text-gray-600 group-hover:text-teal-600">GAD-7 历史记录</span>
+              <svg class="w-3 h-3 text-gray-300 group-hover:text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </a>
+            <a href="/gui/admin/scale-records?patient=10001&scale=adl"
+               class="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors group">
+              <span class="text-xs text-gray-600 group-hover:text-teal-600">ADL 历史记录</span>
+              <svg class="w-3 h-3 text-gray-300 group-hover:text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+      </div><!-- end related archives card -->
+
+      <!-- Action Buttons -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-2">
+        <h4 class="text-sm font-semibold text-gray-700 mb-3">操作</h4>
+        <button onclick="window.print()"
+                class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-200 text-gray-600 hover:border-teal-300 hover:text-teal-600 text-sm font-medium transition-all">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+          </svg>
+          打印报告
+        </button>
+        <a href="/tools/reports/{{ report_id }}/export"
+           class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-200 text-gray-600 hover:border-teal-300 hover:text-teal-600 text-sm font-medium transition-all">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+          导出 PDF
+        </a>
+        <a href="/gui/admin/intervention/new?report={{ report_id }}"
+           class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold transition-colors shadow-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          生成干预方案
+        </a>
+      </div><!-- end actions card -->
+
+    </div><!-- end right sidebar -->
+
+  </div><!-- end flex main layout -->
+
+</div><!-- end max-w-7xl -->
+
+<script>
+  const reportId = '{{ report_id }}';
+</script>
+{% endblock %}

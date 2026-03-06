@@ -1,0 +1,161 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "assessments" %}
+{% block title %}体质评估报告 - 治未病平台{% endblock %}
+{% block page_title %}体质评估报告编辑{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-3 gap-4">
+  <!-- 左侧：评估摘要 -->
+  <div class="col-span-1 space-y-4">
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-3">评估摘要</h3>
+      <div id="report-summary" class="space-y-2 text-sm text-gray-600">
+        <p class="text-gray-400">加载中...</p>
+      </div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-3">审核信息</h3>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">审核状态</label>
+          <select id="audit-status"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300">
+            <option value="DRAFT">草稿</option>
+            <option value="PENDING_REVIEW">待审核</option>
+            <option value="APPROVED">通过</option>
+            <option value="REJECTED">驳回</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">审核意见</label>
+          <textarea id="audit-comment" rows="3" placeholder="填写审核意见..."
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右侧：报告编辑 -->
+  <div class="col-span-2 space-y-4">
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-4">报告结论</h3>
+      <div class="mb-4">
+        <label class="block text-sm text-gray-600 mb-1">主体质判定</label>
+        <input id="rpt-primary" type="text" placeholder="主体质名称"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300">
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm text-gray-600 mb-1">综合结论</label>
+        <textarea id="rpt-conclusion" rows="4" placeholder="请填写综合体质评估结论..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300"></textarea>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-4">调护建议</h3>
+      <div class="space-y-3">
+        <div v-for="type in ['diet','exercise','lifestyle','emotion','treatment']">
+          <label class="block text-sm text-gray-600 mb-1">饮食建议</label>
+          <textarea id="rec-diet" rows="2" placeholder="饮食调护建议..."
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300"></textarea>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">运动建议</label>
+          <textarea id="rec-exercise" rows="2" placeholder="运动调护建议..."
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300"></textarea>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">起居建议</label>
+          <textarea id="rec-lifestyle" rows="2" placeholder="起居调护建议..."
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300"></textarea>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">情志调护</label>
+          <textarea id="rec-emotion" rows="2" placeholder="情志调护建议..."
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300"></textarea>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">外治建议</label>
+          <textarea id="rec-treatment" rows="2" placeholder="针灸、推拿等外治建议..."
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- 操作按钮 -->
+    <div class="flex gap-3 justify-between">
+      <a href="/gui/admin/assessments/{{ assess_id }}"
+        class="px-5 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">返回详情</a>
+      <div class="flex gap-2">
+        <button onclick="saveReport('DRAFT')"
+          class="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">保存草稿</button>
+        <button onclick="saveReport('PENDING_REVIEW')"
+          class="bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600">提交审核</button>
+        <button onclick="saveReport('APPROVED')"
+          class="bg-rose-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-rose-700 font-medium">审核通过并发布</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const ASSESS_ID = '{{ assess_id }}';
+
+async function loadSummary() {
+  const res = await fetch(`/tools/constitution/assessments/${ASSESS_ID}`);
+  const data = await res.json();
+  if (!data.success) return;
+  const d = data.data;
+  const BT = {'BALANCED':'平和质','QI_DEFICIENCY':'气虚质','YANG_DEFICIENCY':'阳虚质',
+    'YIN_DEFICIENCY':'阴虚质','PHLEGM_DAMPNESS':'痰湿质','DAMP_HEAT':'湿热质',
+    'BLOOD_STASIS':'血瘀质','QI_STAGNATION':'气郁质','SPECIAL_DIATHESIS':'特禀质'};
+  document.getElementById('report-summary').innerHTML = `
+    <div class="flex justify-between"><span class="text-gray-400">患者：</span><span class="font-medium">${d.patient_name||'未知'}</span></div>
+    <div class="flex justify-between"><span class="text-gray-400">主体质：</span><span class="font-semibold text-rose-600">${BT[d.primary_body_type]||'-'}</span></div>
+    <div class="flex justify-between"><span class="text-gray-400">兼夹：</span><span>${(d.secondary_body_types||[]).map(bt=>BT[bt]).join('、')||'无'}</span></div>
+    <div class="flex justify-between"><span class="text-gray-400">评估时间：</span><span>${d.created_at?new Date(d.created_at).toLocaleDateString('zh-CN'):'-'}</span></div>
+  `;
+  if (d.report) {
+    document.getElementById('rpt-primary').value = BT[d.primary_body_type] || '';
+    document.getElementById('rpt-conclusion').value = d.report.conclusion || '';
+    const recs = d.report.recommendations || {};
+    ['diet','exercise','lifestyle','emotion','treatment'].forEach(k => {
+      const el = document.getElementById('rec-' + k);
+      if (el) el.value = recs[k] || '';
+    });
+  }
+}
+
+async function saveReport(status) {
+  const body = {
+    conclusion: document.getElementById('rpt-conclusion').value,
+    recommendations: {
+      diet: document.getElementById('rec-diet').value,
+      exercise: document.getElementById('rec-exercise').value,
+      lifestyle: document.getElementById('rec-lifestyle').value,
+      emotion: document.getElementById('rec-emotion').value,
+      treatment: document.getElementById('rec-treatment').value,
+    },
+    audit_status: document.getElementById('audit-status').value,
+    audit_comment: document.getElementById('audit-comment').value,
+    report_status: status,
+  };
+  const res = await fetch(`/tools/constitution/assessments/${ASSESS_ID}/report`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  });
+  const data = await res.json();
+  if (data.success) {
+    showToast('保存成功');
+    if (status === 'APPROVED') window.location.href = `/gui/admin/assessments/${ASSESS_ID}`;
+  } else {
+    showToast(data.error?.message || '保存失败');
+  }
+}
+
+loadSummary();
+</script>
+{% endblock %}

@@ -1,0 +1,201 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "archives" %}
+{% block title %}编辑档案 - 治未病平台{% endblock %}
+{% block page_title %}编辑居民档案{% endblock %}
+
+{% block content %}
+<div id="edit-loading" class="text-center text-gray-400 py-20">加载中...</div>
+<div id="edit-form" class="hidden">
+  <div class="bg-white rounded-xl shadow-sm p-6 mb-4">
+    <h3 class="font-semibold text-gray-700 mb-4">基本信息</h3>
+    <div class="grid grid-cols-3 gap-4">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">姓名 <span class="text-red-500">*</span></label>
+        <input id="f-name" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">性别</label>
+        <select id="f-gender" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+          <option value="">请选择</option>
+          <option value="male">男</option>
+          <option value="female">女</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">出生日期</label>
+        <input id="f-birth" type="date" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">民族</label>
+        <input id="f-ethnicity" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">职业</label>
+        <input id="f-occupation" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">档案类型</label>
+        <select id="f-archive-type" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+          <option value="NORMAL">普通居民</option>
+          <option value="CHILD">0-6岁儿童</option>
+          <option value="FEMALE">女性档案</option>
+          <option value="ELDERLY">老年人(60+)</option>
+          <option value="KEY_FOCUS">重点关注</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">证件类型</label>
+        <select id="f-id-type" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+          <option value="ID_CARD">居民身份证</option>
+          <option value="PASSPORT">护照</option>
+          <option value="MILITARY">军官证</option>
+          <option value="BIRTH_CERT">出生医学证明</option>
+          <option value="OTHER">其他</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">证件号码</label>
+        <input id="f-id-num" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono">
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl shadow-sm p-6 mb-4">
+    <h3 class="font-semibold text-gray-700 mb-4">联系方式</h3>
+    <div class="grid grid-cols-3 gap-4">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">手机号</label>
+        <input id="f-phone" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">备用电话</label>
+        <input id="f-phone2" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">电子邮件</label>
+        <input id="f-email" type="email" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">省</label>
+        <input id="f-province" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">市</label>
+        <input id="f-city" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">区/县</label>
+        <input id="f-district" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div class="col-span-3">
+        <label class="block text-xs text-gray-500 mb-1">详细地址</label>
+        <input id="f-address" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl shadow-sm p-6 mb-4">
+    <h3 class="font-semibold text-gray-700 mb-4">紧急联系人</h3>
+    <div class="grid grid-cols-3 gap-4">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">姓名</label>
+        <input id="f-ec-name" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">关系</label>
+        <input id="f-ec-rel" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="配偶/子女/父母">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">电话</label>
+        <input id="f-ec-phone" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl shadow-sm p-6 mb-4">
+    <h3 class="font-semibold text-gray-700 mb-4">备注</h3>
+    <textarea id="f-notes" rows="3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"></textarea>
+  </div>
+
+  <div id="save-err" class="hidden mb-3 text-sm text-red-500"></div>
+  <div class="flex gap-3">
+    <button onclick="saveArchive()" class="px-6 py-2 rounded-lg text-white text-sm" style="background:#4E7A61;" onmouseover="this.style.background='#3F6A52'" onmouseout="this.style.background='#4E7A61'">保存修改</button>
+    <a id="back-link" href="#" class="px-6 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 inline-flex items-center">返回详情</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const archiveId = '{{ archive_id }}';
+
+async function loadArchive() {
+  const r = await fetch(`/tools/archive/archives/${archiveId}`);
+  const j = await r.json();
+  document.getElementById('edit-loading').classList.add('hidden');
+  if (!j.success) return;
+  const a = j.data;
+  document.getElementById('edit-form').classList.remove('hidden');
+  document.getElementById('back-link').href = `/gui/admin/archives/${archiveId}`;
+  const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+  setVal('f-name', a.name);
+  setVal('f-gender', a.gender);
+  setVal('f-birth', a.birth_date);
+  setVal('f-ethnicity', a.ethnicity);
+  setVal('f-occupation', a.occupation);
+  setVal('f-archive-type', a.archive_type);
+  setVal('f-id-type', a.id_type);
+  setVal('f-id-num', a.id_number);
+  setVal('f-phone', a.phone);
+  setVal('f-phone2', a.phone2);
+  setVal('f-email', a.email);
+  setVal('f-province', a.province);
+  setVal('f-city', a.city);
+  setVal('f-district', a.district);
+  setVal('f-address', a.address);
+  setVal('f-ec-name', a.emergency_contact_name);
+  setVal('f-ec-rel', a.emergency_contact_relation);
+  setVal('f-ec-phone', a.emergency_contact_phone);
+  setVal('f-notes', a.notes);
+}
+
+async function saveArchive() {
+  const body = {
+    name: document.getElementById('f-name').value.trim(),
+    gender: document.getElementById('f-gender').value || null,
+    birth_date: document.getElementById('f-birth').value || null,
+    ethnicity: document.getElementById('f-ethnicity').value || null,
+    occupation: document.getElementById('f-occupation').value || null,
+    archive_type: document.getElementById('f-archive-type').value,
+    id_type: document.getElementById('f-id-type').value,
+    id_number: document.getElementById('f-id-num').value || null,
+    phone: document.getElementById('f-phone').value || null,
+    phone2: document.getElementById('f-phone2').value || null,
+    email: document.getElementById('f-email').value || null,
+    province: document.getElementById('f-province').value || null,
+    city: document.getElementById('f-city').value || null,
+    district: document.getElementById('f-district').value || null,
+    address: document.getElementById('f-address').value || null,
+    emergency_contact_name: document.getElementById('f-ec-name').value || null,
+    emergency_contact_relation: document.getElementById('f-ec-rel').value || null,
+    emergency_contact_phone: document.getElementById('f-ec-phone').value || null,
+    notes: document.getElementById('f-notes').value || null,
+  };
+  const r = await fetch(`/tools/archive/archives/${archiveId}`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  });
+  const j = await r.json();
+  if (j.success) {
+    window.location.href = `/gui/admin/archives/${archiveId}`;
+  } else {
+    const el = document.getElementById('save-err');
+    el.textContent = j.error?.message || '保存失败';
+    el.classList.remove('hidden');
+  }
+}
+
+loadArchive();
+</script>
+{% endblock %}

@@ -1,0 +1,134 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "assessments" %}
+{% block title %}体质评估详情 - 治未病平台{% endblock %}
+{% block page_title %}体质评估详情{% endblock %}
+
+{% block content %}
+<div id="loading" class="text-center py-12 text-gray-400">
+  <div class="animate-spin w-8 h-8 border-4 border-rose-200 border-t-rose-500 rounded-full mx-auto mb-3"></div>
+  加载中...
+</div>
+<div id="main-content" class="hidden">
+  <!-- 顶部信息 -->
+  <div class="bg-white rounded-xl shadow-sm p-6 mb-4">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h2 class="text-xl font-bold text-gray-800" id="d-patient"></h2>
+        <p class="text-sm text-gray-400 mt-0.5">评估时间：<span id="d-time"></span> · 状态：<span id="d-status" class="font-semibold"></span></p>
+      </div>
+      <div class="flex gap-2">
+        <a id="btn-report" href="#"
+          class="bg-rose-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-rose-700">编辑报告</a>
+        <a href="/gui/admin/assessments"
+          class="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">返回列表</a>
+      </div>
+    </div>
+
+    <!-- 主体质 -->
+    <div class="grid grid-cols-3 gap-4">
+      <div class="col-span-1 bg-rose-50 rounded-xl p-5 text-center">
+        <p class="text-xs text-gray-400 mb-1">主体质</p>
+        <p id="d-primary" class="text-2xl font-bold text-rose-600">-</p>
+        <p id="d-primary-score" class="text-sm text-gray-500 mt-1"></p>
+      </div>
+      <div class="col-span-2">
+        <p class="text-xs text-gray-400 mb-2">体质得分分布</p>
+        <div id="d-scores" class="space-y-2"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 兼夹体质 & 调护建议 -->
+  <div class="grid grid-cols-2 gap-4 mb-4">
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-3">兼夹体质</h3>
+      <div id="d-secondary" class="flex flex-wrap gap-2">
+        <span class="text-gray-400 text-sm">无兼夹体质</span>
+      </div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-3">调护建议摘要</h3>
+      <div id="d-recommendations" class="space-y-2 text-sm text-gray-600"></div>
+    </div>
+  </div>
+
+  <!-- 答题记录 -->
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-semibold text-gray-700">答题详情</h3>
+      <span id="d-answered" class="text-sm text-gray-400"></span>
+    </div>
+    <div id="d-answers" class="text-sm text-gray-500 text-center py-4">暂无答题记录</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const ASSESS_ID = '{{ assess_id }}';
+const BT_LABELS = {
+  'BALANCED':'平和质','QI_DEFICIENCY':'气虚质','YANG_DEFICIENCY':'阳虚质',
+  'YIN_DEFICIENCY':'阴虚质','PHLEGM_DAMPNESS':'痰湿质','DAMP_HEAT':'湿热质',
+  'BLOOD_STASIS':'血瘀质','QI_STAGNATION':'气郁质','SPECIAL_DIATHESIS':'特禀质'
+};
+const STATUS_LABELS = {
+  'ANSWERING':'作答中','SUBMITTED':'已提交','SCORED':'已评分','REPORTED':'已出报告'
+};
+const STATUS_COLORS = {
+  'ANSWERING':'text-yellow-600','SUBMITTED':'text-teal-600','SCORED':'text-green-600','REPORTED':'text-rose-600'
+};
+
+async function loadDetail() {
+  const res = await fetch(`/tools/constitution/assessments/${ASSESS_ID}`);
+  const data = await res.json();
+  if (!data.success) {
+    document.getElementById('loading').innerHTML = '<p class="text-red-500">加载失败</p>';
+    return;
+  }
+  const d = data.data;
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('main-content').classList.remove('hidden');
+
+  document.getElementById('d-patient').textContent = d.patient_name || '未知患者';
+  document.getElementById('d-time').textContent = d.created_at ? new Date(d.created_at).toLocaleString('zh-CN') : '-';
+  const statusEl = document.getElementById('d-status');
+  statusEl.textContent = STATUS_LABELS[d.status] || d.status;
+  statusEl.className = 'font-semibold ' + (STATUS_COLORS[d.status] || 'text-gray-600');
+  document.getElementById('btn-report').href = `/gui/admin/assessments/${ASSESS_ID}/report`;
+
+  // 体质得分
+  const scores = d.scores || {};
+  const primaryBt = d.primary_body_type || '';
+  document.getElementById('d-primary').textContent = BT_LABELS[primaryBt] || primaryBt || '-';
+  document.getElementById('d-primary-score').textContent = scores[primaryBt] ? `得分 ${scores[primaryBt]}` : '';
+
+  const scoresEl = document.getElementById('d-scores');
+  scoresEl.innerHTML = Object.entries(scores).sort((a,b)=>b[1]-a[1]).map(([bt, score]) => `
+    <div class="flex items-center gap-2">
+      <span class="text-xs text-gray-500 w-16 text-right">${BT_LABELS[bt]||bt}</span>
+      <div class="flex-1 rounded-full h-1.5" style="background:#EDE8E2;">
+        <div class="bg-rose-400 h-1.5 rounded-full" style="width:${Math.min(score,100)}%"></div>
+      </div>
+      <span class="text-xs font-semibold text-gray-600 w-8">${score}</span>
+    </div>`).join('');
+
+  // 兼夹体质
+  const secondary = d.secondary_body_types || [];
+  if (secondary.length) {
+    document.getElementById('d-secondary').innerHTML = secondary.map(bt =>
+      `<span class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-sm">${BT_LABELS[bt]||bt}</span>`
+    ).join('');
+  }
+
+  // 调护建议
+  const recs = d.recommendations || [];
+  if (recs.length) {
+    document.getElementById('d-recommendations').innerHTML = recs.slice(0,5).map(r =>
+      `<div class="flex gap-2"><span class="text-rose-400">•</span><span>${r.content||r}</span></div>`
+    ).join('');
+  }
+}
+
+loadDetail();
+</script>
+{% endblock %}

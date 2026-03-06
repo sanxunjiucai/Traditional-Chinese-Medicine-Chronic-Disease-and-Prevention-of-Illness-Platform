@@ -1,0 +1,317 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "stats" %}
+{% block title %}个人工作量统计 - 治未病平台{% endblock %}
+{% block page_title %}个人工作量统计{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+
+  <!-- 时间筛选 -->
+  <div class="bg-white rounded-xl shadow-sm px-5 py-3 flex flex-wrap items-center gap-3">
+    <span class="text-sm font-medium text-gray-500">时间范围：</span>
+    <div class="flex gap-1" id="period-tabs">
+      <button onclick="setPeriod('week',this)" class="period-btn active px-3 py-1.5 rounded-lg text-sm font-medium text-white" style="background:#4E7A61;">本周</button>
+      <button onclick="setPeriod('month',this)" class="period-btn px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100">本月</button>
+      <button onclick="setPeriod('3month',this)" class="period-btn px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100">近3月</button>
+      <button onclick="setPeriod('custom',this)" class="period-btn px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100">自定义</button>
+    </div>
+    <div id="custom-range" class="hidden flex items-center gap-2">
+      <input type="date" id="date-from" class="border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light">
+      <span class="text-gray-400 text-sm">至</span>
+      <input type="date" id="date-to" class="border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light">
+      <button onclick="applyCustomRange()" class="px-3 py-1 text-white rounded-lg text-sm" style="background:#4E7A61;">查询</button>
+    </div>
+  </div>
+
+  <!-- KPI 5个 -->
+  <div class="grid grid-cols-5 gap-3">
+    <div class="bg-white rounded-xl shadow-sm p-4 text-center">
+      <p class="text-xs text-gray-400 mb-1">随访完成数</p>
+      <p class="text-3xl font-bold" style="color:#4E7A61;">127</p>
+      <p class="text-xs text-green-500 mt-1">↑ 12% vs上期</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4 text-center">
+      <p class="text-xs text-gray-400 mb-1">随访完成率</p>
+      <p class="text-3xl font-bold" style="color:#4E7A61;">91<span class="text-lg">%</span></p>
+      <p class="text-xs text-green-500 mt-1">↑ 3.2%</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4 text-center">
+      <p class="text-xs text-gray-400 mb-1">预警处置数</p>
+      <p class="text-3xl font-bold text-orange-500">34</p>
+      <p class="text-xs text-red-400 mt-1">↑ 8% 风险上升</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4 text-center">
+      <p class="text-xs text-gray-400 mb-1">新建档案数</p>
+      <p class="text-3xl font-bold text-teal-600">18</p>
+      <p class="text-xs text-green-500 mt-1">↑ 5%</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4 text-center">
+      <p class="text-xs text-gray-400 mb-1">体质评估数</p>
+      <p class="text-3xl font-bold text-purple-600">42</p>
+      <p class="text-xs text-gray-400 mt-1">— 持平</p>
+    </div>
+  </div>
+
+  <!-- 主体两栏 -->
+  <div class="grid grid-cols-5 gap-5">
+
+    <!-- 左侧 60% -->
+    <div class="col-span-3 space-y-5">
+
+      <!-- 随访方式分布 -->
+      <div class="bg-white rounded-xl shadow-sm p-5">
+        <h4 class="font-semibold text-gray-700 mb-4">随访方式分布</h4>
+        <div class="space-y-3" id="visit-mode-bars">
+          <!-- 由 JS 渲染 -->
+        </div>
+      </div>
+
+      <!-- 随访任务明细表 -->
+      <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h4 class="font-semibold text-gray-700">随访任务明细</h4>
+          <span class="text-xs text-gray-400">共 15 条</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-gray-500 text-xs">
+              <tr>
+                <th class="px-4 py-2.5 text-left">患者姓名</th>
+                <th class="px-4 py-2.5 text-left">随访日期</th>
+                <th class="px-4 py-2.5 text-left">方式</th>
+                <th class="px-4 py-2.5 text-left">状态</th>
+                <th class="px-4 py-2.5 text-left">完成时长</th>
+              </tr>
+            </thead>
+            <tbody id="visit-detail-body" class="divide-y divide-gray-100">
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 漏访/延期分析 -->
+      <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100">
+          <h4 class="font-semibold text-gray-700">漏访 / 延期分析</h4>
+        </div>
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 text-gray-500 text-xs">
+            <tr>
+              <th class="px-4 py-2.5 text-left">患者</th>
+              <th class="px-4 py-2.5 text-left">原因</th>
+              <th class="px-4 py-2.5 text-left">延期天数</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            <tr><td class="px-4 py-2.5 text-gray-700">李建国</td><td class="px-4 py-2.5 text-gray-500">患者出差无法接通</td><td class="px-4 py-2.5"><span class="text-red-500 font-medium">+5天</span></td></tr>
+            <tr><td class="px-4 py-2.5 text-gray-700">赵淑珍</td><td class="px-4 py-2.5 text-gray-500">患者住院暂缓随访</td><td class="px-4 py-2.5"><span class="text-orange-500 font-medium">+12天</span></td></tr>
+            <tr><td class="px-4 py-2.5 text-gray-700">张学军</td><td class="px-4 py-2.5 text-gray-500">医生出诊安排冲突</td><td class="px-4 py-2.5"><span class="text-red-500 font-medium">+3天</span></td></tr>
+            <tr><td class="px-4 py-2.5 text-gray-700">王桂英</td><td class="px-4 py-2.5 text-gray-500">患者拒绝随访</td><td class="px-4 py-2.5"><span class="text-orange-500 font-medium">+7天</span></td></tr>
+            <tr><td class="px-4 py-2.5 text-gray-700">陈志明</td><td class="px-4 py-2.5 text-gray-500">系统故障未记录</td><td class="px-4 py-2.5"><span class="text-yellow-500 font-medium">+2天</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- 右侧 40% -->
+    <div class="col-span-2 space-y-5">
+
+      <!-- 每日工作量折线图 -->
+      <div class="bg-white rounded-xl shadow-sm p-5">
+        <h4 class="font-semibold text-gray-700 mb-3">每日工作量（近30天）</h4>
+        <svg id="trend-svg" viewBox="0 0 340 120" class="w-full" style="height:130px">
+          <!-- 由 JS 渲染 -->
+        </svg>
+        <div class="flex items-center justify-center gap-4 mt-2">
+          <div class="flex items-center gap-1.5">
+            <div class="w-3 h-0.5 rounded" style="background:#4E7A61;"></div>
+            <span class="text-xs text-gray-500">本期</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <div class="w-3 h-0.5 bg-gray-300 rounded" style="border-top:1px dashed #9ca3af"></div>
+            <span class="text-xs text-gray-500">上期</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 与上月对比 -->
+      <div class="bg-white rounded-xl shadow-sm p-5">
+        <h4 class="font-semibold text-gray-700 mb-3">与上月对比</h4>
+        <div class="space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-gray-600">随访完成数</span>
+            <span class="text-sm font-medium text-green-600">127 <span class="text-xs">↑ 12.4%</span></span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-gray-600">随访完成率</span>
+            <span class="text-sm font-medium text-green-600">91% <span class="text-xs">↑ 3.2%</span></span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-gray-600">预警处置数</span>
+            <span class="text-sm font-medium text-red-500">34 <span class="text-xs">↑ 8.1%</span></span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-gray-600">新建档案数</span>
+            <span class="text-sm font-medium text-green-600">18 <span class="text-xs">↑ 5.9%</span></span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-gray-600">体质评估数</span>
+            <span class="text-sm font-medium text-gray-500">42 <span class="text-xs">— 持平</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 今日待办 -->
+      <div class="bg-white rounded-xl shadow-sm p-5">
+        <h4 class="font-semibold text-gray-700 mb-3">今日待办</h4>
+        <div class="space-y-2.5">
+          <div class="flex items-center justify-between p-2.5 bg-red-50 rounded-lg">
+            <div class="flex items-center gap-2">
+              <div class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0"></div>
+              <span class="text-sm text-gray-700">待处理预警</span>
+            </div>
+            <span class="text-sm font-bold text-red-600">7 条</span>
+          </div>
+          <div class="flex items-center justify-between p-2.5 rounded-lg" style="background:#EBF2ED;">
+            <div class="flex items-center gap-2">
+              <div class="w-2 h-2 rounded-full flex-shrink-0" style="background:#4E7A61;"></div>
+              <span class="text-sm text-gray-700">今日随访</span>
+            </div>
+            <span class="text-sm font-bold" style="color:#4E7A61;">12 人</span>
+          </div>
+          <div class="flex items-center justify-between p-2.5 rounded-lg" style="background:#EEF2F7;">
+            <div class="flex items-center gap-2">
+              <div class="w-2 h-2 rounded-full flex-shrink-0" style="background:#5070A8;"></div>
+              <span class="text-sm text-gray-700">待审评估</span>
+            </div>
+            <span class="text-sm font-bold" style="color:#5070A8;">5 份</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── 时间筛选 ──
+function setPeriod(period, btn) {
+  document.querySelectorAll('.period-btn').forEach(b => {
+    b.className = 'period-btn px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100';
+    b.style.background = '';
+  });
+  btn.className = 'period-btn active px-3 py-1.5 rounded-lg text-sm font-medium text-white';
+  btn.style.background = '#4E7A61';
+  document.getElementById('custom-range').classList.toggle('hidden', period !== 'custom');
+  document.getElementById('custom-range').classList.toggle('flex', period === 'custom');
+}
+
+function applyCustomRange() {
+  const from = document.getElementById('date-from').value;
+  const to = document.getElementById('date-to').value;
+  if (!from || !to) { showToast('请选择起止日期'); return; }
+  // 实际项目中重新请求数据
+}
+
+// ── 随访方式分布 ──
+const VISIT_MODES = [
+  { label:'电话随访', count:62, color:'bg-jade' },
+  { label:'上门随访', count:28, color:'bg-teal-500' },
+  { label:'在线问诊', count:24, color:'bg-[#5070A8]' },
+  { label:'APP随访',  count:13, color:'bg-orange-400' },
+];
+const total = VISIT_MODES.reduce((s, m) => s + m.count, 0);
+const modesContainer = document.getElementById('visit-mode-bars');
+VISIT_MODES.forEach(m => {
+  const pct = Math.round(m.count / total * 100);
+  modesContainer.innerHTML += `
+    <div class="flex items-center gap-3">
+      <span class="text-sm text-gray-600 w-20 flex-shrink-0">${m.label}</span>
+      <div class="flex-1 h-3 rounded-full overflow-hidden" style="background:#EDE8E2;">
+        <div class="${m.color} h-full rounded-full transition-all duration-700" style="width:${pct}%"></div>
+      </div>
+      <span class="text-sm font-medium text-gray-700 w-10 text-right">${m.count}</span>
+      <span class="text-xs text-gray-400 w-8">${pct}%</span>
+    </div>
+  `;
+});
+
+// ── 随访任务明细 ──
+const VISIT_DETAILS = [
+  { patient:'张秀英', date:'2026-03-03', mode:'电话', status:'完成', duration:'18分钟' },
+  { patient:'李建军', date:'2026-03-03', mode:'在线', status:'完成', duration:'25分钟' },
+  { patient:'王淑华', date:'2026-03-03', mode:'电话', status:'完成', duration:'12分钟' },
+  { patient:'陈国强', date:'2026-03-02', mode:'上门', status:'完成', duration:'45分钟' },
+  { patient:'赵美丽', date:'2026-03-02', mode:'电话', status:'完成', duration:'15分钟' },
+  { patient:'孙志远', date:'2026-03-02', mode:'APP',  status:'完成', duration:'10分钟' },
+  { patient:'周桂兰', date:'2026-03-01', mode:'电话', status:'完成', duration:'20分钟' },
+  { patient:'吴长明', date:'2026-03-01', mode:'上门', status:'完成', duration:'50分钟' },
+  { patient:'郑晓梅', date:'2026-03-01', mode:'在线', status:'完成', duration:'30分钟' },
+  { patient:'冯国庆', date:'2026-02-28', mode:'电话', status:'完成', duration:'14分钟' },
+  { patient:'沈雪芬', date:'2026-02-28', mode:'APP',  status:'完成', duration:'8分钟'  },
+  { patient:'徐明远', date:'2026-02-27', mode:'上门', status:'完成', duration:'60分钟' },
+  { patient:'曹秀珍', date:'2026-02-27', mode:'电话', status:'延迟', duration:'—' },
+  { patient:'韩建平', date:'2026-02-26', mode:'在线', status:'完成', duration:'22分钟' },
+  { patient:'杨淑华', date:'2026-02-26', mode:'电话', status:'漏访', duration:'—' },
+];
+
+const statusColor = { '完成':'text-green-600 bg-green-50', '延迟':'text-orange-500 bg-orange-50', '漏访':'text-red-500 bg-red-50' };
+const modeColor   = { '电话':'text-jade bg-jade-light', '上门':'text-teal-600 bg-teal-50', '在线':'text-[#5070A8] bg-[#EEF2F7]', 'APP':'text-orange-500 bg-orange-50' };
+
+document.getElementById('visit-detail-body').innerHTML = VISIT_DETAILS.map(v => `
+  <tr class="hover:bg-gray-50">
+    <td class="px-4 py-2 text-gray-800 font-medium">${v.patient}</td>
+    <td class="px-4 py-2 text-gray-500 text-xs">${v.date}</td>
+    <td class="px-4 py-2"><span class="text-xs px-1.5 py-0.5 rounded ${modeColor[v.mode]||''}">${v.mode}</span></td>
+    <td class="px-4 py-2"><span class="text-xs px-1.5 py-0.5 rounded ${statusColor[v.status]||''}">${v.status}</span></td>
+    <td class="px-4 py-2 text-gray-500 text-xs">${v.duration}</td>
+  </tr>
+`).join('');
+
+// ── 折线趋势图（SVG）──
+(function() {
+  const svg = document.getElementById('trend-svg');
+  const W = 340, H = 120, PAD = 15;
+  const iW = W - PAD * 2, iH = H - PAD * 2;
+
+  // 生成30天随机数据
+  const data = [], dataLast = [];
+  for (let i = 0; i < 30; i++) {
+    data.push(Math.floor(Math.random() * 8 + 2));
+    dataLast.push(Math.floor(Math.random() * 6 + 1));
+  }
+
+  const max = Math.max(...data, ...dataLast);
+
+  function pts(arr) {
+    return arr.map((v, i) => {
+      const x = PAD + (i / (arr.length - 1)) * iW;
+      const y = PAD + iH - (v / max) * iH;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+  }
+
+  // 网格线
+  let grid = '';
+  [0.25, 0.5, 0.75, 1].forEach(f => {
+    const y = PAD + iH * (1 - f);
+    grid += `<line x1="${PAD}" y1="${y.toFixed(1)}" x2="${W-PAD}" y2="${y.toFixed(1)}" stroke="#e5e7eb" stroke-width="0.5"/>`;
+  });
+
+  // 渐变填充
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#4E7A61" stop-opacity="0.2"/>
+        <stop offset="100%" stop-color="#4E7A61" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    ${grid}
+    <polyline points="${pts(data)}" fill="none" stroke="#4E7A61" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <polyline points="${pts(dataLast)}" fill="none" stroke="#d1d5db" stroke-width="1.5" stroke-dasharray="4 3" stroke-linecap="round" stroke-linejoin="round"/>
+  `;
+})();
+</script>
+{% endblock %}

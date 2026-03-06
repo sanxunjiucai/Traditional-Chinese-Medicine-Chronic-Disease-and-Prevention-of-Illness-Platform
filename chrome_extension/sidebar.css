@@ -1,0 +1,1033 @@
+/* ============================================================
+   治未病·诊中助手 - 侧边栏样式
+   使用 tcm- 前缀隔离命名空间，避免与宿主页面冲突
+   ============================================================ */
+
+/* ── 侧边栏容器 ── */
+#tcm-assistant-sidebar {
+  position: fixed !important;
+  top: 50px !important;
+  right: 0 !important;
+  width: 320px !important;
+  max-height: calc(100vh - 60px) !important;
+  z-index: 2147483647 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif !important;
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+  color: #1f2937 !important;
+  transition: width 0.25s ease, box-shadow 0.25s ease !important;
+  box-sizing: border-box !important;
+  pointer-events: all !important;
+}
+
+/* ── 内部容器（非折叠状态可见） ── */
+#tcm-assistant-sidebar .tcm-sidebar-inner {
+  width: 316px !important;
+  max-height: calc(100vh - 60px) !important;
+  background: #ffffff !important;
+  border-left: 4px solid #16a34a !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  border-top: 1px solid #e5e7eb !important;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.12) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  border-radius: 8px 0 0 8px !important;
+  transition: transform 0.25s ease, opacity 0.25s ease !important;
+  transform: translateX(0) !important;
+  opacity: 1 !important;
+}
+
+/* ── 折叠竖条（默认隐藏） ── */
+#tcm-assistant-sidebar .tcm-collapsed-bar {
+  display: none !important;
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  width: 40px !important;
+  height: 160px !important;
+  background: #16a34a !important;
+  border-radius: 8px 0 0 8px !important;
+  cursor: pointer !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  box-shadow: -3px 0 10px rgba(0, 0, 0, 0.15) !important;
+  transition: background 0.2s !important;
+}
+
+#tcm-assistant-sidebar .tcm-collapsed-bar:hover {
+  background: #15803d !important;
+}
+
+#tcm-assistant-sidebar .tcm-expand-arrow {
+  color: #ffffff !important;
+  font-size: 14px !important;
+  font-style: normal !important;
+}
+
+#tcm-assistant-sidebar .tcm-collapsed-label {
+  color: #ffffff !important;
+  font-size: 11px !important;
+  writing-mode: vertical-rl !important;
+  text-orientation: mixed !important;
+  letter-spacing: 2px !important;
+}
+
+/* ── 折叠状态 ── */
+#tcm-assistant-sidebar.tcm-collapsed {
+  width: 40px !important;
+}
+
+#tcm-assistant-sidebar.tcm-collapsed .tcm-sidebar-inner {
+  transform: translateX(320px) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+#tcm-assistant-sidebar.tcm-collapsed .tcm-collapsed-bar {
+  display: flex !important;
+}
+
+/* ── 顶部标题栏 ── */
+#tcm-assistant-sidebar .tcm-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 10px 12px !important;
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%) !important;
+  color: #ffffff !important;
+  flex-shrink: 0 !important;
+}
+
+#tcm-assistant-sidebar .tcm-header-left {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+#tcm-assistant-sidebar .tcm-logo {
+  font-size: 16px !important;
+  line-height: 1 !important;
+}
+
+#tcm-assistant-sidebar .tcm-title {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #ffffff !important;
+  letter-spacing: 0.5px !important;
+}
+
+#tcm-assistant-sidebar .tcm-collapse-btn {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border: none !important;
+  border-radius: 4px !important;
+  color: #ffffff !important;
+  cursor: pointer !important;
+  padding: 2px 6px !important;
+  font-size: 11px !important;
+  line-height: 1.4 !important;
+  transition: background 0.2s !important;
+}
+
+#tcm-assistant-sidebar .tcm-collapse-btn:hover {
+  background: rgba(255, 255, 255, 0.35) !important;
+}
+
+/* ── 内容区（可滚动） ── */
+#tcm-assistant-sidebar .tcm-content {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  padding: 12px !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: #d1fae5 transparent !important;
+}
+
+#tcm-assistant-sidebar .tcm-content::-webkit-scrollbar {
+  width: 4px !important;
+}
+
+#tcm-assistant-sidebar .tcm-content::-webkit-scrollbar-thumb {
+  background: #86efac !important;
+  border-radius: 2px !important;
+}
+
+/* ── 空闲/检测状态 ── */
+#tcm-assistant-sidebar .tcm-idle,
+#tcm-assistant-sidebar .tcm-loading,
+#tcm-assistant-sidebar .tcm-error {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 24px 16px !important;
+  text-align: center !important;
+  gap: 8px !important;
+}
+
+#tcm-assistant-sidebar .tcm-idle-icon {
+  font-size: 28px !important;
+  line-height: 1 !important;
+  opacity: 0.6 !important;
+}
+
+#tcm-assistant-sidebar .tcm-idle p,
+#tcm-assistant-sidebar .tcm-loading p {
+  margin: 0 !important;
+  color: #374151 !important;
+  font-size: 13px !important;
+}
+
+/* ── 加载动画 ── */
+#tcm-assistant-sidebar .tcm-spinner {
+  width: 32px !important;
+  height: 32px !important;
+  border: 3px solid #d1fae5 !important;
+  border-top-color: #16a34a !important;
+  border-radius: 50% !important;
+  animation: tcm-spin 0.8s linear infinite !important;
+  flex-shrink: 0 !important;
+}
+
+@keyframes tcm-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── 错误状态 ── */
+#tcm-assistant-sidebar .tcm-error-icon {
+  font-size: 28px !important;
+  line-height: 1 !important;
+}
+
+#tcm-assistant-sidebar .tcm-error-msg {
+  color: #dc2626 !important;
+  font-size: 12px !important;
+  word-break: break-all !important;
+  margin: 0 !important;
+}
+
+/* ── 提示文字 ── */
+#tcm-assistant-sidebar .tcm-hint {
+  font-size: 11px !important;
+  color: #6b7280 !important;
+  margin: 0 !important;
+  line-height: 1.4 !important;
+}
+
+/* ── 警告横幅 ── */
+#tcm-assistant-sidebar .tcm-warning-bar {
+  background: #fef3c7 !important;
+  border: 1px solid #f59e0b !important;
+  border-radius: 6px !important;
+  padding: 6px 10px !important;
+  font-size: 11px !important;
+  color: #92400e !important;
+  margin-bottom: 10px !important;
+  line-height: 1.4 !important;
+}
+
+/* ── 患者卡片 ── */
+#tcm-assistant-sidebar .tcm-patient-card {
+  background: #f0fdf4 !important;
+  border: 1px solid #bbf7d0 !important;
+  border-radius: 8px !important;
+  padding: 10px 12px !important;
+  margin-bottom: 10px !important;
+}
+
+#tcm-assistant-sidebar .tcm-patient-name {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  color: #14532d !important;
+  margin-bottom: 2px !important;
+}
+
+#tcm-assistant-sidebar .tcm-patient-no {
+  font-size: 11px !important;
+  color: #6b7280 !important;
+  margin-bottom: 6px !important;
+}
+
+/* ── 风险等级 Badge ── */
+#tcm-assistant-sidebar .tcm-badge {
+  display: inline-block !important;
+  padding: 2px 10px !important;
+  border-radius: 999px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.5px !important;
+}
+
+#tcm-assistant-sidebar .tcm-badge-high {
+  background: #fee2e2 !important;
+  color: #dc2626 !important;
+  border: 1px solid #fca5a5 !important;
+}
+
+#tcm-assistant-sidebar .tcm-badge-medium {
+  background: #ffedd5 !important;
+  color: #ea580c !important;
+  border: 1px solid #fdba74 !important;
+}
+
+#tcm-assistant-sidebar .tcm-badge-low {
+  background: #dcfce7 !important;
+  color: #16a34a !important;
+  border: 1px solid #86efac !important;
+}
+
+#tcm-assistant-sidebar .tcm-badge-unknown {
+  background: #f3f4f6 !important;
+  color: #6b7280 !important;
+  border: 1px solid #d1d5db !important;
+}
+
+/* ── 内容分区 ── */
+#tcm-assistant-sidebar .tcm-section {
+  margin-bottom: 12px !important;
+}
+
+#tcm-assistant-sidebar .tcm-section-title {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: #6b7280 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.8px !important;
+  margin-bottom: 6px !important;
+  padding-bottom: 4px !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+/* ── 风险因素列表 ── */
+#tcm-assistant-sidebar .tcm-factor-list {
+  margin: 0 !important;
+  padding: 0 0 0 16px !important;
+  list-style: disc !important;
+}
+
+#tcm-assistant-sidebar .tcm-factor-list li {
+  color: #374151 !important;
+  font-size: 12px !important;
+  margin-bottom: 3px !important;
+  line-height: 1.4 !important;
+}
+
+/* ── AI建议摘要 ── */
+#tcm-assistant-sidebar .tcm-summary {
+  font-size: 12px !important;
+  color: #374151 !important;
+  line-height: 1.6 !important;
+  background: #f9fafb !important;
+  border-radius: 6px !important;
+  padding: 8px 10px !important;
+  border: 1px solid #e5e7eb !important;
+  white-space: pre-wrap !important;
+  word-break: break-all !important;
+}
+
+/* ── 操作按钮区 ── */
+#tcm-assistant-sidebar .tcm-actions {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  margin-top: 4px !important;
+}
+
+/* ── 通用按钮 ── */
+#tcm-assistant-sidebar .tcm-btn {
+  display: block !important;
+  width: 100% !important;
+  padding: 8px 12px !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  text-align: center !important;
+  cursor: pointer !important;
+  border: none !important;
+  text-decoration: none !important;
+  box-sizing: border-box !important;
+  transition: background 0.2s, opacity 0.2s !important;
+  font-family: inherit !important;
+  line-height: 1.5 !important;
+}
+
+#tcm-assistant-sidebar .tcm-btn:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+}
+
+#tcm-assistant-sidebar .tcm-btn-primary {
+  background: #16a34a !important;
+  color: #ffffff !important;
+}
+
+#tcm-assistant-sidebar .tcm-btn-primary:hover:not(:disabled) {
+  background: #15803d !important;
+}
+
+#tcm-assistant-sidebar .tcm-btn-secondary {
+  background: #f0fdf4 !important;
+  color: #15803d !important;
+  border: 1px solid #bbf7d0 !important;
+}
+
+#tcm-assistant-sidebar .tcm-btn-secondary:hover {
+  background: #dcfce7 !important;
+}
+
+#tcm-assistant-sidebar .tcm-btn-success {
+  background: #d1fae5 !important;
+  color: #065f46 !important;
+}
+
+#tcm-assistant-sidebar .tcm-btn-retry {
+  background: #fef3c7 !important;
+  color: #92400e !important;
+  border: 1px solid #fde68a !important;
+}
+
+#tcm-assistant-sidebar .tcm-btn-retry:hover {
+  background: #fde68a !important;
+}
+
+/* ── Toast 提示 ── */
+#tcm-assistant-sidebar .tcm-toast {
+  padding: 8px 10px !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  margin-bottom: 10px !important;
+  line-height: 1.4 !important;
+  animation: tcm-fadein 0.3s ease !important;
+}
+
+#tcm-assistant-sidebar .tcm-toast-success {
+  background: #d1fae5 !important;
+  color: #065f46 !important;
+  border: 1px solid #6ee7b7 !important;
+}
+
+#tcm-assistant-sidebar .tcm-toast-error {
+  background: #fee2e2 !important;
+  color: #dc2626 !important;
+  border: 1px solid #fca5a5 !important;
+}
+
+@keyframes tcm-fadein {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── 滚动条美化 ── */
+#tcm-assistant-sidebar * {
+  box-sizing: border-box !important;
+}
+
+/* ════════════════════════════════════════════
+   v2.0 新增样式
+   ════════════════════════════════════════════ */
+
+/* ── Tab 导航 ── */
+#tcm-assistant-sidebar .tcm-tabs {
+  display: flex !important;
+  background: #f9fafb !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  flex-shrink: 0 !important;
+}
+
+#tcm-assistant-sidebar .tcm-tab {
+  flex: 1 !important;
+  padding: 7px 4px !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  color: #6b7280 !important;
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  cursor: pointer !important;
+  font-family: inherit !important;
+  transition: color 0.15s, border-color 0.15s !important;
+  line-height: 1.4 !important;
+}
+
+#tcm-assistant-sidebar .tcm-tab:hover {
+  color: #16a34a !important;
+}
+
+#tcm-assistant-sidebar .tcm-tab-active {
+  color: #16a34a !important;
+  font-weight: 700 !important;
+  border-bottom-color: #16a34a !important;
+  background: #fff !important;
+}
+
+/* ── 证据列表（可展开） ── */
+#tcm-assistant-sidebar .tcm-ev-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+}
+
+#tcm-assistant-sidebar .tcm-ev-item {
+  border: 1px solid #e5e7eb !important;
+  border-radius: 6px !important;
+  overflow: hidden !important;
+}
+
+#tcm-assistant-sidebar .tcm-ev-header {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 6px 8px !important;
+  cursor: pointer !important;
+  background: #f9fafb !important;
+  user-select: none !important;
+  transition: background 0.15s !important;
+}
+
+#tcm-assistant-sidebar .tcm-ev-header:hover {
+  background: #f0fdf4 !important;
+}
+
+#tcm-assistant-sidebar .tcm-ev-dot {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  flex-shrink: 0 !important;
+}
+
+#tcm-assistant-sidebar .tcm-ev-factor {
+  flex: 1 !important;
+  font-size: 12px !important;
+  color: #374151 !important;
+  font-weight: 500 !important;
+}
+
+#tcm-assistant-sidebar .tcm-ev-arrow {
+  font-size: 10px !important;
+  color: #9ca3af !important;
+  transition: transform 0.2s !important;
+}
+
+#tcm-assistant-sidebar .tcm-ev-body {
+  display: none !important;
+  padding: 8px !important;
+  background: #fff !important;
+}
+
+#tcm-assistant-sidebar .tcm-ev-body.tcm-ev-open {
+  display: block !important;
+}
+
+#tcm-assistant-sidebar .tcm-ev-table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  font-size: 11px !important;
+}
+
+#tcm-assistant-sidebar .tcm-ev-table td {
+  padding: 3px 6px !important;
+  color: #374151 !important;
+  border-bottom: 1px solid #f3f4f6 !important;
+}
+
+#tcm-assistant-sidebar .tcm-ev-table td:first-child {
+  color: #6b7280 !important;
+  width: 60px !important;
+  font-weight: 500 !important;
+}
+
+#tcm-assistant-sidebar .tcm-factor-plain {
+  font-size: 12px !important;
+  color: #374151 !important;
+  padding: 3px 0 !important;
+  line-height: 1.5 !important;
+}
+
+/* ── 确认下达弹窗 ── */
+#tcm-assistant-sidebar .tcm-confirm-overlay {
+  position: absolute !important;
+  inset: 0 !important;
+  background: rgba(0, 0, 0, 0.45) !important;
+  z-index: 10 !important;
+  /* display 由 JS inline style 控制，不在此写 display: flex，
+     否则 !important 会覆盖 style="display:none;" 导致遮罩常驻 */
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+}
+
+#tcm-assistant-sidebar .tcm-confirm-box {
+  background: #fff !important;
+  border-radius: 10px !important;
+  padding: 16px !important;
+  width: 100% !important;
+  max-width: 280px !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18) !important;
+}
+
+#tcm-assistant-sidebar .tcm-confirm-title {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #111827 !important;
+  margin-bottom: 10px !important;
+}
+
+#tcm-assistant-sidebar .tcm-confirm-patient {
+  font-size: 13px !important;
+  color: #374151 !important;
+  margin-bottom: 8px !important;
+}
+
+#tcm-assistant-sidebar .tcm-confirm-plan-preview {
+  font-size: 11px !important;
+  color: #6b7280 !important;
+  background: #f9fafb !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 6px !important;
+  padding: 6px 8px !important;
+  line-height: 1.5 !important;
+  margin-bottom: 12px !important;
+  white-space: pre-wrap !important;
+  word-break: break-all !important;
+}
+
+#tcm-assistant-sidebar .tcm-confirm-followup {
+  background: #f0fdf4 !important;
+  border: 1px solid #bbf7d0 !important;
+  border-radius: 6px !important;
+  padding: 8px 10px !important;
+  margin-bottom: 12px !important;
+}
+
+#tcm-assistant-sidebar .tcm-confirm-followup-label {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  font-size: 12px !important;
+  color: #15803d !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+}
+
+#tcm-assistant-sidebar .tcm-select {
+  border: 1px solid #d1d5db !important;
+  border-radius: 4px !important;
+  padding: 2px 6px !important;
+  font-size: 11px !important;
+  font-family: inherit !important;
+  color: #374151 !important;
+  background: #fff !important;
+}
+
+#tcm-assistant-sidebar .tcm-confirm-actions {
+  display: flex !important;
+  gap: 8px !important;
+}
+
+#tcm-assistant-sidebar .tcm-confirm-actions .tcm-btn {
+  flex: 1 !important;
+}
+
+/* ── 历史方案 Tab ── */
+#tcm-assistant-sidebar .tcm-history-header {
+  font-size: 11px !important;
+  color: #6b7280 !important;
+  margin-bottom: 8px !important;
+}
+
+#tcm-assistant-sidebar .tcm-plan-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+#tcm-assistant-sidebar .tcm-plan-card {
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  padding: 10px !important;
+  background: #fff !important;
+}
+
+#tcm-assistant-sidebar .tcm-plan-card-header {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  margin-bottom: 4px !important;
+}
+
+#tcm-assistant-sidebar .tcm-plan-date {
+  font-size: 10px !important;
+  color: #9ca3af !important;
+  margin-left: auto !important;
+}
+
+#tcm-assistant-sidebar .tcm-plan-title {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #1f2937 !important;
+  margin-bottom: 3px !important;
+}
+
+#tcm-assistant-sidebar .tcm-plan-preview {
+  font-size: 11px !important;
+  color: #6b7280 !important;
+  line-height: 1.4 !important;
+  margin-bottom: 6px !important;
+}
+
+#tcm-assistant-sidebar .tcm-plan-followup {
+  font-size: 11px !important;
+  color: #0891b2 !important;
+  margin-bottom: 6px !important;
+}
+
+#tcm-assistant-sidebar .tcm-plan-actions {
+  display: flex !important;
+  gap: 4px !important;
+  flex-wrap: wrap !important;
+}
+
+#tcm-assistant-sidebar .tcm-state-btn {
+  padding: 3px 8px !important;
+  font-size: 11px !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 4px !important;
+  background: #f9fafb !important;
+  color: #374151 !important;
+  cursor: pointer !important;
+  font-family: inherit !important;
+  transition: background 0.15s !important;
+}
+
+#tcm-assistant-sidebar .tcm-state-btn:hover {
+  background: #e5e7eb !important;
+}
+
+#tcm-assistant-sidebar .tcm-state-btn-alt {
+  border-color: #f59e0b !important;
+  color: #92400e !important;
+  background: #fef3c7 !important;
+}
+
+#tcm-assistant-sidebar .tcm-empty {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 32px 16px !important;
+  text-align: center !important;
+  gap: 8px !important;
+  color: #6b7280 !important;
+  font-size: 13px !important;
+}
+
+/* ── 数据指标 Tab ── */
+#tcm-assistant-sidebar .tcm-stats-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 8px !important;
+  margin-bottom: 14px !important;
+}
+
+#tcm-assistant-sidebar .tcm-kpi-card {
+  background: #f9fafb !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  padding: 10px 8px !important;
+  text-align: center !important;
+}
+
+#tcm-assistant-sidebar .tcm-kpi-value {
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  color: #1f2937 !important;
+  line-height: 1 !important;
+  margin-bottom: 4px !important;
+}
+
+#tcm-assistant-sidebar .tcm-kpi-label {
+  font-size: 10px !important;
+  color: #6b7280 !important;
+}
+
+#tcm-assistant-sidebar .tcm-metric-row {
+  margin-bottom: 14px !important;
+}
+
+#tcm-assistant-sidebar .tcm-metric-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  margin-bottom: 5px !important;
+}
+
+#tcm-assistant-sidebar .tcm-metric-name {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #374151 !important;
+}
+
+#tcm-assistant-sidebar .tcm-metric-pct {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+}
+
+#tcm-assistant-sidebar .tcm-progress-bar {
+  height: 6px !important;
+  background: #e5e7eb !important;
+  border-radius: 999px !important;
+  overflow: hidden !important;
+  margin-bottom: 4px !important;
+}
+
+#tcm-assistant-sidebar .tcm-progress-fill {
+  height: 100% !important;
+  border-radius: 999px !important;
+  transition: width 0.6s ease !important;
+}
+
+#tcm-assistant-sidebar .tcm-metric-hint {
+  font-size: 10px !important;
+  color: #9ca3af !important;
+}
+
+#tcm-assistant-sidebar .tcm-stats-footer {
+  font-size: 10px !important;
+  color: #d1d5db !important;
+  text-align: center !important;
+  margin-top: 8px !important;
+  padding-top: 8px !important;
+  border-top: 1px solid #f3f4f6 !important;
+}
+
+/* ════════════════════════════════════════════
+   v3.0 新增样式 - A-E 规范
+   ════════════════════════════════════════════ */
+
+/* ── 患者元信息 ── */
+#tcm-assistant-sidebar .tcm-patient-meta {
+  font-size: 11px !important;
+  color: #6b7280 !important;
+  margin-top: 2px !important;
+}
+
+/* ── 档案信息行 ── */
+#tcm-assistant-sidebar .tcm-profile-row {
+  display: flex !important;
+  align-items: baseline !important;
+  gap: 6px !important;
+  padding: 3px 0 !important;
+  border-bottom: 1px solid #f3f4f6 !important;
+  font-size: 12px !important;
+}
+
+#tcm-assistant-sidebar .tcm-profile-label {
+  font-size: 11px !important;
+  color: #9ca3af !important;
+  width: 36px !important;
+  flex-shrink: 0 !important;
+}
+
+#tcm-assistant-sidebar .tcm-profile-val {
+  color: #374151 !important;
+  flex: 1 !important;
+}
+
+#tcm-assistant-sidebar .tcm-badge-constitution {
+  background: #f0fdf4 !important;
+  color: #15803d !important;
+  border: 1px solid #bbf7d0 !important;
+  padding: 1px 6px !important;
+  border-radius: 4px !important;
+  font-size: 11px !important;
+}
+
+/* ── 风险标签 ── */
+#tcm-assistant-sidebar .tcm-tag-list {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 4px !important;
+}
+
+#tcm-assistant-sidebar .tcm-tag {
+  display: inline-block !important;
+  padding: 2px 8px !important;
+  border-radius: 999px !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  line-height: 1.6 !important;
+}
+
+/* ── 小型加载 ── */
+#tcm-assistant-sidebar .tcm-loading-sm {
+  font-size: 11px !important;
+  color: #9ca3af !important;
+  padding: 6px 0 !important;
+}
+
+/* ── 健康指标行（小型） ── */
+#tcm-assistant-sidebar .tcm-metric-row-sm {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 4px 0 !important;
+  border-bottom: 1px solid #f3f4f6 !important;
+  font-size: 11px !important;
+}
+
+#tcm-assistant-sidebar .tcm-metric-name-sm {
+  flex: 1 !important;
+  color: #374151 !important;
+}
+
+#tcm-assistant-sidebar .tcm-metric-val-sm {
+  font-weight: 600 !important;
+  min-width: 60px !important;
+  text-align: right !important;
+}
+
+#tcm-assistant-sidebar .tcm-metric-date-sm {
+  color: #9ca3af !important;
+  min-width: 60px !important;
+  text-align: right !important;
+}
+
+/* ── 方案管理操作栏 ── */
+#tcm-assistant-sidebar .tcm-plan-actions-bar {
+  display: flex !important;
+  gap: 6px !important;
+  margin-bottom: 10px !important;
+}
+
+/* ── 小型按钮 ── */
+#tcm-assistant-sidebar .tcm-btn-sm {
+  width: auto !important;
+  padding: 5px 10px !important;
+  font-size: 11px !important;
+}
+
+/* ── 表单控件 ── */
+#tcm-assistant-sidebar .tcm-input {
+  width: 100% !important;
+  padding: 6px 8px !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  font-family: inherit !important;
+  color: #374151 !important;
+  background: #fff !important;
+  box-sizing: border-box !important;
+  outline: none !important;
+  margin-bottom: 4px !important;
+}
+
+#tcm-assistant-sidebar .tcm-input:focus {
+  border-color: #16a34a !important;
+  box-shadow: 0 0 0 2px rgba(22,163,74,0.15) !important;
+}
+
+#tcm-assistant-sidebar .tcm-textarea {
+  width: 100% !important;
+  padding: 6px 8px !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  font-family: inherit !important;
+  color: #374151 !important;
+  background: #fff !important;
+  box-sizing: border-box !important;
+  outline: none !important;
+  resize: vertical !important;
+  line-height: 1.5 !important;
+}
+
+#tcm-assistant-sidebar .tcm-textarea:focus {
+  border-color: #16a34a !important;
+  box-shadow: 0 0 0 2px rgba(22,163,74,0.15) !important;
+}
+
+/* ── 模板项 ── */
+#tcm-assistant-sidebar .tcm-template-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 6px 0 !important;
+  border-bottom: 1px solid #f3f4f6 !important;
+}
+
+#tcm-assistant-sidebar .tcm-template-name {
+  flex: 1 !important;
+  font-size: 12px !important;
+  color: #1f2937 !important;
+  font-weight: 500 !important;
+}
+
+#tcm-assistant-sidebar .tcm-template-cat {
+  font-size: 10px !important;
+  color: #9ca3af !important;
+  margin-right: auto !important;
+}
+
+/* ── 关闭面板按钮 ── */
+#tcm-assistant-sidebar .tcm-close-panel {
+  float: right !important;
+  background: none !important;
+  border: none !important;
+  color: #9ca3af !important;
+  cursor: pointer !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+  padding: 0 2px !important;
+  font-family: inherit !important;
+}
+
+#tcm-assistant-sidebar .tcm-close-panel:hover {
+  color: #374151 !important;
+}
+
+/* ── Diff 对比 ── */
+#tcm-assistant-sidebar .tcm-diff-box {
+  font-size: 11px !important;
+  font-family: monospace !important;
+  background: #f9fafb !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 6px !important;
+  padding: 8px !important;
+  max-height: 180px !important;
+  overflow-y: auto !important;
+  white-space: pre-wrap !important;
+  word-break: break-all !important;
+  line-height: 1.5 !important;
+}
+
+#tcm-assistant-sidebar .tcm-diff-add {
+  color: #16a34a !important;
+  background: #f0fdf4 !important;
+}
+
+#tcm-assistant-sidebar .tcm-diff-del {
+  color: #dc2626 !important;
+  background: #fef2f2 !important;
+  text-decoration: line-through !important;
+}
+
+#tcm-assistant-sidebar .tcm-diff-ctx {
+  color: #6b7280 !important;
+}
+
+/* ── 方案摘要文本 ── */
+#tcm-assistant-sidebar .tcm-summary-text {
+  font-size: 12px !important;
+  color: #374151 !important;
+  background: #f9fafb !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 6px !important;
+  padding: 8px 10px !important;
+  line-height: 1.6 !important;
+  white-space: pre-wrap !important;
+  word-break: break-all !important;
+  max-height: 160px !important;
+  overflow-y: auto !important;
+  margin-bottom: 8px !important;
+}

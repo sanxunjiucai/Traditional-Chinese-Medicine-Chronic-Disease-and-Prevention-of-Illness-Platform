@@ -1,0 +1,138 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "health_education" %}
+{% block title %}宣教详情 - 治未病平台{% endblock %}
+{% block page_title %}宣教记录详情{% endblock %}
+
+{% block content %}
+<!-- 面包屑 -->
+<nav class="flex items-center justify-between mb-4">
+  <div class="flex items-center gap-1.5 text-sm">
+    <a href="/gui/admin/health-education" class="text-gray-500 hover:text-[#4E7A61]">健康宣教</a>
+    <svg class="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+    </svg>
+    <span class="text-gray-700 font-medium">宣教记录详情</span>
+  </div>
+  <a href="/gui/admin/health-education" class="flex items-center gap-1 text-sm text-gray-500 hover:text-[#4E7A61]">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+    返回列表
+  </a>
+</nav>
+
+<div id="loading" class="text-center py-12 text-gray-400">
+  <div class="animate-spin w-8 h-8 border-4 border-green-200 border-t-green-500 rounded-full mx-auto mb-3"></div>
+  加载中...
+</div>
+
+<div id="main-content" class="hidden grid grid-cols-3 gap-4">
+  <!-- 左：基本信息 -->
+  <div class="space-y-4">
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-3">发送信息</h3>
+      <div class="space-y-2 text-sm">
+        <div class="flex justify-between"><span class="text-gray-400">宣教类型</span><span id="d-type" class="font-medium" style="color:#4E7A61;">-</span></div>
+        <div class="flex justify-between"><span class="text-gray-400">发送时间</span><span id="d-sent" class="text-gray-700">-</span></div>
+        <div class="flex justify-between"><span class="text-gray-400">发送方式</span><span id="d-method" class="text-gray-700">-</span></div>
+        <div class="flex justify-between"><span class="text-gray-400">发送范围</span><span id="d-scope" class="text-gray-700">-</span></div>
+      </div>
+    </div>
+
+    <!-- 投递记录 -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-3">投递记录</h3>
+      <div id="d-deliveries" class="space-y-2 text-sm text-gray-500">加载中...</div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-3">操作</h3>
+      <div class="space-y-2">
+        <button onclick="resendRecord()"
+          class="w-full border border-gray-200 rounded-lg py-2 text-sm text-gray-600 hover:bg-gray-50">重新发送</button>
+        <a href="/gui/admin/health-education/new"
+          class="block w-full text-center rounded-lg py-2 text-sm" style="border:1px solid #C8DDD0;color:#4E7A61;" onmouseover="this.style.background='#EBF2ED'" onmouseout="this.style.background=''">发送相关内容</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右：宣教内容 -->
+  <div class="col-span-2 bg-white rounded-xl shadow-sm p-6">
+    <div class="mb-4 pb-4 border-b border-gray-100">
+      <span id="d-type-badge" class="px-2 py-0.5 rounded text-xs font-medium" style="background:#EBF2ED;color:#4E7A61;">-</span>
+      <h2 id="d-title" class="text-xl font-bold text-gray-800 mt-2">-</h2>
+      <p id="d-meta" class="text-xs text-gray-400 mt-1">-</p>
+    </div>
+    <div id="d-content" class="prose prose-sm max-w-none text-gray-700 whitespace-pre-line text-sm leading-7"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const RECORD_ID = '{{ record_id }}';
+const TYPE_LABELS = {
+  CONSTITUTION:'体质宣教',DISEASE:'疾病知识',DIET:'饮食指导',
+  EXERCISE:'运动健康',SEASONAL:'节气养生',MEDICATION:'用药指导',GENERAL:'通用宣教',
+};
+const METHOD_LABELS = {APP:'APP推送',WECHAT:'微信',SMS:'短信',STATION:'站内消息',EMAIL:'邮件'};
+const SCOPE_LABELS = {SINGLE:'个人宣教',BATCH:'批量宣教',ALL:'全体宣教'};
+const READ_LABELS = {READ:'已读',UNREAD:'未读',PENDING:'待发送'};
+const READ_CLS = {READ:'bg-green-100 text-green-700',UNREAD:'bg-gray-100 text-gray-500',PENDING:'bg-yellow-100 text-yellow-600'};
+
+async function loadDetail() {
+  try {
+    const res = await fetch(`/tools/education/records/${RECORD_ID}`);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error?.message || '加载失败');
+    const d = data.data;
+
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('main-content').classList.remove('hidden');
+
+    const typeLabel = TYPE_LABELS[d.edu_type] || d.edu_type || '-';
+    document.getElementById('d-type').textContent = typeLabel;
+    document.getElementById('d-type-badge').textContent = typeLabel;
+    document.getElementById('d-title').textContent = d.title || '-';
+
+    const methods = (d.send_methods||[]).map(m => METHOD_LABELS[m]||m).join('、') || '-';
+    document.getElementById('d-method').textContent = methods;
+    document.getElementById('d-scope').textContent = SCOPE_LABELS[d.send_scope] || d.send_scope || '-';
+
+    const sentAt = d.sent_at ? new Date(d.sent_at).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'}) : (d.scheduled_at||'-');
+    document.getElementById('d-sent').textContent = sentAt;
+    document.getElementById('d-meta').textContent = `${sentAt} 发送`;
+    document.getElementById('d-content').textContent = d.content || d.content_preview || '（暂无详细内容）';
+
+    // 投递记录
+    const deliveries = d.deliveries || [];
+    if (!deliveries.length) {
+      document.getElementById('d-deliveries').innerHTML = '<p class="text-gray-400 text-center py-2">暂无投递记录</p>';
+    } else {
+      document.getElementById('d-deliveries').innerHTML = deliveries.map(dv => {
+        const rs = dv.read_status || 'UNREAD';
+        const readAt = dv.read_at ? new Date(dv.read_at).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'}) : null;
+        return `<div class="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
+          <span class="text-xs text-gray-500">${(dv.send_method && METHOD_LABELS[dv.send_method]) || dv.send_method || '-'}</span>
+          <span class="px-2 py-0.5 rounded-full text-xs ${READ_CLS[rs]||'bg-gray-100 text-gray-500'}">${READ_LABELS[rs]||rs}</span>
+          ${readAt ? `<span class="text-xs text-gray-400">${readAt.slice(0,10)}</span>` : ''}
+        </div>`;
+      }).join('');
+    }
+  } catch(e) {
+    document.getElementById('loading').innerHTML = `<p class="text-red-500">${e.message || '加载失败，请刷新重试'}</p>`;
+  }
+}
+
+async function resendRecord() {
+  if (!confirm('确认重新发送该宣教内容？')) return;
+  try {
+    const res = await fetch(`/tools/education/records/${RECORD_ID}/resend`, {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+    const data = await res.json();
+    showToast(data.success ? '重新发送成功' : (data.error?.message || '发送失败'));
+  } catch(e) { showToast('发送失败，请重试'); }
+}
+
+loadDetail();
+</script>
+{% endblock %}

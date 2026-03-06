@@ -1,0 +1,199 @@
+{% extends "_layouts/patient.html" %}
+{% block title %}复诊与随访提醒{% endblock %}
+{% block page_title %}复诊 / 随访提醒{% endblock %}
+
+{% block extra_css %}
+.reminder-card {
+  background:#fff;
+  border-radius:16px;
+  padding:15px 16px;
+  box-shadow:var(--shadow-xs);
+  border-left:3px solid transparent;
+  display:flex;
+  gap:14px;
+  align-items:flex-start;
+}
+.reminder-card.urgent { border-left-color:#D95C4A; }
+.reminder-card.soon   { border-left-color:#B8885E; }
+.reminder-card.normal { border-left-color:#4E7A61; }
+.reminder-card.done   { border-left-color:#D0C9C0; opacity:0.7; }
+{% endblock %}
+
+{% block content %}
+<div style="padding:16px;display:flex;flex-direction:column;gap:14px;">
+
+  <!-- 下次复诊倒计时 -->
+  <div id="next-card" style="background:linear-gradient(140deg,#4E7A61,#3D6A52);border-radius:20px;padding:20px;color:#fff;display:none;">
+    <p style="font-size:12px;color:rgba(255,255,255,0.65);margin:0 0 6px;">下次复诊</p>
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;">
+      <div>
+        <h3 id="next-title" style="font-size:17px;font-weight:600;margin:0 0 4px;"></h3>
+        <p id="next-doctor" style="font-size:13px;color:rgba(255,255,255,0.75);margin:0;"></p>
+      </div>
+      <div style="text-align:right;">
+        <p id="next-countdown" style="font-size:28px;font-weight:700;margin:0;line-height:1;"></p>
+        <p style="font-size:12px;color:rgba(255,255,255,0.65);margin:4px 0 0;">天后</p>
+      </div>
+    </div>
+    <div style="margin-top:14px;background:rgba(255,255,255,0.15);border-radius:12px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">
+      <span id="next-date" style="font-size:13px;"></span>
+      <a href="/h5/appointment" style="color:#fff;font-size:12px;font-weight:500;text-decoration:none;background:rgba(255,255,255,0.2);padding:5px 12px;border-radius:99px;">修改预约 →</a>
+    </div>
+  </div>
+
+  <!-- 无复诊时的引导卡 -->
+  <div id="no-next" style="display:none;background:#fff;border-radius:20px;padding:20px;text-align:center;box-shadow:var(--shadow-sm);">
+    <div style="width:52px;height:52px;background:#EBF2ED;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;">
+      <svg width="24" height="24" fill="none" stroke="#4E7A61" viewBox="0 0 24 24" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+    </div>
+    <p style="font-size:15px;font-weight:600;color:#28231E;margin:0 0 6px;">暂无复诊预约</p>
+    <p style="font-size:13px;color:#9A9188;margin:0 0 16px;">预约复诊后，提醒将在此显示</p>
+    <a href="/h5/appointment" style="display:inline-block;background:#4E7A61;color:#fff;font-size:14px;font-weight:500;padding:10px 24px;border-radius:var(--radius-btn);text-decoration:none;">立即预约复诊</a>
+  </div>
+
+  <!-- 全部提醒列表 -->
+  <div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <h3 style="font-size:15px;font-weight:600;color:#28231E;margin:0;">所有提醒</h3>
+      <div style="display:flex;gap:6px;">
+        <button onclick="filterReminders('all')"    id="f-all"    class="filter-btn active">全部</button>
+        <button onclick="filterReminders('pending')" id="f-pending" class="filter-btn">待完成</button>
+        <button onclick="filterReminders('done')"   id="f-done"   class="filter-btn">已完成</button>
+      </div>
+    </div>
+
+    <div id="reminders-loading" style="display:flex;flex-direction:column;gap:10px;">
+      <div class="skeleton" style="height:76px;"></div>
+      <div class="skeleton" style="height:76px;width:90%;"></div>
+      <div class="skeleton" style="height:76px;width:80%;"></div>
+    </div>
+    <div id="reminders-list" style="display:none;flex-direction:column;gap:10px;"></div>
+    <div id="reminders-empty" style="display:none;text-align:center;padding:32px 0;">
+      <p style="font-size:14px;color:#9A9188;">暂无此类提醒</p>
+    </div>
+  </div>
+
+</div>
+
+<style>
+.filter-btn {
+  padding:5px 12px;font-size:12px;font-weight:500;border-radius:99px;
+  border:1px solid var(--border);background:#fff;color:var(--text-secondary);
+  cursor:pointer;font-family:inherit;transition:all 0.15s;
+}
+.filter-btn.active { background:var(--primary);border-color:var(--primary);color:#fff; }
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let allReminders = [];
+let activeFilter = 'all';
+
+const DEMO_REMINDERS = [
+  { id:1, type:'VISIT',    title:'心内科复诊',         doctor:'张医生',      date:'2026-03-15', time:'09:30', status:'PENDING', note:'携带血压记录本，空腹检查',      urgency:'soon' },
+  { id:2, type:'FOLLOWUP', title:'30天随访截止',        doctor:'健康管理师',  date:'2026-03-20', time:'',     status:'PENDING', note:'完成本轮随访并提交总结',         urgency:'normal' },
+  { id:3, type:'EXAM',     title:'糖化血红蛋白复查',    doctor:'检验科',      date:'2026-03-12', time:'08:00', status:'PENDING', note:'须空腹8小时以上',               urgency:'urgent' },
+  { id:4, type:'VISIT',    title:'营养科门诊',          doctor:'李医生',      date:'2026-03-10', time:'14:00', status:'PENDING', note:'评估饮食干预效果',               urgency:'soon' },
+  { id:5, type:'FOLLOWUP', title:'电话随访',            doctor:'护士小王',    date:'2026-02-28', time:'10:00', status:'DONE',    note:'血压控制情况已复核',             urgency:'normal' },
+  { id:6, type:'EXAM',     title:'血常规复查',          doctor:'检验科',      date:'2026-02-20', time:'',      status:'DONE',    note:'报告已归档',                     urgency:'normal' },
+];
+
+const TYPE_ICON = {
+  VISIT:    { icon:'🏥', label:'复诊' },
+  FOLLOWUP: { icon:'📋', label:'随访' },
+  EXAM:     { icon:'🔬', label:'检查' },
+};
+
+function filterReminders(f) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('f-'+f).classList.add('active');
+  renderReminders();
+}
+
+function daysUntil(dateStr) {
+  const d = new Date(dateStr); d.setHours(0,0,0,0);
+  const t = new Date(); t.setHours(0,0,0,0);
+  return Math.round((d-t)/86400000);
+}
+
+function renderReminders() {
+  const filtered = allReminders.filter(r => {
+    if (activeFilter === 'pending') return r.status === 'PENDING';
+    if (activeFilter === 'done')    return r.status === 'DONE';
+    return true;
+  });
+  const list = document.getElementById('reminders-list');
+  const empty = document.getElementById('reminders-empty');
+  if (!filtered.length) {
+    list.style.display = 'none'; empty.style.display = 'block'; return;
+  }
+  empty.style.display = 'none';
+  list.style.display = 'flex';
+  list.innerHTML = filtered.map(r => {
+    const days = daysUntil(r.date);
+    const ti = TYPE_ICON[r.type] || { icon:'📌', label:'提醒' };
+    const urgencyClass = r.status === 'DONE' ? 'done' : r.urgency || 'normal';
+    const daysLabel = r.status === 'DONE' ? '已完成' : days < 0 ? `逾期${-days}天` : days === 0 ? '今天' : `${days}天后`;
+    const daysColor = r.status === 'DONE' ? '#9A9188' : days < 0 ? '#D95C4A' : days === 0 ? '#D95C4A' : days <= 3 ? '#B8885E' : '#4E7A61';
+    return `
+      <div class="reminder-card ${urgencyClass}">
+        <div style="width:38px;height:38px;border-radius:12px;background:#F5F2EC;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${ti.icon}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+            <div style="flex:1;">
+              <p style="font-size:14px;font-weight:600;color:${r.status==='DONE'?'#9A9188':'#28231E'};margin:0 0 3px;${r.status==='DONE'?'text-decoration:line-through;':''}">${r.title}</p>
+              <p style="font-size:12px;color:#9A9188;margin:0;">${r.date}${r.time?' '+r.time:''} · ${r.doctor}</p>
+            </div>
+            <span style="font-size:12px;font-weight:600;color:${daysColor};white-space:nowrap;flex-shrink:0;">${daysLabel}</span>
+          </div>
+          ${r.note ? `<p style="font-size:12px;color:#6A6258;margin:6px 0 0;padding:6px 10px;background:#F5F2EC;border-radius:8px;">${r.note}</p>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function loadReminders() {
+  let reminders = [];
+  try {
+    const r = await fetch('/tools/followup/tasks?page_size=30');
+    const j = await r.json();
+    if (j.success && j.data?.items?.length) {
+      reminders = j.data.items.map(t => ({
+        id: t.id, type: 'FOLLOWUP', title: t.name || t.task_type,
+        doctor: t.assigned_to || '医生',
+        date: t.scheduled_date || t.due_date || '',
+        time: t.scheduled_time || '',
+        status: t.status === 'COMPLETED' ? 'DONE' : 'PENDING',
+        note: t.notes || '',
+        urgency: daysUntil(t.scheduled_date || t.due_date || '') <= 2 ? 'urgent' : 'normal',
+      }));
+    }
+  } catch(e) {}
+
+  allReminders = reminders.length ? reminders : DEMO_REMINDERS;
+  allReminders.sort((a,b) => new Date(a.date) - new Date(b.date));
+
+  document.getElementById('reminders-loading').style.display = 'none';
+  renderReminders();
+
+  // 下次复诊卡
+  const nextVisit = allReminders.find(r => r.status === 'PENDING' && r.type !== 'EXAM');
+  if (nextVisit) {
+    const days = daysUntil(nextVisit.date);
+    document.getElementById('next-card').style.display = 'block';
+    document.getElementById('next-title').textContent = nextVisit.title;
+    document.getElementById('next-doctor').textContent = nextVisit.doctor;
+    document.getElementById('next-countdown').textContent = Math.max(0, days);
+    document.getElementById('next-date').textContent = nextVisit.date + (nextVisit.time ? ' ' + nextVisit.time : '');
+  } else {
+    document.getElementById('no-next').style.display = 'block';
+  }
+}
+
+loadReminders();
+</script>
+{% endblock %}

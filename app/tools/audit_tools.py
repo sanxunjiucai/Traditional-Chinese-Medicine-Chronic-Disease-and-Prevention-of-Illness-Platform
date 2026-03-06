@@ -13,6 +13,7 @@ from app.tools.response import ok
 router = APIRouter(prefix="/audit", tags=["audit-tools"])
 
 
+@router.get("")
 @router.get("/")
 async def list_audit_logs(
     user_id: str | None = Query(default=None),

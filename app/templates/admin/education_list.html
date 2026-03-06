@@ -1,0 +1,140 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "health_education" %}
+{% block title %}中医宣教记录 - 治未病平台{% endblock %}
+{% block page_title %}中医宣教管理{% endblock %}
+
+{% block content %}
+<!-- 统计卡片 -->
+<div class="grid grid-cols-4 gap-4 mb-4">
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-xs text-gray-400">宣教总次数</p>
+    <p class="text-2xl font-bold mt-1" style="color:#4E7A61;">512</p>
+    <p class="text-xs text-green-500 mt-0.5">↑ 本月 +38</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-xs text-gray-400">已读人数</p>
+    <p class="text-2xl font-bold text-green-600 mt-1">348</p>
+    <p class="text-xs text-gray-400 mt-0.5">阅读率 68%</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-xs text-gray-400">本月新增</p>
+    <p class="text-2xl font-bold text-gray-700 mt-1">38</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-4">
+    <p class="text-xs text-gray-400">模板库数量</p>
+    <p class="text-2xl font-bold text-amber-600 mt-1">26</p>
+  </div>
+</div>
+
+<!-- 筛选栏 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <input id="q" type="text" placeholder="患者姓名/宣教主题"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-44 focus:outline-none focus:ring-2 focus:ring-[#C8DDD0]">
+  <select id="type-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8DDD0]">
+    <option value="">全部类型</option>
+    <option value="CONSTITUTION">体质宣教</option>
+    <option value="DISEASE">疾病知识</option>
+    <option value="DIET">饮食指导</option>
+    <option value="EXERCISE">运动健康</option>
+    <option value="SEASONAL">节气养生</option>
+  </select>
+  <select id="read-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8DDD0]">
+    <option value="">全部状态</option>
+    <option value="READ">已读</option>
+    <option value="UNREAD">未读</option>
+  </select>
+  <button onclick="loadList()" class="text-white px-4 py-2 rounded-lg text-sm" style="background:#4E7A61;" onmouseover="this.style.background='#3F6A52'" onmouseout="this.style.background='#4E7A61'">查询</button>
+  <div class="ml-auto flex gap-2">
+    <a href="/gui/admin/health-education/new"
+      class="text-white px-4 py-2 rounded-lg text-sm" style="background:#4E7A61;" onmouseover="this.style.background='#3F6A52'" onmouseout="this.style.background='#4E7A61'">+ 新增宣教</a>
+  </div>
+</div>
+
+<!-- 列表 -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-5 py-3 text-left">宣教主题</th>
+        <th class="px-5 py-3 text-left">类型</th>
+        <th class="px-5 py-3 text-left">患者</th>
+        <th class="px-5 py-3 text-left">发送方式</th>
+        <th class="px-5 py-3 text-left">发送时间</th>
+        <th class="px-5 py-3 text-left">阅读状态</th>
+        <th class="px-5 py-3 text-left">操作</th>
+      </tr>
+    </thead>
+    <tbody id="list-body" class="divide-y divide-gray-100"></tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const TYPE_LABELS = {
+  CONSTITUTION:'体质宣教',DISEASE:'疾病知识',DIET:'饮食指导',
+  EXERCISE:'运动健康',SEASONAL:'节气养生',MEDICATION:'用药指导',GENERAL:'通用宣教',
+};
+const METHOD_LABELS = {APP:'APP推送',WECHAT:'微信',SMS:'短信',STATION:'站内消息',EMAIL:'邮件'};
+const SCOPE_LABELS = {SINGLE:'个人',BATCH:'批量',ALL:'全体'};
+
+async function loadList() {
+  const q = document.getElementById('q').value;
+  const edu_type = document.getElementById('type-filter').value;
+  const read_status = document.getElementById('read-filter').value;
+  const params = new URLSearchParams();
+  if (edu_type) params.set('edu_type', edu_type);
+  if (read_status) params.set('read_status', read_status);
+  if (q) params.set('q', q);
+
+  let items = [];
+  try {
+    const res = await fetch('/tools/education/records?' + params);
+    const data = await res.json();
+    if (data.success) items = data.data.items || data.data || [];
+  } catch(e) {}
+
+  if (!items.length) {
+    document.getElementById('list-body').innerHTML = '<tr><td colspan="7" class="px-5 py-8 text-center text-gray-400">暂无宣教记录</td></tr>';
+    return;
+  }
+  document.getElementById('list-body').innerHTML = items.map(r => {
+    const methods = (r.send_methods||[]).map(m => METHOD_LABELS[m]||m).join('、') || '-';
+    const sentAt = r.sent_at ? new Date(r.sent_at).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'}) : (r.scheduled_at ? r.scheduled_at.slice(0,16) : '-');
+    const typeLabel = TYPE_LABELS[r.edu_type] || r.edu_type || '-';
+    const scopeLabel = SCOPE_LABELS[r.send_scope] || r.send_scope || '-';
+    return `<tr class="hover:bg-gray-50">
+      <td class="px-5 py-3 font-medium text-gray-800 max-w-xs">
+        <p class="truncate">${r.title||'-'}</p>
+      </td>
+      <td class="px-5 py-3">
+        <span class="px-2 py-0.5 rounded-full text-xs font-medium" style="background:#EBF2ED;color:#4E7A61;">${typeLabel}</span>
+      </td>
+      <td class="px-5 py-3">
+        <p class="text-gray-700">${scopeLabel}</p>
+      </td>
+      <td class="px-5 py-3 text-gray-500 text-xs">${methods}</td>
+      <td class="px-5 py-3 text-gray-400 text-xs">${sentAt}</td>
+      <td class="px-5 py-3">
+        <span class="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-500">-</span>
+      </td>
+      <td class="px-5 py-3 flex gap-2">
+        <a href="/gui/admin/health-education/${r.id}" class="hover:underline text-xs" style="color:#4E7A61;">详情</a>
+        <button onclick="resend(${r.id})" class="text-gray-400 hover:underline text-xs">重发</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function resend(id) {
+  if (!confirm('确认重新发送该宣教内容？')) return;
+  try {
+    const res = await fetch(`/tools/education/records/${id}/resend`, {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+    const data = await res.json();
+    showToast(data.success ? '重新发送成功' : (data.error?.message || '发送失败'));
+  } catch(e) { showToast('发送失败，请重试'); }
+}
+
+loadList();
+</script>
+{% endblock %}

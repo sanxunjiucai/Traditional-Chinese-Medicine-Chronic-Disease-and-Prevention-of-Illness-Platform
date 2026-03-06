@@ -1,0 +1,174 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "assessments" %}
+{% block title %}体质评估作答 - 治未病平台{% endblock %}
+{% block page_title %}体质评估作答{% endblock %}
+
+{% block content %}
+<!-- 进度条 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4">
+  <div class="flex items-center justify-between mb-2">
+    <span class="text-sm text-gray-500">作答进度</span>
+    <span id="progress-text" class="text-sm font-semibold text-rose-600">0 / 72 题</span>
+  </div>
+  <div class="w-full bg-gray-100 rounded-full h-2">
+    <div id="progress-bar" class="bg-rose-500 h-2 rounded-full transition-all" style="width: 0%"></div>
+  </div>
+  <div class="flex gap-2 mt-2 flex-wrap">
+    <span class="text-xs text-gray-400">评估ID: <span class="font-mono">{{ assess_id[:8] }}...</span></span>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+  <!-- 体质分类导航 -->
+  <div class="lg:col-span-1">
+    <div class="bg-white rounded-xl shadow-sm p-4 sticky top-4">
+      <p class="text-xs font-semibold text-gray-400 uppercase mb-3">体质分类</p>
+      <div id="category-nav" class="space-y-1"></div>
+    </div>
+  </div>
+
+  <!-- 题目区域 -->
+  <div class="lg:col-span-3">
+    <div id="questions-container" class="space-y-4">
+      <div class="bg-white rounded-xl shadow-sm p-8 text-center text-gray-400">
+        <div class="animate-spin w-8 h-8 border-4 border-rose-200 border-t-rose-500 rounded-full mx-auto mb-3"></div>
+        加载题目中...
+      </div>
+    </div>
+
+    <!-- 底部操作 -->
+    <div class="flex gap-3 justify-between mt-6">
+      <button onclick="saveDraft()"
+        class="px-5 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">暂存草稿</button>
+      <div class="flex gap-3">
+        <span id="answered-count" class="text-sm text-gray-500 self-center">已答: 0 题</span>
+        <button onclick="submitAssess()"
+          class="bg-rose-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-rose-700 font-medium">提交评估</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const ASSESS_ID = '{{ assess_id }}';
+const BODY_TYPE_LABELS = {
+  'BALANCED':'平和质','QI_DEFICIENCY':'气虚质','YANG_DEFICIENCY':'阳虚质',
+  'YIN_DEFICIENCY':'阴虚质','PHLEGM_DAMPNESS':'痰湿质','DAMP_HEAT':'湿热质',
+  'BLOOD_STASIS':'血瘀质','QI_STAGNATION':'气郁质','SPECIAL_DIATHESIS':'特禀质'
+};
+const SCORE_LABELS = ['', '没有（从不）', '很少（有时）', '有时（一半时间）', '经常（经常）', '总是（几乎总是）'];
+
+let questions = [];
+let answers = {};
+let groupedQ = {};
+
+async function loadQuestions() {
+  const res = await fetch('/tools/constitution/questions');
+  const data = await res.json();
+  if (!data.success) return;
+  questions = data.data.questions || data.data || [];
+
+  // 分组
+  questions.forEach(q => {
+    const bt = q.body_type || 'OTHER';
+    if (!groupedQ[bt]) groupedQ[bt] = [];
+    groupedQ[bt].push(q);
+  });
+
+  renderNav();
+  renderQuestions();
+}
+
+function renderNav() {
+  const nav = document.getElementById('category-nav');
+  nav.innerHTML = Object.entries(groupedQ).map(([bt, qs]) => `
+    <a href="#section-${bt}" class="flex items-center justify-between px-3 py-2 rounded-lg text-sm hover:bg-rose-50 text-gray-600 hover:text-rose-600 transition">
+      <span>${BODY_TYPE_LABELS[bt] || bt}</span>
+      <span class="text-xs text-gray-400">${qs.length}题</span>
+    </a>`).join('');
+}
+
+function renderQuestions() {
+  const container = document.getElementById('questions-container');
+  let html = '';
+  Object.entries(groupedQ).forEach(([bt, qs]) => {
+    html += `<div id="section-${bt}" class="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div class="px-5 py-3 bg-rose-50 border-b border-rose-100">
+        <h3 class="font-semibold text-rose-700">${BODY_TYPE_LABELS[bt] || bt}</h3>
+      </div>
+      <div class="divide-y divide-gray-100">`;
+    qs.forEach((q, idx) => {
+      const qNum = questions.indexOf(q) + 1;
+      html += `<div class="px-5 py-4" id="q-${q.id}">
+        <p class="text-sm text-gray-700 mb-3"><span class="font-semibold text-rose-500 mr-2">Q${qNum}.</span>${q.content}</p>
+        <div class="grid grid-cols-5 gap-2">
+          ${[1,2,3,4,5].map(v => `
+            <button onclick="setAnswer('${q.id}', ${v})" id="btn-${q.id}-${v}"
+              class="py-2 text-xs border border-gray-200 rounded-lg hover:border-rose-400 hover:bg-rose-50 transition text-gray-500 answer-btn">
+              ${v}<br><span class="text-gray-400 text-xs">${SCORE_LABELS[v].split('（')[0]}</span>
+            </button>`).join('')}
+        </div>
+      </div>`;
+    });
+    html += '</div></div>';
+  });
+  container.innerHTML = html;
+  updateProgress();
+}
+
+function setAnswer(qId, value) {
+  answers[qId] = value;
+  [1,2,3,4,5].forEach(v => {
+    const btn = document.getElementById(`btn-${qId}-${v}`);
+    if (btn) {
+      btn.className = v === value
+        ? 'py-2 text-xs border-2 border-rose-500 bg-rose-50 rounded-lg font-semibold text-rose-600 answer-btn'
+        : 'py-2 text-xs border border-gray-200 rounded-lg hover:border-rose-400 hover:bg-rose-50 transition text-gray-500 answer-btn';
+    }
+  });
+  updateProgress();
+}
+
+function updateProgress() {
+  const answered = Object.keys(answers).length;
+  const total = questions.length;
+  const pct = total ? Math.round(answered / total * 100) : 0;
+  document.getElementById('progress-text').textContent = `${answered} / ${total} 题`;
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('answered-count').textContent = `已答: ${answered} 题`;
+}
+
+async function saveDraft() {
+  const answerList = Object.entries(answers).map(([qid, val]) => ({question_id: qid, answer_value: val}));
+  await fetch('/tools/constitution/answer', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({assessment_id: ASSESS_ID, answers: answerList})
+  });
+  showToast('草稿已暂存');
+}
+
+async function submitAssess() {
+  const unanswered = questions.filter(q => !answers[q.id]);
+  if (unanswered.length > 0) {
+    if (!confirm(`还有 ${unanswered.length} 题未作答，确定提交？`)) return;
+  }
+  await saveDraft();
+  const res = await fetch('/tools/constitution/submit', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({assessment_id: ASSESS_ID})
+  });
+  const data = await res.json();
+  if (data.success) {
+    window.location.href = `/gui/admin/assessments/${ASSESS_ID}`;
+  } else {
+    showToast(data.error?.message || '提交失败，请重试');
+  }
+}
+
+loadQuestions();
+</script>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "guidance" %}
+{% block title %}指导模板库 - 治未病平台{% endblock %}
+{% block page_title %}中医指导模板库{% endblock %}
+
+{% block content %}
+<!-- 筛选栏 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <input id="q" type="text" placeholder="模板名称/关键词"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-green-300">
+  <select id="category-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+    <option value="">全部分类</option>
+    <option value="CONSTITUTION">体质调理</option>
+    <option value="DISEASE">疾病管理</option>
+    <option value="DIET">饮食指导</option>
+    <option value="EXERCISE">运动保健</option>
+    <option value="SEASONAL">节气养生</option>
+  </select>
+  <select id="scope-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+    <option value="">全部范围</option>
+    <option value="PUBLIC">公开模板</option>
+    <option value="DEPT">科室模板</option>
+    <option value="PERSONAL">个人模板</option>
+  </select>
+  <button onclick="loadTemplates()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">查询</button>
+  <div class="ml-auto">
+    <a href="/gui/admin/guidance/templates/new"
+      class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">+ 新建模板</a>
+  </div>
+</div>
+
+<!-- 模板卡片网格 -->
+<div id="template-grid" class="grid grid-cols-3 gap-4"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const CAT_LABELS = {CONSTITUTION:'体质调理',DISEASE:'疾病管理',DIET:'饮食指导',EXERCISE:'运动保健',SEASONAL:'节气养生'};
+const CAT_COLORS = {CONSTITUTION:'bg-green-100 text-green-700',DISEASE:'bg-red-100 text-red-700',DIET:'bg-orange-100 text-orange-700',EXERCISE:'bg-jade-light text-jade',SEASONAL:'bg-teal-100 text-teal-700'};
+const SCOPE_LABELS = {PUBLIC:'公开',DEPT:'科室',PERSONAL:'个人'};
+
+const demoTemplates = [
+  {id:'1',name:'气虚体质全面调理方案',category:'CONSTITUTION',scope:'PUBLIC',author:'王医生',usedCount:48,desc:'针对气虚体质制定的综合调理方案，涵盖饮食、运动、穴位、情志四个维度。'},
+  {id:'2',name:'高血压生活方式指导',category:'DISEASE',scope:'PUBLIC',author:'李主任',usedCount:92,desc:'高血压患者日常生活管理指南，包含饮食限钠、适量运动、情绪管理等要点。'},
+  {id:'3',name:'春季节气养生方案',category:'SEASONAL',scope:'PUBLIC',author:'张医生',usedCount:156,desc:'春季顺应肝气升发，重在疏肝养肝，适当运动，调节情志。'},
+  {id:'4',name:'痰湿体质化湿方案',category:'CONSTITUTION',scope:'DEPT',author:'陈医生',usedCount:31,desc:'针对痰湿体质，以祛湿化痰为核心，配合清淡饮食和适当运动。'},
+  {id:'5',name:'糖尿病饮食控制指导',category:'DIET',scope:'PUBLIC',author:'王医生',usedCount:67,desc:'糖尿病患者饮食管理要点，包括食物GI值参考、饮食搭配原则。'},
+  {id:'6',name:'太极拳八段锦运动计划',category:'EXERCISE',scope:'PERSONAL',author:'张医生',usedCount:12,desc:'适合中老年人的传统运动方案，含太极拳基础动作和八段锦练习步骤。'},
+];
+
+function loadTemplates() {
+  document.getElementById('template-grid').innerHTML = demoTemplates.map(t => `
+    <div class="bg-white rounded-xl shadow-sm p-5 hover:shadow-md transition-shadow">
+      <div class="flex items-start justify-between mb-3">
+        <span class="px-2 py-0.5 rounded-full text-xs font-medium ${CAT_COLORS[t.category]}">${CAT_LABELS[t.category]}</span>
+        <span class="text-xs text-gray-400">${SCOPE_LABELS[t.scope]}</span>
+      </div>
+      <h3 class="font-semibold text-gray-800 mb-2">${t.name}</h3>
+      <p class="text-xs text-gray-500 mb-3 line-clamp-2">${t.desc}</p>
+      <div class="flex items-center justify-between text-xs text-gray-400 mb-4">
+        <span>by ${t.author}</span>
+        <span>使用 ${t.usedCount} 次</span>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="useTemplate('${t.id}')"
+          class="flex-1 bg-green-600 text-white py-1.5 rounded-lg text-xs hover:bg-green-700">使用模板</button>
+        <a href="/gui/admin/guidance/templates/${t.id}/edit"
+          class="px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50">编辑</a>
+        <button onclick="copyTemplate('${t.id}')"
+          class="px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50">复制</button>
+      </div>
+    </div>`).join('');
+}
+
+function useTemplate(id) { window.location.href = '/gui/admin/guidance'; }
+function copyTemplate(id) { showToast('已复制为个人模板'); }
+loadTemplates();
+</script>
+{% endblock %}

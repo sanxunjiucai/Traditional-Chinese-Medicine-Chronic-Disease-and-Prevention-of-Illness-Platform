@@ -1,0 +1,114 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "scales" %}
+{% block title %}量表作答记录 - 治未病平台{% endblock %}
+{% block page_title %}量表作答记录{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <input id="q-patient" type="text" placeholder="患者姓名"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-40 focus:outline-none focus:ring-2 focus:ring-jade-300">
+  <select id="scale-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300">
+    <option value="">全部量表</option>
+    <option value="CONSTITUTION">九体质辨识</option>
+    <option value="PHQ9">PHQ-9</option>
+    <option value="GAD7">GAD-7</option>
+    <option value="MMSE">MMSE</option>
+    <option value="ADL">ADL</option>
+  </select>
+  <input id="date-from" type="date" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300">
+  <span class="text-gray-400 text-sm">至</span>
+  <input id="date-to" type="date" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300">
+  <button onclick="loadRecords(1)"
+    class="text-white px-4 py-2 rounded-lg text-sm" style="background:#4E7A61;" onmouseenter="this.style.background='#3d6150'" onmouseleave="this.style.background='#4E7A61'">搜索</button>
+  <span class="text-gray-400 text-sm ml-auto">共 <span id="total">-</span> 条记录</span>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-5 py-3 text-left">患者</th>
+        <th class="px-5 py-3 text-left">量表</th>
+        <th class="px-5 py-3 text-left">总分</th>
+        <th class="px-5 py-3 text-left">分层/结论</th>
+        <th class="px-5 py-3 text-left">状态</th>
+        <th class="px-5 py-3 text-left">作答时间</th>
+        <th class="px-5 py-3 text-left">操作</th>
+      </tr>
+    </thead>
+    <tbody id="records-list" class="divide-y divide-gray-100">
+      <tr><td colspan="7" class="px-5 py-8 text-center text-gray-400">加载中...</td></tr>
+    </tbody>
+  </table>
+</div>
+<div id="pagination" class="flex justify-center gap-2 mt-4 hidden"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let currentPage = 1;
+const SCALE_LABELS = {'CONSTITUTION':'九体质辨识','PHQ9':'PHQ-9抑郁','GAD7':'GAD-7焦虑','MMSE':'MMSE认知','ADL':'ADL生活能力'};
+
+const STATUS_COLORS = {'SCORED':'bg-green-100 text-green-700','REPORTED':'','ANSWERING':'bg-yellow-100 text-yellow-600'};
+const STATUS_INLINE = {'REPORTED':'background:#EBF2ED;color:#4E7A61;'};
+const STATUS_LABELS_MAP = {'SCORED':'已评分','REPORTED':'已出报告','ANSWERING':'作答中'};
+
+const DEMO_RECORDS = [
+  {id:'1',patient_name:'张三',scale_name:'九体质辨识',total_score:62,level:'气虚质',conclusion:null,created_at:'2026-02-01T10:00:00'},
+  {id:'2',patient_name:'李四',scale_name:'PHQ-9抑郁筛查',total_score:12,level:'中度抑郁',conclusion:'已出报告',created_at:'2026-02-05T10:00:00'},
+  {id:'3',patient_name:'王五',scale_name:'GAD-7焦虑评估',total_score:8,level:'轻度焦虑',conclusion:null,created_at:'2026-02-10T10:00:00'},
+];
+
+function getStatus(r) {
+  if (!r.completed_at) return 'ANSWERING';
+  if (r.conclusion) return 'REPORTED';
+  return 'SCORED';
+}
+
+async function loadRecords(page=1) {
+  currentPage = page;
+  const q = document.getElementById('q-patient').value.trim();
+  const dateFrom = document.getElementById('date-from').value;
+  const dateTo = document.getElementById('date-to').value;
+  const params = new URLSearchParams({ page, page_size: 20 });
+  if (dateFrom) params.set('date_from', dateFrom);
+  if (dateTo) params.set('date_to', dateTo);
+
+  let total = 0, items = [];
+  try {
+    const resp = await fetch('/tools/scale/records?' + params);
+    const d = await resp.json();
+    if (d.success && d.data.total > 0) {
+      total = d.data.total;
+      items = d.data.items.filter(r => !q || (r.patient_name || '').includes(q));
+    } else throw new Error('empty');
+  } catch (_) {
+    items = DEMO_RECORDS.filter(r => !q || r.patient_name.includes(q));
+    total = items.length;
+  }
+
+  document.getElementById('total').textContent = total;
+  if (!items.length) {
+    document.getElementById('records-list').innerHTML = '<tr><td colspan="7" class="px-5 py-8 text-center text-gray-400">暂无记录</td></tr>';
+    return;
+  }
+  document.getElementById('records-list').innerHTML = items.map(r => {
+    const status = getStatus(r);
+    return `
+    <tr class="hover:bg-gray-50">
+      <td class="px-5 py-3 font-medium text-gray-800">${r.patient_name || '未知'}</td>
+      <td class="px-5 py-3 text-gray-600">${r.scale_name || '-'}</td>
+      <td class="px-5 py-3 font-bold" style="color:#4E7A61;">${r.total_score ?? '-'}</td>
+      <td class="px-5 py-3 text-gray-600">${r.level || '-'}</td>
+      <td class="px-5 py-3"><span class="px-2 py-0.5 rounded-full text-xs ${STATUS_COLORS[status]||'bg-gray-100 text-gray-600'}" style="${STATUS_INLINE[status]||''}">${STATUS_LABELS_MAP[status]||status}</span></td>
+      <td class="px-5 py-3 text-gray-500">${(r.created_at||'').slice(0,10)}</td>
+      <td class="px-5 py-3">
+        <a href="/gui/admin/scale-result/${r.id}" class="hover:underline text-xs" style="color:#4E7A61;">查看结果</a>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+loadRecords();
+</script>
+{% endblock %}

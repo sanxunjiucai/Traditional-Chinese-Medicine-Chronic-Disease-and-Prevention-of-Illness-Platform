@@ -1,0 +1,249 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "scale_library" %}
+{% block title %}组合量表 - 治未病平台{% endblock %}
+{% block page_title %}组合量表{% endblock %}
+
+{% block content %}
+<!-- 操作栏 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <input id="q" type="text" placeholder="搜索组合量表名称..."
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-52 focus:outline-none focus:ring-2 focus:ring-green-300"
+    oninput="filterCombos()">
+  <select id="status-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300" onchange="filterCombos()">
+    <option value="">全部状态</option>
+    <option value="active">启用中</option>
+    <option value="inactive">已停用</option>
+  </select>
+  <div class="ml-auto flex items-center gap-3">
+    <span class="text-sm text-gray-400">共 <span id="combo-count">6</span> 个组合</span>
+    <a href="/gui/admin/scales/combos/new"
+      class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 flex items-center gap-1">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      新建组合量表
+    </a>
+  </div>
+</div>
+
+<!-- 卡片网格 -->
+<div id="combo-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-4"></div>
+
+<div id="empty-state" class="hidden bg-white rounded-xl shadow-sm p-16 text-center">
+  <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+  </svg>
+  <p class="text-gray-400 text-sm">暂无符合条件的组合量表</p>
+</div>
+
+<!-- 停用确认弹窗 -->
+<div id="disable-modal" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center hidden">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center">
+    <div class="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+      </svg>
+    </div>
+    <h4 class="font-semibold text-gray-800 mb-2">确认停用</h4>
+    <p id="disable-msg" class="text-sm text-gray-500 mb-5">停用后，该组合量表将不再显示在患者端的评估选项中。</p>
+    <div class="flex gap-3">
+      <button onclick="document.getElementById('disable-modal').classList.add('hidden')"
+        class="flex-1 border border-gray-200 text-gray-600 py-2 rounded-lg text-sm hover:bg-gray-50">取消</button>
+      <button onclick="confirmDisable()"
+        class="flex-1 bg-amber-500 text-white py-2 rounded-lg text-sm hover:bg-amber-600">确认停用</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="fixed top-4 right-4 z-[100] hidden">
+  <div class="bg-gray-800 text-white px-4 py-2.5 rounded-lg text-sm shadow-lg flex items-center gap-2">
+    <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+    </svg>
+    <span id="toast-msg"></span>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const DEMO_COMBOS = [
+  {
+    id: 1,
+    name: '中医综合评估套餐',
+    scales: ['体质辨识量表', 'PHQ-9 抑郁筛查', '匹兹堡睡眠指数'],
+    scene: '适用于初诊患者的中医体质综合评估，结合情绪与睡眠状态分析，形成个性化调养方案',
+    duration: '约 25 分钟',
+    status: 'active',
+    count: 3,
+    uses: 128,
+    color: 'green',
+  },
+  {
+    id: 2,
+    name: '高血压专项评估',
+    scales: ['高血压自我管理量表', 'SF-36（心血管模块）', 'Morisky服药依从性'],
+    scene: '针对高血压患者，评估血压控制水平、生活质量及服药依从性，辅助医生制订随访计划',
+    duration: '约 20 分钟',
+    status: 'active',
+    count: 3,
+    uses: 86,
+    color: 'blue',
+  },
+  {
+    id: 3,
+    name: '糖尿病管理评估',
+    scales: ['DQoL 糖尿病生活质量', '糖尿病知识问卷', '足部并发症风险评估'],
+    scene: '全面评估糖尿病患者的生活质量、疾病认知与并发症风险，指导健康教育与干预',
+    duration: '约 30 分钟',
+    status: 'active',
+    count: 3,
+    uses: 64,
+    color: 'amber',
+  },
+  {
+    id: 4,
+    name: '老年综合评估',
+    scales: ['ADL 日常生活能力', 'MMSE 认知筛查', '跌倒风险评估', 'GDS 老年抑郁'],
+    scene: '针对65岁以上老年人的多维度综合评估，覆盖躯体功能、认知能力、心理状态与安全风险',
+    duration: '约 40 分钟',
+    status: 'active',
+    count: 4,
+    uses: 45,
+    color: 'purple',
+  },
+  {
+    id: 5,
+    name: '焦虑抑郁筛查',
+    scales: ['PHQ-9 抑郁症筛查', 'GAD-7 焦虑症筛查'],
+    scene: '快速筛查门诊患者的情绪健康状态，识别焦虑抑郁高风险人群并推送心理援助资源',
+    duration: '约 10 分钟',
+    status: 'active',
+    count: 2,
+    uses: 203,
+    color: 'indigo',
+  },
+  {
+    id: 6,
+    name: '心血管风险评估',
+    scales: ['弗明汉心血管风险评分', '生活方式调查问卷', 'Morisky服药依从性'],
+    scene: '综合评估心血管疾病的发病风险、不良生活方式及用药管理，制订一级/二级预防策略',
+    duration: '约 18 分钟',
+    status: 'inactive',
+    count: 3,
+    uses: 31,
+    color: 'red',
+  },
+];
+
+const COLOR_MAP = {
+  green:  { badge: 'bg-green-100 text-green-700',  icon: 'bg-green-50 text-green-500',  border: 'border-green-100' },
+  blue:   { badge: 'bg-blue-100 text-blue-700',    icon: 'bg-blue-50 text-blue-500',    border: 'border-blue-100' },
+  amber:  { badge: 'bg-amber-100 text-amber-700',  icon: 'bg-amber-50 text-amber-500',  border: 'border-amber-100' },
+  purple: { badge: 'bg-purple-100 text-purple-700',icon: 'bg-purple-50 text-purple-500',border: 'border-purple-100' },
+  indigo: { badge: 'bg-indigo-100 text-indigo-700',icon: 'bg-indigo-50 text-indigo-500',border: 'border-indigo-100' },
+  red:    { badge: 'bg-red-100 text-red-700',      icon: 'bg-red-50 text-red-500',      border: 'border-red-100' },
+};
+
+let disableTargetId = null;
+
+function filterCombos() {
+  const q = document.getElementById('q').value.toLowerCase();
+  const st = document.getElementById('status-filter').value;
+  const filtered = DEMO_COMBOS.filter(c => {
+    const matchQ = !q || c.name.toLowerCase().includes(q) || c.scales.some(s => s.toLowerCase().includes(q));
+    const matchSt = !st || c.status === st;
+    return matchQ && matchSt;
+  });
+  renderCombos(filtered);
+}
+
+function renderCombos(list) {
+  const grid = document.getElementById('combo-grid');
+  const empty = document.getElementById('empty-state');
+  document.getElementById('combo-count').textContent = list.length;
+
+  if (list.length === 0) {
+    grid.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+
+  grid.innerHTML = list.map(c => {
+    const cls = COLOR_MAP[c.color] || COLOR_MAP.green;
+    const statusBadge = c.status === 'active'
+      ? '<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">启用中</span>'
+      : '<span class="text-xs bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">已停用</span>';
+    const scaleBadges = c.scales.map(s =>
+      `<span class="text-xs ${cls.badge} px-2 py-0.5 rounded-full">${s}</span>`
+    ).join('');
+    const disableBtn = c.status === 'active'
+      ? `<button onclick="openDisableModal(${c.id}, '${c.name}')" class="text-xs text-amber-500 hover:text-amber-700 px-2 py-1 rounded border border-amber-200 hover:bg-amber-50">停用</button>`
+      : `<button class="text-xs text-green-500 hover:text-green-700 px-2 py-1 rounded border border-green-200 hover:bg-green-50">启用</button>`;
+
+    return `
+      <div class="bg-white rounded-xl shadow-sm p-5 border ${cls.border} hover:shadow-md transition">
+        <div class="flex items-start justify-between mb-3">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl ${cls.icon} flex items-center justify-center flex-shrink-0">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+            </div>
+            <div>
+              <h4 class="font-semibold text-gray-800">${c.name}</h4>
+              <p class="text-xs text-gray-400 mt-0.5">${c.count} 个量表 · 已使用 ${c.uses} 次</p>
+            </div>
+          </div>
+          ${statusBadge}
+        </div>
+        <div class="flex flex-wrap gap-1.5 mb-3">${scaleBadges}</div>
+        <p class="text-sm text-gray-500 mb-4 leading-relaxed line-clamp-2">${c.scene}</p>
+        <div class="flex items-center justify-between pt-3 border-t border-gray-50">
+          <div class="flex items-center gap-1.5 text-xs text-gray-400">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            ${c.duration}
+          </div>
+          <div class="flex items-center gap-2">
+            <a href="/gui/admin/scales/combos/${c.id}/edit"
+              class="text-xs text-blue-500 hover:text-blue-700 px-2 py-1 rounded border border-blue-200 hover:bg-blue-50">编辑</a>
+            <button onclick="previewCombo(${c.id})"
+              class="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded border border-gray-200 hover:bg-gray-50">预览</button>
+            ${disableBtn}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function openDisableModal(id, name) {
+  disableTargetId = id;
+  document.getElementById('disable-msg').textContent = `停用"${name}"后，该组合量表将不再显示在患者端的评估选项中。`;
+  document.getElementById('disable-modal').classList.remove('hidden');
+}
+
+function confirmDisable() {
+  document.getElementById('disable-modal').classList.add('hidden');
+  const combo = DEMO_COMBOS.find(c => c.id === disableTargetId);
+  if (combo) combo.status = 'inactive';
+  filterCombos();
+  showToast('组合量表已停用');
+}
+
+function previewCombo(id) {
+  showToast('预览功能开发中');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  t.classList.remove('hidden');
+  setTimeout(() => t.classList.add('hidden'), 3000);
+}
+
+renderCombos(DEMO_COMBOS);
+</script>
+{% endblock %}

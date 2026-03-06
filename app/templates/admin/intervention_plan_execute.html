@@ -1,0 +1,391 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "intervention" %}
+{% block title %}干预计划执行管理 - 治未病平台{% endblock %}
+{% block page_title %}干预计划执行管理{% endblock %}
+
+{% block content %}
+<!-- 面包屑 -->
+<nav class="flex items-center gap-1.5 text-sm mb-4">
+  <a href="/gui/admin/intervention" class="text-gray-500 hover:text-green-600">干预管理</a>
+  <svg class="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+  </svg>
+  <span class="text-gray-700 font-medium">执行管理</span>
+</nav>
+<div class="space-y-5">
+
+  <!-- ══════════ 顶部：计划概要卡片 ══════════ -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <div class="flex items-start justify-between gap-6">
+      <!-- 左侧信息 -->
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-3 mb-2">
+          <h2 class="text-xl font-bold text-gray-800">颈椎病气虚质综合干预计划</h2>
+          <span class="px-2.5 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium border border-green-200 flex-shrink-0">针灸+推拿</span>
+          <span class="px-2.5 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-medium border border-orange-200 flex-shrink-0">中医干预</span>
+        </div>
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-sm text-gray-500">患者：</span>
+          <a href="/gui/admin/archives/A10023" class="text-sm font-medium text-green-600 hover:underline">李建国</a>
+          <span class="text-xs text-gray-400">· A10023 · 男 · 58岁</span>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3">
+          <p class="text-xs text-gray-500 mb-1 font-medium">治疗目标</p>
+          <p class="text-sm text-gray-700 line-clamp-2">缓解颈肩疼痛，改善气虚体质评分，3个月内使综合评分提升至85分以上；同时改善睡眠质量，减轻颈椎僵硬感，恢复颈部活动度至正常范围。</p>
+        </div>
+      </div>
+      <!-- 右侧状态与进度 -->
+      <div class="flex-shrink-0 w-52 text-right">
+        <div class="mb-3">
+          <span class="px-3 py-1.5 rounded-full text-sm font-semibold" style="background:#EBF2ED;color:#4E7A61;border:1px solid #C8DDD0;">进行中</span>
+        </div>
+        <div class="space-y-1.5 text-sm text-left bg-gray-50 rounded-lg p-3">
+          <div class="flex justify-between">
+            <span class="text-gray-400 text-xs">建议周期</span>
+            <span class="text-gray-700 text-xs font-medium">8 周</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-400 text-xs">执行频率</span>
+            <span class="text-gray-700 text-xs font-medium">每周 2 次</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-400 text-xs">执行进度</span>
+            <span class="text-gray-700 text-xs font-semibold text-green-600">7 / 16 次</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-400 text-xs">执行医生</span>
+            <span class="text-gray-700 text-xs font-medium">王医生</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 操作按钮行 -->
+    <div class="flex items-center gap-3 mt-5 pt-4 border-t border-gray-100">
+      <button onclick="showToast('计划已暂停')"
+        class="px-4 py-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-sm hover:bg-amber-100 transition-colors">
+        暂停计划
+      </button>
+      <button onclick="showToast('调整计划：请联系责任医生修改干预方案')"
+        class="px-4 py-2 rounded-lg text-sm transition-colors" style="background:#EBF2ED;color:#4E7A61;border:1px solid #C8DDD0;" onmouseover="this.style.background='#D8EAE0'" onmouseout="this.style.background='#EBF2ED'">
+        调整计划
+      </button>
+      <button onclick="confirmComplete()"
+        class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors">
+        完成计划
+      </button>
+      <button onclick="cancelPlan()"
+        class="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg text-sm hover:bg-red-100 transition-colors">
+        撤销计划
+      </button>
+      <a href="/gui/admin/intervention" class="ml-auto text-sm text-gray-400 hover:text-gray-600">
+        返回列表 →
+      </a>
+    </div>
+  </div>
+
+  <!-- ══════════ 中部：进度统计卡片 ══════════ -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h3 class="font-semibold text-gray-700 mb-5">执行进度</h3>
+
+    <!-- 大进度条 -->
+    <div class="mb-5">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-sm text-gray-500">总体进度（7/16次）</span>
+        <span class="text-sm font-bold text-green-600">43.75%</span>
+      </div>
+      <div class="w-full bg-gray-100 rounded-full h-4 overflow-hidden">
+        <div class="bg-gradient-to-r from-green-400 to-green-600 h-full rounded-full transition-all"
+          style="width: 43.75%"></div>
+      </div>
+    </div>
+
+    <!-- 执行统计行 -->
+    <div class="grid grid-cols-6 gap-3 mb-6">
+      <div class="text-center p-3 bg-gray-50 rounded-lg">
+        <p class="text-xs text-gray-400 mb-1">总次数</p>
+        <p class="text-2xl font-bold text-gray-700">16</p>
+      </div>
+      <div class="text-center p-3 bg-green-50 rounded-lg">
+        <p class="text-xs text-green-500 mb-1">已完成</p>
+        <p class="text-2xl font-bold text-green-600">7</p>
+      </div>
+      <div class="text-center p-3 bg-emerald-50 rounded-lg">
+        <p class="text-xs text-emerald-500 mb-1">有效</p>
+        <p class="text-2xl font-bold text-emerald-600">5</p>
+      </div>
+      <div class="text-center p-3 bg-yellow-50 rounded-lg">
+        <p class="text-xs text-yellow-500 mb-1">部分有效</p>
+        <p class="text-2xl font-bold text-yellow-600">1</p>
+      </div>
+      <div class="text-center p-3 bg-red-50 rounded-lg">
+        <p class="text-xs text-red-400 mb-1">无效</p>
+        <p class="text-2xl font-bold text-red-500">0</p>
+      </div>
+      <div class="text-center p-3 bg-gray-50 rounded-lg">
+        <p class="text-xs text-gray-400 mb-1">未评估</p>
+        <p class="text-2xl font-bold text-gray-500">1</p>
+      </div>
+    </div>
+
+    <!-- 趋势迷你图：最近7次 -->
+    <div>
+      <p class="text-xs text-gray-500 mb-3">最近 7 次执行效果趋势</p>
+      <div class="flex items-end gap-2">
+        <!-- 第1次：未评估（灰） -->
+        <div class="flex flex-col items-center gap-1 flex-1">
+          <span class="text-xs text-gray-400">第1次</span>
+          <div class="w-full h-8 bg-gray-200 rounded-lg" title="未评估"></div>
+          <span class="text-xs text-gray-400">未评估</span>
+        </div>
+        <!-- 第2次：部分有效（黄） -->
+        <div class="flex flex-col items-center gap-1 flex-1">
+          <span class="text-xs text-gray-400">第2次</span>
+          <div class="w-full h-8 bg-yellow-300 rounded-lg" title="部分有效"></div>
+          <span class="text-xs text-yellow-600">部分有效</span>
+        </div>
+        <!-- 第3~7次：有效（绿） -->
+        <div class="flex flex-col items-center gap-1 flex-1">
+          <span class="text-xs text-gray-400">第3次</span>
+          <div class="w-full h-8 bg-green-400 rounded-lg" title="有效"></div>
+          <span class="text-xs text-green-600">有效</span>
+        </div>
+        <div class="flex flex-col items-center gap-1 flex-1">
+          <span class="text-xs text-gray-400">第4次</span>
+          <div class="w-full h-8 bg-green-400 rounded-lg" title="有效"></div>
+          <span class="text-xs text-green-600">有效</span>
+        </div>
+        <div class="flex flex-col items-center gap-1 flex-1">
+          <span class="text-xs text-gray-400">第5次</span>
+          <div class="w-full h-8 bg-green-400 rounded-lg" title="有效"></div>
+          <span class="text-xs text-green-600">有效</span>
+        </div>
+        <div class="flex flex-col items-center gap-1 flex-1">
+          <span class="text-xs text-gray-400">第6次</span>
+          <div class="w-full h-8 bg-green-400 rounded-lg" title="有效"></div>
+          <span class="text-xs text-green-600">有效</span>
+        </div>
+        <div class="flex flex-col items-center gap-1 flex-1">
+          <span class="text-xs text-gray-400">第7次</span>
+          <div class="w-full h-8 bg-green-500 rounded-lg" title="有效"></div>
+          <span class="text-xs text-green-600">有效</span>
+        </div>
+        <!-- 剩余9次（未执行）占位，半透明 -->
+        <div class="flex-1 opacity-20 flex flex-col items-center gap-1">
+          <span class="text-xs text-gray-300">待执行</span>
+          <div class="w-full h-5 bg-gray-300 rounded-lg border-2 border-dashed border-gray-400"></div>
+          <span class="text-xs text-gray-300">×9</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ 下部：执行记录列表 ══════════ -->
+  <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+      <h3 class="font-semibold text-gray-700">执行记录</h3>
+      <button onclick="document.getElementById('recordModal').classList.remove('hidden')"
+        class="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        记录本次执行
+      </button>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+          <tr>
+            <th class="px-5 py-3 text-left">次数</th>
+            <th class="px-5 py-3 text-left">执行时间</th>
+            <th class="px-5 py-3 text-left">效果评估</th>
+            <th class="px-5 py-3 text-left">患者反馈</th>
+            <th class="px-5 py-3 text-left">执行医生</th>
+            <th class="px-5 py-3 text-left">操作</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          <!-- 记录1 -->
+          <tr class="hover:bg-gray-50">
+            <td class="px-5 py-3">
+              <span class="w-7 h-7 rounded-full bg-green-100 text-green-700 text-xs font-bold flex items-center justify-center">7</span>
+            </td>
+            <td class="px-5 py-3 text-gray-600">2026-03-01 09:30</td>
+            <td class="px-5 py-3">
+              <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">有效</span>
+            </td>
+            <td class="px-5 py-3 text-gray-500 max-w-xs truncate" title="颈部疼痛明显减轻，活动度改善，睡眠好转">颈部疼痛明显减轻，活动度改善，睡眠好转</td>
+            <td class="px-5 py-3 text-gray-600">王医生</td>
+            <td class="px-5 py-3">
+              <button onclick="viewRecord(7)" class="text-green-600 hover:underline text-xs">查看详情</button>
+            </td>
+          </tr>
+          <!-- 记录2 -->
+          <tr class="hover:bg-gray-50">
+            <td class="px-5 py-3">
+              <span class="w-7 h-7 rounded-full bg-green-100 text-green-700 text-xs font-bold flex items-center justify-center">6</span>
+            </td>
+            <td class="px-5 py-3 text-gray-600">2026-02-22 10:00</td>
+            <td class="px-5 py-3">
+              <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">有效</span>
+            </td>
+            <td class="px-5 py-3 text-gray-500 max-w-xs truncate" title="推拿后僵硬感明显减少">推拿后僵硬感明显减少</td>
+            <td class="px-5 py-3 text-gray-600">王医生</td>
+            <td class="px-5 py-3">
+              <button onclick="viewRecord(6)" class="text-green-600 hover:underline text-xs">查看详情</button>
+            </td>
+          </tr>
+          <!-- 记录3 -->
+          <tr class="hover:bg-gray-50">
+            <td class="px-5 py-3">
+              <span class="w-7 h-7 rounded-full bg-green-100 text-green-700 text-xs font-bold flex items-center justify-center">5</span>
+            </td>
+            <td class="px-5 py-3 text-gray-600">2026-02-15 14:00</td>
+            <td class="px-5 py-3">
+              <span class="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">有效</span>
+            </td>
+            <td class="px-5 py-3 text-gray-500 max-w-xs truncate" title="体质评分从53分提升至58分">体质评分从53分提升至58分</td>
+            <td class="px-5 py-3 text-gray-600">王医生</td>
+            <td class="px-5 py-3">
+              <button onclick="viewRecord(5)" class="text-green-600 hover:underline text-xs">查看详情</button>
+            </td>
+          </tr>
+          <!-- 记录4 -->
+          <tr class="hover:bg-gray-50">
+            <td class="px-5 py-3">
+              <span class="w-7 h-7 rounded-full bg-yellow-100 text-yellow-700 text-xs font-bold flex items-center justify-center">4</span>
+            </td>
+            <td class="px-5 py-3 text-gray-600">2026-02-08 09:00</td>
+            <td class="px-5 py-3">
+              <span class="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">部分有效</span>
+            </td>
+            <td class="px-5 py-3 text-gray-500 max-w-xs truncate" title="轻度缓解，建议加强治疗频率">轻度缓解，建议加强治疗频率</td>
+            <td class="px-5 py-3 text-gray-600">王医生</td>
+            <td class="px-5 py-3">
+              <button onclick="viewRecord(4)" class="text-green-600 hover:underline text-xs">查看详情</button>
+            </td>
+          </tr>
+          <!-- 记录5 -->
+          <tr class="hover:bg-gray-50">
+            <td class="px-5 py-3">
+              <span class="w-7 h-7 rounded-full bg-gray-100 text-gray-600 text-xs font-bold flex items-center justify-center">1</span>
+            </td>
+            <td class="px-5 py-3 text-gray-600">2026-01-15 08:30</td>
+            <td class="px-5 py-3">
+              <span class="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full text-xs font-medium">未评估</span>
+            </td>
+            <td class="px-5 py-3 text-gray-400">首次治疗，未填写反馈</td>
+            <td class="px-5 py-3 text-gray-600">王医生</td>
+            <td class="px-5 py-3">
+              <button onclick="viewRecord(1)" class="text-green-600 hover:underline text-xs">查看详情</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="px-5 py-3 border-t border-gray-100 text-xs text-gray-400">
+      共 7 条执行记录 · intervention_id: {{ intervention_id }}
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════ 记录本次执行弹窗 ══════════ -->
+<div id="recordModal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="font-semibold text-gray-800 text-lg">记录本次执行</h3>
+      <button onclick="document.getElementById('recordModal').classList.add('hidden')"
+        class="text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="space-y-4">
+      <!-- 执行时间 -->
+      <div>
+        <label class="block text-xs text-gray-500 mb-1.5">执行时间 <span class="text-red-500">*</span></label>
+        <input id="exec-time" type="datetime-local"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+      </div>
+
+      <!-- 效果评估 -->
+      <div>
+        <label class="block text-xs text-gray-500 mb-1.5">效果评估 <span class="text-red-500">*</span></label>
+        <select id="exec-effect"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300 bg-white">
+          <option value="">请选择效果</option>
+          <option value="effective">有效</option>
+          <option value="partial">部分有效</option>
+          <option value="ineffective">无效</option>
+          <option value="unassessed">未评估</option>
+        </select>
+      </div>
+
+      <!-- 患者反馈 -->
+      <div>
+        <label class="block text-xs text-gray-500 mb-1.5">患者反馈</label>
+        <textarea id="exec-feedback" rows="3" placeholder="记录患者治疗后的主观感受..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300 resize-none"></textarea>
+      </div>
+
+      <!-- 执行备注 -->
+      <div>
+        <label class="block text-xs text-gray-500 mb-1.5">执行备注</label>
+        <textarea id="exec-note" rows="2" placeholder="记录穴位调整、手法变化等执行细节..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300 resize-none"></textarea>
+      </div>
+    </div>
+
+    <div class="flex gap-3 justify-end mt-5">
+      <button onclick="document.getElementById('recordModal').classList.add('hidden')"
+        class="px-5 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">取消</button>
+      <button onclick="saveRecord()"
+        class="px-5 py-2 rounded-lg bg-green-600 text-white text-sm hover:bg-green-700">保存记录</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// 设置默认执行时间为当前时间
+(function() {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const local = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate())
+    + 'T' + pad(now.getHours()) + ':' + pad(now.getMinutes());
+  document.getElementById('exec-time').value = local;
+})();
+
+function saveRecord() {
+  const time = document.getElementById('exec-time').value;
+  const effect = document.getElementById('exec-effect').value;
+  if (!time) { showToast('请填写执行时间'); return; }
+  if (!effect) { showToast('请选择效果评估'); return; }
+  const effectMap = { effective: '有效', partial: '部分有效', ineffective: '无效', unassessed: '未评估' };
+  showToast('执行记录已保存\n执行时间：' + time + '\n效果评估：' + effectMap[effect]);
+  document.getElementById('recordModal').classList.add('hidden');
+}
+
+function viewRecord(no) {
+  showToast('查看第 ' + no + ' 次执行详情');
+}
+
+function cancelPlan() {
+  if (confirm('确认撤销此干预计划？\n撤销后所有未执行的治疗次数将取消，已执行的记录仍保留。')) {
+    showToast('干预计划已撤销');
+  }
+}
+
+function confirmComplete() {
+  if (confirm('确认将此干预计划标记为已完成？\n完成后将无法继续添加执行记录。')) {
+    showToast('干预计划已标记为完成');
+  }
+}
+</script>
+{% endblock %}

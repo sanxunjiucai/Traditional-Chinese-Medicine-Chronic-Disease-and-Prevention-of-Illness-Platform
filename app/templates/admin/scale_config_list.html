@@ -1,0 +1,114 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "scales" %}
+{% block title %}量表配置 - 治未病平台{% endblock %}
+{% block page_title %}量表配置管理{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <input id="q" type="text" placeholder="量表名称搜索"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+  <select id="scale-type" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+    <option value="">全部类型</option>
+    <option value="SINGLE">单量表</option>
+    <option value="COMPOSITE">组合量表</option>
+  </select>
+  <select id="status-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+    <option value="">全部状态</option>
+    <option value="1">已启用</option>
+    <option value="0">已停用</option>
+  </select>
+  <button onclick="loadList(1)"
+    class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700">搜索</button>
+  <div class="ml-auto flex gap-2">
+    <span class="text-gray-400 text-sm">共 <span id="total">-</span> 个量表</span>
+    <a href="/gui/admin/scale-config/new"
+      class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700">+ 新建量表</a>
+  </div>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-5 py-3 text-left">量表名称</th>
+        <th class="px-5 py-3 text-left">编码</th>
+        <th class="px-5 py-3 text-left">类型</th>
+        <th class="px-5 py-3 text-left">题目数</th>
+        <th class="px-5 py-3 text-left">版本</th>
+        <th class="px-5 py-3 text-left">状态</th>
+        <th class="px-5 py-3 text-left">操作</th>
+      </tr>
+    </thead>
+    <tbody id="config-list" class="divide-y divide-gray-100">
+      <tr><td colspan="7" class="px-5 py-8 text-center text-gray-400">加载中...</td></tr>
+    </tbody>
+  </table>
+</div>
+<div id="pagination" class="flex justify-center gap-2 mt-4 hidden"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const demoData = [
+  {id:'1',name:'中医九体质辨识量表',code:'ZYBZ-001',type:'SINGLE',q_count:72,version:'v2.0',is_active:true,builtin:true},
+  {id:'2',name:'PHQ-9 抑郁症筛查',code:'PHQ-9',type:'SINGLE',q_count:9,version:'v1.0',is_active:true,builtin:true},
+  {id:'3',name:'GAD-7 焦虑症筛查',code:'GAD-7',type:'SINGLE',q_count:7,version:'v1.0',is_active:true,builtin:true},
+  {id:'4',name:'MMSE 认知功能评估',code:'MMSE',type:'SINGLE',q_count:30,version:'v1.0',is_active:true,builtin:true},
+  {id:'5',name:'ADL 日常生活能力',code:'ADL',type:'SINGLE',q_count:20,version:'v1.0',is_active:true,builtin:true},
+  {id:'6',name:'老年综合评估',code:'CGA-2024',type:'COMPOSITE',q_count:57,version:'v1.0',is_active:false,builtin:false},
+];
+
+async function loadList(page=1) {
+  let items = demoData;
+  try {
+    const resp = await fetch('/tools/scale/scales?page_size=50');
+    const d = await resp.json();
+    if (d.success && d.data.items.length > 0) {
+      items = d.data.items.map(s => ({
+        id: String(s.id), name: s.name, code: s.code || s.scale_type || String(s.id),
+        type: 'SINGLE', q_count: s.question_count ?? 0,
+        version: s.version || 'v1.0', is_active: s.is_active ?? true,
+        builtin: s.is_builtin ?? false,
+      }));
+    }
+  } catch (_) {}
+  document.getElementById('total').textContent = items.length;
+  document.getElementById('config-list').innerHTML = items.map(r => `
+    <tr class="hover:bg-gray-50">
+      <td class="px-5 py-3">
+        <div class="font-medium text-gray-800">${r.name}</div>
+        ${r.builtin ? '<span class="text-xs text-gray-400">系统内置</span>' : ''}
+      </td>
+      <td class="px-5 py-3 font-mono text-xs text-gray-500">${r.code}</td>
+      <td class="px-5 py-3">
+        <span class="px-2 py-0.5 rounded-full text-xs ${r.type==='SINGLE'?'bg-blue-100 text-blue-700':'bg-purple-100 text-purple-700'}">
+          ${r.type==='SINGLE'?'单量表':'组合量表'}
+        </span>
+      </td>
+      <td class="px-5 py-3 text-gray-600">${r.q_count} 题</td>
+      <td class="px-5 py-3 text-gray-500">${r.version}</td>
+      <td class="px-5 py-3">
+        <button onclick="toggleStatus('${r.id}',${r.is_active})"
+          class="px-2 py-1 rounded text-xs font-medium ${r.is_active?'bg-green-100 text-green-700 hover:bg-green-200':'bg-gray-100 text-gray-500 hover:bg-gray-200'}">
+          ${r.is_active?'已启用':'已停用'}
+        </button>
+      </td>
+      <td class="px-5 py-3 flex gap-2">
+        ${r.builtin ? '<span class="text-xs text-gray-300">内置不可编辑</span>' : `
+          <a href="/gui/admin/scale-config/${r.id}/edit" class="text-indigo-600 hover:underline text-xs">编辑</a>
+          <button onclick="deleteScale('${r.id}')" class="text-red-400 hover:underline text-xs">删除</button>`}
+      </td>
+    </tr>`).join('');
+}
+
+function toggleStatus(id, current) {
+  showToast(`${current?'停用':'启用'}量表 ID: ${id}`);
+}
+
+function deleteScale(id) {
+  if (confirm('确定删除该量表？')) showToast('删除成功');
+}
+
+loadList();
+</script>
+{% endblock %}

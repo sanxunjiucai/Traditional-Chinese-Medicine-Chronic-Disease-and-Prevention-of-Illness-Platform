@@ -182,3 +182,74 @@ async def get_adherence(db: AsyncSession, plan_id: uuid.UUID) -> float:
     if total == 0:
         return 0.0
     return round(done / total * 100, 1)
+
+
+async def apply_followup_rules(
+    db: AsyncSession,
+    trigger: str,
+    archive_id: uuid.UUID,
+) -> int:
+    """
+    查找对应触发条件的激活规则，向患者推送随访提醒通知。
+    使用频率冷却防止重复发送。
+    返回推送通知数。
+    """
+    from app.models.archive import PatientArchive
+    from app.models.followup_rule import FollowupRule
+    from app.models.notification import Notification
+    from app.services.notification_service import push_to_patient
+
+    COOLDOWN_DAYS: dict[str, int] = {
+        "DAILY": 1, "TWICE_WEEK": 3, "WEEKLY": 7,
+        "BIWEEKLY": 14, "MONTHLY": 30, "QUARTERLY": 90, "ONCE": 9999,
+    }
+    METHOD_LABELS = {"PHONE": "电话", "ONLINE": "网络", "APP": "App推送", "VISIT": "上门"}
+
+    archive_r = await db.execute(select(PatientArchive).where(PatientArchive.id == archive_id))
+    archive = archive_r.scalar_one_or_none()
+    if not archive:
+        return 0
+
+    rules_r = await db.execute(
+        select(FollowupRule).where(
+            FollowupRule.trigger == trigger,
+            FollowupRule.is_active == True,  # noqa: E712
+        )
+    )
+    rules = rules_r.scalars().all()
+
+    pushed = 0
+    now_utc = datetime.now(timezone.utc)
+
+    for rule in rules:
+        if rule.archive_type_filter and hasattr(archive, 'archive_type') and archive.archive_type:
+            if rule.archive_type_filter != archive.archive_type.value:
+                continue
+
+        cooldown_days = COOLDOWN_DAYS.get(rule.frequency, 30)
+        cooldown_cutoff = now_utc - timedelta(days=cooldown_days)
+
+        # 冷却检查：近期是否已推送过该规则的通知
+        recent = await db.scalar(
+            select(func.count()).select_from(Notification).where(
+                Notification.archive_id == archive_id,
+                Notification.notif_type == "FOLLOWUP_RULE",
+                Notification.title.like(f"%{rule.name[:30]}%"),
+                Notification.created_at >= cooldown_cutoff,
+            )
+        )
+        if recent:
+            continue
+
+        method_cn = METHOD_LABELS.get(rule.method, rule.method)
+        await push_to_patient(
+            db,
+            archive_id=archive_id,
+            title=f"随访提醒：{rule.name}",
+            content=f"您好，根据随访规则，需要进行{method_cn}随访。{rule.description or ''}",
+            notif_type="FOLLOWUP_RULE",
+            action_url="/h5/followup",
+        )
+        pushed += 1
+
+    return pushed

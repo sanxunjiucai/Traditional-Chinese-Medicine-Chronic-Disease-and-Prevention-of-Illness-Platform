@@ -1,0 +1,249 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "guidance" %}
+{% block title %}指导计划 - 治未病平台{% endblock %}
+{% block page_title %}中医指导计划{% endblock %}
+
+{% block content %}
+<!-- 筛选栏 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <input id="q" type="text" placeholder="患者/计划名称"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-44 focus:outline-none focus:ring-2 focus:ring-green-300">
+  <select id="status-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+    <option value="">全部状态</option>
+    <option value="IN_PROGRESS">进行中</option>
+    <option value="COMPLETED">已完成</option>
+    <option value="PENDING">待开始</option>
+    <option value="TERMINATED">已终止</option>
+  </select>
+  <button onclick="loadList()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">查询</button>
+  <div class="ml-auto">
+    <a href="/gui/admin/guidance" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">+ 新建指导计划</a>
+  </div>
+</div>
+
+<!-- 列表 -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-5 py-3 text-left">计划名称</th>
+        <th class="px-5 py-3 text-left">患者</th>
+        <th class="px-5 py-3 text-left">指导类型</th>
+        <th class="px-5 py-3 text-left">执行周期</th>
+        <th class="px-5 py-3 text-left">执行进度</th>
+        <th class="px-5 py-3 text-left">状态</th>
+        <th class="px-5 py-3 text-left">操作</th>
+      </tr>
+    </thead>
+    <tbody id="list-body" class="divide-y divide-gray-100"></tbody>
+  </table>
+</div>
+
+<!-- ── 执行记录弹窗 ── -->
+<div id="modal-execute" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+      <h3 class="font-semibold text-gray-800">记录执行</h3>
+      <button onclick="closeModal('modal-execute')" class="text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="px-6 py-4 space-y-4">
+      <p class="text-sm text-gray-500">计划：<span id="exec-plan-name" class="font-medium text-gray-800"></span></p>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">执行日期</label>
+        <input id="exec-date" type="date" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">执行内容</label>
+        <textarea id="exec-content" rows="3" placeholder="本次执行的具体内容..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">患者反馈</label>
+        <textarea id="exec-feedback" rows="2" placeholder="患者反馈情况（可选）..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"></textarea>
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+      <button onclick="closeModal('modal-execute')" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">取消</button>
+      <button onclick="confirmExecute()" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">记录执行</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 调整计划弹窗 ── -->
+<div id="modal-adjust" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+      <h3 class="font-semibold text-gray-800">调整计划</h3>
+      <button onclick="closeModal('modal-adjust')" class="text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="px-6 py-4 space-y-4">
+      <p class="text-sm text-gray-500">计划：<span id="adj-plan-name" class="font-medium text-gray-800"></span></p>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">新开始日期</label>
+          <input id="adj-start" type="month" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">新结束日期</label>
+          <input id="adj-end" type="month" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">调整原因</label>
+        <textarea id="adj-reason" rows="3" placeholder="请说明调整原因..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"></textarea>
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+      <button onclick="closeModal('modal-adjust')" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">取消</button>
+      <button onclick="confirmAdjust()" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">确认调整</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-5 py-2.5 rounded-full text-sm shadow-lg z-50"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const STATUS_MAP = {
+  IN_PROGRESS: {label:'进行中',cls:'bg-jade-light text-jade'},
+  COMPLETED:   {label:'已完成',cls:'bg-green-100 text-green-700'},
+  PENDING:     {label:'待开始',cls:'bg-gray-100 text-gray-500'},
+  TERMINATED:  {label:'已终止',cls:'bg-red-100 text-red-500'},
+};
+
+const demoData = [
+  {id:'1',name:'气虚质三个月调理计划',patient:'李建国',archive:'A10023',type:'饮食+运动',period:'2026-01~2026-03',done:6,total:12,status:'IN_PROGRESS'},
+  {id:'2',name:'高血压生活方式干预计划',patient:'张淑芬',archive:'A10045',type:'饮食+生活',period:'2025-12~2026-02',done:8,total:8,status:'COMPLETED'},
+  {id:'3',name:'痰湿体质春季调理方案',patient:'赵明',archive:'A10067',type:'饮食+运动+情志',period:'2026-03~2026-05',done:0,total:6,status:'PENDING'},
+];
+
+const TYPE_LABEL = {GUIDANCE:'生活指导',EDUCATION:'健康宣教',INTERVENTION:'干预计划'};
+
+let currentPlanId = null;
+let ALL_PLANS = null;
+
+async function loadList() {
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const st = document.getElementById('status-filter').value;
+
+  if (!ALL_PLANS) {
+    try {
+      const resp = await fetch('/tools/guidance/records?page_size=50');
+      const d = await resp.json();
+      if (d.success && d.data.total > 0) {
+        ALL_PLANS = d.data.items.map(r => ({
+          id: r.id, name: r.title || '指导计划',
+          patient: r.patient_name || '未知患者', archive: r.patient_id?.slice(-6) || '-',
+          type: TYPE_LABEL[r.guidance_type] || r.guidance_type,
+          period: r.scheduled_at ? r.scheduled_at.slice(0,7) + '~至今' : '-',
+          done: r.status === 'PUBLISHED' ? 1 : 0, total: 1,
+          status: r.status === 'PUBLISHED' ? 'IN_PROGRESS' : 'PENDING',
+        }));
+      }
+    } catch (_) {}
+    if (!ALL_PLANS) ALL_PLANS = demoData;
+  }
+
+  let items = ALL_PLANS;
+  if (q) items = items.filter(r => r.name.toLowerCase().includes(q) || r.patient.toLowerCase().includes(q));
+  if (st) items = items.filter(r => r.status === st);
+
+  document.getElementById('list-body').innerHTML = items.map(r => {
+    const s = STATUS_MAP[r.status] || {label:r.status,cls:'bg-gray-100 text-gray-500'};
+    const pct = Math.round(r.done / r.total * 100);
+    const canExec = r.status === 'IN_PROGRESS' || r.status === 'PENDING';
+    const canAdj  = r.status === 'IN_PROGRESS' || r.status === 'PENDING';
+    const canTerm = r.status === 'IN_PROGRESS' || r.status === 'PENDING';
+    return `<tr class="hover:bg-gray-50">
+      <td class="px-5 py-3 font-medium text-gray-800">${r.name}</td>
+      <td class="px-5 py-3">
+        <p class="text-gray-700">${r.patient}</p>
+        <p class="text-xs text-gray-400">${r.archive}</p>
+      </td>
+      <td class="px-5 py-3 text-gray-500 text-xs">${r.type}</td>
+      <td class="px-5 py-3 text-gray-400 text-xs">${r.period}</td>
+      <td class="px-5 py-3">
+        <div class="flex items-center gap-2">
+          <div class="w-20 rounded-full h-1.5" style="background:#EDE8E2;">
+            <div class="bg-green-400 h-1.5 rounded-full" style="width:${pct}%"></div>
+          </div>
+          <span class="text-xs text-gray-500">${r.done}/${r.total}</span>
+        </div>
+      </td>
+      <td class="px-5 py-3"><span class="px-2 py-0.5 rounded-full text-xs font-medium ${s.cls}">${s.label}</span></td>
+      <td class="px-5 py-3">
+        <div class="flex gap-2 flex-wrap">
+          <a href="/gui/admin/guidance" class="text-green-600 hover:underline text-xs">查看</a>
+          ${canExec ? `<button onclick="openExecute('${r.id}','${r.name}')" class="text-green-600 hover:underline text-xs">执行</button>` : ''}
+          ${canAdj  ? `<button onclick="openAdjust('${r.id}','${r.name}','${r.period}')" class="text-orange-500 hover:underline text-xs">调整</button>` : ''}
+          ${canTerm ? `<button onclick="terminatePlan('${r.id}','${r.name}')" class="text-red-500 hover:underline text-xs">终止</button>` : ''}
+        </div>
+      </td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" class="px-5 py-8 text-center text-gray-400">暂无计划记录</td></tr>';
+}
+
+function openExecute(id, name) {
+  currentPlanId = id;
+  document.getElementById('exec-plan-name').textContent = name;
+  document.getElementById('exec-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('exec-content').value = '';
+  document.getElementById('exec-feedback').value = '';
+  document.getElementById('modal-execute').classList.remove('hidden');
+}
+
+function confirmExecute() {
+  const content = document.getElementById('exec-content').value.trim();
+  if (!content) { showToast('请填写执行内容'); return; }
+  showToast('执行记录已保存');
+  closeModal('modal-execute');
+  loadList();
+}
+
+function openAdjust(id, name, period) {
+  currentPlanId = id;
+  document.getElementById('adj-plan-name').textContent = name;
+  const parts = period.split('~');
+  document.getElementById('adj-start').value = parts[0] || '';
+  document.getElementById('adj-end').value = parts[1] || '';
+  document.getElementById('adj-reason').value = '';
+  document.getElementById('modal-adjust').classList.remove('hidden');
+}
+
+function confirmAdjust() {
+  const reason = document.getElementById('adj-reason').value.trim();
+  if (!reason) { showToast('请填写调整原因'); return; }
+  showToast('计划调整已保存');
+  closeModal('modal-adjust');
+  loadList();
+}
+
+function terminatePlan(id, name) {
+  if (!confirm(`确认终止计划「${name}」？终止后无法恢复。`)) return;
+  showToast('计划已终止');
+  loadList();
+}
+
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 3000);
+}
+
+loadList();
+</script>
+{% endblock %}

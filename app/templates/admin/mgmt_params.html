@@ -1,0 +1,157 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "mgmt_params" %}
+{% block title %}参数配置 - 治未病平台{% endblock %}
+{% block page_title %}参数配置{% endblock %}
+
+{% block content %}
+<!-- 筛选栏 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <input id="q" type="text" placeholder="参数键/说明搜索"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-gray-300">
+  <select id="group-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300">
+    <option value="">全部分组</option>
+    <option value="SYSTEM">系统配置</option>
+    <option value="BUSINESS">业务参数</option>
+    <option value="NOTIFY">通知配置</option>
+    <option value="SECURITY">安全策略</option>
+  </select>
+  <button onclick="loadParams()" class="bg-gray-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-800">查询</button>
+  <div class="ml-auto">
+    <button onclick="showAddModal()" class="bg-gray-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-800">+ 新增参数</button>
+  </div>
+</div>
+
+<!-- 参数列表 -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-5 py-3 text-left">参数分组</th>
+        <th class="px-5 py-3 text-left">参数键</th>
+        <th class="px-5 py-3 text-left">参数值</th>
+        <th class="px-5 py-3 text-left">说明</th>
+        <th class="px-5 py-3 text-left">生效范围</th>
+        <th class="px-5 py-3 text-left">操作</th>
+      </tr>
+    </thead>
+    <tbody id="params-list" class="divide-y divide-gray-100"></tbody>
+  </table>
+</div>
+
+<!-- 新增/编辑弹窗 -->
+<div id="param-modal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50"
+  onclick="if(event.target===this)closeModal()">
+  <div class="bg-white rounded-xl p-6 w-[500px] shadow-xl">
+    <h3 class="font-semibold text-gray-800 mb-4" id="modal-title">新增参数</h3>
+    <div class="space-y-4">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">参数分组</label>
+          <select id="param-group"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300">
+            <option value="SYSTEM">系统配置</option>
+            <option value="BUSINESS">业务参数</option>
+            <option value="NOTIFY">通知配置</option>
+            <option value="SECURITY">安全策略</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">生效范围</label>
+          <select id="param-scope"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300">
+            <option value="GLOBAL">全局</option>
+            <option value="ORG">机构级</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">参数键 <span class="text-red-500">*</span></label>
+        <input type="text" id="param-key" placeholder="如：sys.page.size"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-gray-300">
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">参数值 <span class="text-red-500">*</span></label>
+        <input type="text" id="param-value" placeholder="参数值"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300">
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">说明</label>
+        <textarea id="param-desc" rows="2"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"></textarea>
+      </div>
+    </div>
+    <div class="flex gap-3 justify-end mt-5">
+      <button onclick="closeModal()" class="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600">取消</button>
+      <button onclick="saveParam()" class="bg-gray-700 text-white px-5 py-2 rounded-lg text-sm hover:bg-gray-800">保存</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const GROUP_LABELS = {SYSTEM:'系统配置',BUSINESS:'业务参数',NOTIFY:'通知配置',SECURITY:'安全策略'};
+const GROUP_COLORS = {SYSTEM:'bg-gray-100 text-gray-600',BUSINESS:'bg-jade-light text-jade',NOTIFY:'bg-yellow-50 text-yellow-600',SECURITY:'bg-red-100 text-red-700'};
+
+const demoParams = [
+  {key:'sys.page.size',value:'20',group:'SYSTEM',desc:'默认分页大小',scope:'全局'},
+  {key:'sys.file.max_size_mb',value:'50',group:'SYSTEM',desc:'单文件最大上传大小（MB）',scope:'全局'},
+  {key:'biz.archive.expire_days',value:'365',group:'BUSINESS',desc:'档案数据保留天数',scope:'全局'},
+  {key:'biz.followup.remind_days',value:'3',group:'BUSINESS',desc:'随访到期前提前提醒天数',scope:'全局'},
+  {key:'biz.alert.cooldown_minutes',value:'60',group:'BUSINESS',desc:'危急值同患者通知冷却时间（分钟）',scope:'全局'},
+  {key:'notify.sms.daily_limit',value:'5',group:'NOTIFY',desc:'每患者每日最大短信发送数',scope:'全局'},
+  {key:'notify.station.max_unread',value:'99',group:'NOTIFY',desc:'站内消息未读最大显示数',scope:'全局'},
+  {key:'sec.password.min_length',value:'8',group:'SECURITY',desc:'密码最小长度',scope:'全局'},
+  {key:'sec.login.max_fail',value:'5',group:'SECURITY',desc:'连续登录失败锁定次数',scope:'全局'},
+  {key:'sec.session.timeout_minutes',value:'120',group:'SECURITY',desc:'会话超时时间（分钟）',scope:'全局'},
+];
+
+function loadParams() {
+  document.getElementById('params-list').innerHTML = demoParams.map(p => {
+    const cls = GROUP_COLORS[p.group] || '';
+    return `<tr class="hover:bg-gray-50">
+      <td class="px-5 py-3"><span class="px-2 py-0.5 rounded-full text-xs font-medium ${cls}">${GROUP_LABELS[p.group]}</span></td>
+      <td class="px-5 py-3 font-mono text-xs text-gray-700">${p.key}</td>
+      <td class="px-5 py-3 text-gray-800 font-medium">${p.value}</td>
+      <td class="px-5 py-3 text-gray-500 text-xs">${p.desc}</td>
+      <td class="px-5 py-3 text-gray-400 text-xs">${p.scope}</td>
+      <td class="px-5 py-3 flex gap-2">
+        <button onclick="editParam('${p.key}')" class="text-gray-600 hover:underline text-xs">编辑</button>
+        <button onclick="deleteParam('${p.key}')" class="text-red-400 hover:underline text-xs">删除</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function showAddModal() {
+  document.getElementById('modal-title').textContent = '新增参数';
+  document.getElementById('param-key').value = '';
+  document.getElementById('param-value').value = '';
+  document.getElementById('param-desc').value = '';
+  const m = document.getElementById('param-modal');
+  m.classList.remove('hidden'); m.style.display = 'flex';
+}
+function editParam(key) {
+  const p = demoParams.find(x => x.key === key);
+  if (!p) return;
+  document.getElementById('modal-title').textContent = '编辑参数';
+  document.getElementById('param-key').value = p.key;
+  document.getElementById('param-value').value = p.value;
+  document.getElementById('param-desc').value = p.desc;
+  const m = document.getElementById('param-modal');
+  m.classList.remove('hidden'); m.style.display = 'flex';
+}
+function closeModal() { const m = document.getElementById('param-modal'); m.classList.add('hidden'); m.style.display = ''; }
+function saveParam() {
+  const key = document.getElementById('param-key').value.trim();
+  if (!key) { showToast('请填写参数键'); return; }
+  showToast('参数保存成功');
+  closeModal();
+}
+function deleteParam(key) {
+  if (confirm(`确定删除参数 "${key}"？`)) showToast('删除成功');
+}
+
+loadParams();
+</script>
+{% endblock %}

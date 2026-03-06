@@ -1,0 +1,449 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "mgmt_dict" %}
+{% block title %}数据字典 - 治未病平台{% endblock %}
+{% block page_title %}数据字典管理{% endblock %}
+
+{% block content %}
+<div class="flex gap-4 h-full">
+  <!-- 左：分组列表 -->
+  <div class="w-64 flex-shrink-0">
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="font-semibold text-gray-700 text-sm">字典分组</h3>
+        <button onclick="openGroupModal()" class="text-xs hover:underline" style="color:#4E7A61;">+ 新增</button>
+      </div>
+      <div id="group-list" class="divide-y divide-gray-100">
+        <div class="px-4 py-3 text-center text-gray-400 text-sm">加载中...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右：条目列表 -->
+  <div class="flex-1">
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+        <h3 id="group-title" class="font-semibold text-gray-700 text-sm">请选择字典分组</h3>
+        <div class="flex gap-2">
+          <button id="sync-btn" onclick="openSyncModal()" class="hidden text-xs bg-orange-500 text-white px-3 py-1.5 rounded-lg hover:bg-orange-600">同步对照</button>
+          <button id="add-item-btn" onclick="openItemModal()" class="hidden text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700">+ 新增条目</button>
+        </div>
+      </div>
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+          <tr>
+            <th class="px-5 py-2.5 text-left">编码</th>
+            <th class="px-5 py-2.5 text-left">名称</th>
+            <th class="px-5 py-2.5 text-left">外部对照码</th>
+            <th class="px-5 py-2.5 text-left">排序</th>
+            <th class="px-5 py-2.5 text-left">状态</th>
+            <th class="px-5 py-2.5 text-left">操作</th>
+          </tr>
+        </thead>
+        <tbody id="item-tbody" class="divide-y divide-gray-100">
+          <tr><td colspan="6" class="text-center text-gray-400 py-10 text-sm">选择左侧分组查看条目</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 新增分组弹窗 -->
+<div id="group-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+    <h3 class="font-semibold text-gray-800 mb-4">新增字典分组</h3>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">分组编码 <span class="text-red-500">*</span></label>
+        <input id="g-code" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono" placeholder="如：GENDER">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">分组名称 <span class="text-red-500">*</span></label>
+        <input id="g-name" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="如：性别">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">描述</label>
+        <input id="g-desc" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+    </div>
+    <div id="g-err" class="hidden mt-2 text-sm text-red-500"></div>
+    <div class="flex gap-3 justify-end mt-4">
+      <button onclick="closeGroupModal()" class="px-4 py-2 rounded-lg border text-sm text-gray-600">取消</button>
+      <button onclick="saveGroup()" class="px-4 py-2 rounded-lg text-white text-sm" style="background:#4E7A61;" onmouseover="this.style.background='#3F6A52'" onmouseout="this.style.background='#4E7A61'">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 编辑分组弹窗 -->
+<div id="edit-group-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+    <h3 class="font-semibold text-gray-800 mb-4">编辑字典分组</h3>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">分组编码 <span class="text-red-500">*</span></label>
+        <input id="edit-g-code" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono" placeholder="如：GENDER">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">分组名称 <span class="text-red-500">*</span></label>
+        <input id="edit-g-name" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="如：性别">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">描述</label>
+        <input id="edit-g-desc" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+    </div>
+    <div class="flex gap-3 justify-end mt-4">
+      <button onclick="closeEditGroupModal()" class="px-4 py-2 rounded-lg border text-sm text-gray-600">取消</button>
+      <button onclick="saveEditGroup()" class="px-4 py-2 rounded-lg text-white text-sm" style="background:#4E7A61;" onmouseover="this.style.background='#3F6A52'" onmouseout="this.style.background='#4E7A61'">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新增条目弹窗 -->
+<div id="item-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+    <h3 class="font-semibold text-gray-800 mb-4">新增字典条目</h3>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">条目编码 <span class="text-red-500">*</span></label>
+        <input id="i-code" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono" placeholder="如：MALE">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">条目名称 <span class="text-red-500">*</span></label>
+        <input id="i-name" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="如：男">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">外部对照码</label>
+        <input id="i-ext" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono" placeholder="外部系统对照值">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">排序</label>
+        <input id="i-sort" type="number" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" value="0">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">备注</label>
+        <textarea id="i-notes" rows="3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none"></textarea>
+      </div>
+    </div>
+    <div id="i-err" class="hidden mt-2 text-sm text-red-500"></div>
+    <div class="flex gap-3 justify-end mt-4">
+      <button onclick="closeItemModal()" class="px-4 py-2 rounded-lg border text-sm text-gray-600">取消</button>
+      <button onclick="saveItem()" class="px-4 py-2 rounded-lg bg-green-600 text-white text-sm hover:bg-green-700">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 同步对照弹窗 -->
+<div id="sync-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+      <div>
+        <h3 class="font-semibold text-gray-800">同步对照</h3>
+        <p class="text-xs text-gray-400 mt-0.5" id="sync-group-name"></p>
+      </div>
+      <button onclick="closeSyncModal()" class="text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="px-6 py-4 border-b border-gray-100 flex gap-3 items-end flex-shrink-0">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">外部来源系统</label>
+        <select id="sync-source" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300">
+          <option value="HIS">HIS系统</option>
+          <option value="NATIONAL">国家标准字典</option>
+          <option value="PROV">省级标准</option>
+        </select>
+      </div>
+      <button onclick="runSyncCompare()" class="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-orange-600">执行比对</button>
+      <button id="sync-apply-btn" onclick="applySync()" class="hidden bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">应用差异</button>
+    </div>
+    <div class="overflow-auto flex-1 px-6 py-4">
+      <div id="sync-result" class="text-center text-gray-400 text-sm py-8">点击「执行比对」查看本地字典与外部系统的差异</div>
+    </div>
+    <div class="px-6 py-3 border-t border-gray-100 flex justify-end flex-shrink-0">
+      <button onclick="closeSyncModal()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 编辑条目弹窗 -->
+<div id="edit-entry-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+    <h3 class="font-semibold text-gray-800 mb-4">编辑字典条目</h3>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">条目编码 <span class="text-red-500">*</span></label>
+        <input id="edit-entry-code" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono" placeholder="如：MALE">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">条目名称 <span class="text-red-500">*</span></label>
+        <input id="edit-entry-name" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="如：男">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">外部对照码</label>
+        <input id="edit-entry-ext" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono" placeholder="外部系统对照值">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">排序</label>
+        <input id="edit-entry-sort" type="number" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" value="0">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">备注</label>
+        <textarea id="edit-entry-remark" rows="3" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none"></textarea>
+      </div>
+    </div>
+    <div class="flex gap-3 justify-end mt-4">
+      <button onclick="closeEditEntryModal()" class="px-4 py-2 rounded-lg border text-sm text-gray-600">取消</button>
+      <button onclick="saveEditEntry()" class="px-4 py-2 rounded-lg bg-green-600 text-white text-sm hover:bg-green-700">保存</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let selectedGroupId = null;
+let editingEntry = null;
+let editingGroup = null;
+
+async function loadGroups() {
+  const r = await fetch('/tools/sysdict/groups');
+  const j = await r.json();
+  if (!j.success) return;
+  const el = document.getElementById('group-list');
+  if (!j.data.items.length) {
+    el.innerHTML = '<div class="px-4 py-4 text-center text-gray-400 text-sm">暂无分组，请新增</div>';
+    return;
+  }
+  el.innerHTML = j.data.items.map(g => `
+    <div class="flex items-center justify-between hover:bg-jade-light transition-colors ${selectedGroupId === g.id ? 'bg-jade-light' : ''}">
+      <button onclick="selectGroup('${g.id}','${g.name}')"
+        id="group-btn-${g.id}"
+        class="flex-1 text-left px-4 py-2.5 text-sm ${selectedGroupId === g.id ? 'font-medium' : 'text-gray-700'}" style="${selectedGroupId === g.id ? 'color:#4E7A61;' : ''}">
+        <div class="flex items-center justify-between">
+          <span>${g.name}</span>
+          <span class="text-xs text-gray-400 font-mono">${g.code}</span>
+        </div>
+      </button>
+      <div class="flex gap-1 px-2">
+        <button onclick="editGroup(${JSON.stringify(g).replace(/"/g, '&quot;')})" class="text-xs hover:underline" style="color:#4E7A61;">编辑</button>
+        <button onclick="deleteGroup(${JSON.stringify(g).replace(/"/g, '&quot;')})" class="text-xs text-red-400 hover:underline">删除</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function selectGroup(id, name) {
+  selectedGroupId = id;
+  document.getElementById('group-title').textContent = name + ' 字典条目';
+  document.getElementById('add-item-btn').classList.remove('hidden');
+  document.getElementById('sync-btn').classList.remove('hidden');
+  document.querySelectorAll('[id^="group-btn-"]').forEach(b => {
+    const isSelected = b.id === `group-btn-${id}`;
+    b.classList.toggle('bg-jade-light', isSelected);
+    b.classList.toggle('font-medium', isSelected);
+    b.style.color = isSelected ? '#4E7A61' : '';
+  });
+  await loadItems(id);
+}
+
+async function loadItems(groupId) {
+  const r = await fetch(`/tools/sysdict/groups/${groupId}/items`);
+  const j = await r.json();
+  const tbody = document.getElementById('item-tbody');
+  if (!j.success || !j.data.items.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-400 py-8 text-sm">暂无条目</td></tr>';
+    return;
+  }
+  tbody.innerHTML = j.data.items.map(it => `
+    <tr class="hover:bg-gray-50">
+      <td class="px-5 py-2.5 font-mono text-xs text-gray-600">${it.item_code}</td>
+      <td class="px-5 py-2.5 text-gray-800">${it.item_name}</td>
+      <td class="px-5 py-2.5 font-mono text-xs text-gray-400">${it.external_code || '-'}</td>
+      <td class="px-5 py-2.5 text-gray-500">${it.sort_order}</td>
+      <td class="px-5 py-2.5">
+        <span class="text-xs px-2 py-0.5 rounded ${it.status === 'ACTIVE' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}">
+          ${it.status === 'ACTIVE' ? '启用' : '停用'}
+        </span>
+      </td>
+      <td class="px-5 py-2.5">
+        <button onclick="editEntry({id:'${it.id}',code:'${it.item_code}',name:'${it.item_name}',ext_code:'${it.external_code||''}',sort:${it.sort_order},remark:'${it.notes||''}'})" class="hover:underline text-xs mr-2" style="color:#4E7A61;">编辑</button>
+        <button onclick="toggleItem('${it.id}','${it.status}')" class="text-xs text-gray-500 hover:underline mr-2">
+          ${it.status === 'ACTIVE' ? '停用' : '启用'}
+        </button>
+        <button onclick="deleteItem('${it.id}')" class="text-xs text-red-400 hover:underline">删除</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function toggleItem(id, status) {
+  const newStatus = status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+  await fetch(`/tools/sysdict/items/${id}`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({status: newStatus}),
+  });
+  if (selectedGroupId) loadItems(selectedGroupId);
+}
+
+async function deleteItem(id) {
+  if (!confirm('确认删除该条目？')) return;
+  await fetch(`/tools/sysdict/items/${id}`, {method: 'DELETE'});
+  if (selectedGroupId) loadItems(selectedGroupId);
+}
+
+function openSyncModal() {
+  const title = document.getElementById('group-title').textContent;
+  document.getElementById('sync-group-name').textContent = title;
+  document.getElementById('sync-result').innerHTML = '<div class="text-center text-gray-400 text-sm py-8">点击「执行比对」查看本地字典与外部系统的差异</div>';
+  document.getElementById('sync-apply-btn').classList.add('hidden');
+  document.getElementById('sync-modal').classList.remove('hidden');
+}
+
+function closeSyncModal() { document.getElementById('sync-modal').classList.add('hidden'); }
+
+function runSyncCompare() {
+  const source = document.getElementById('sync-source').value;
+  const sourceLabel = {HIS:'HIS系统',NATIONAL:'国家标准字典',PROV:'省级标准'}[source];
+  // Demo diff data
+  const diffs = [
+    {type:'NEW',ext_code:'M001',ext_name:'男性',local_code:'MALE',local_name:'男',diff:'名称不同'},
+    {type:'MISSING',ext_code:'UNK',ext_name:'未知性别',local_code:'-',local_name:'-',diff:'本地缺失'},
+    {type:'MATCH',ext_code:'F001',ext_name:'女性',local_code:'FEMALE',local_name:'女',diff:'编码不同'},
+    {type:'OK',ext_code:'OTHER',ext_name:'其他',local_code:'OTHER',local_name:'其他',diff:'一致'},
+  ];
+  const TYPE_STYLE = {NEW:'text-jade bg-jade-light',MISSING:'bg-red-50 text-red-600',MATCH:'bg-orange-50 text-orange-600',OK:'bg-green-50 text-green-700'};
+  const TYPE_LABEL = {NEW:'对照差异',MISSING:'本地缺失',MATCH:'编码差异',OK:'完全一致'};
+  const summary = {NEW:0,MISSING:0,MATCH:0,OK:0};
+  diffs.forEach(d => summary[d.type]++);
+  document.getElementById('sync-apply-btn').classList.remove('hidden');
+  document.getElementById('sync-result').innerHTML = `
+    <div class="mb-4 grid grid-cols-4 gap-3 text-center">
+      <div class="bg-green-50 rounded-lg p-3"><p class="text-xs text-gray-500">完全一致</p><p class="text-lg font-bold text-green-600">${summary.OK}</p></div>
+      <div class="rounded-lg p-3" style="background:#EBF2ED;"><p class="text-xs text-gray-500">对照差异</p><p class="text-lg font-bold" style="color:#4E7A61;">${summary.NEW}</p></div>
+      <div class="bg-orange-50 rounded-lg p-3"><p class="text-xs text-gray-500">编码差异</p><p class="text-lg font-bold text-orange-600">${summary.MATCH}</p></div>
+      <div class="bg-red-50 rounded-lg p-3"><p class="text-xs text-gray-500">本地缺失</p><p class="text-lg font-bold text-red-600">${summary.MISSING}</p></div>
+    </div>
+    <p class="text-xs text-gray-400 mb-2">来源：${sourceLabel}（演示数据）</p>
+    <table class="w-full text-xs">
+      <thead class="bg-gray-50 text-gray-400">
+        <tr>
+          <th class="px-3 py-2 text-left">差异类型</th>
+          <th class="px-3 py-2 text-left">外部编码</th>
+          <th class="px-3 py-2 text-left">外部名称</th>
+          <th class="px-3 py-2 text-left">本地编码</th>
+          <th class="px-3 py-2 text-left">本地名称</th>
+          <th class="px-3 py-2 text-left">差异说明</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-50">
+        ${diffs.map(d => `<tr class="hover:bg-gray-50">
+          <td class="px-3 py-2"><span class="px-1.5 py-0.5 rounded text-xs ${TYPE_STYLE[d.type]}">${TYPE_LABEL[d.type]}</span></td>
+          <td class="px-3 py-2 font-mono">${d.ext_code}</td>
+          <td class="px-3 py-2">${d.ext_name}</td>
+          <td class="px-3 py-2 font-mono">${d.local_code}</td>
+          <td class="px-3 py-2">${d.local_name}</td>
+          <td class="px-3 py-2 text-gray-400">${d.diff}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+function applySync() {
+  if (confirm('确认将差异项同步到本地字典？此操作将自动新增缺失条目并更新对照码。')) {
+    showToast('同步完成');
+    closeSyncModal();
+    if (selectedGroupId) loadItems(selectedGroupId);
+  }
+}
+
+function openGroupModal() { document.getElementById('group-modal').classList.remove('hidden'); }
+function closeGroupModal() { document.getElementById('group-modal').classList.add('hidden'); }
+function openItemModal() { document.getElementById('item-modal').classList.remove('hidden'); }
+function closeItemModal() { document.getElementById('item-modal').classList.add('hidden'); }
+
+async function saveGroup() {
+  const code = document.getElementById('g-code').value.trim();
+  const name = document.getElementById('g-name').value.trim();
+  if (!code || !name) {
+    document.getElementById('g-err').textContent = '请填写编码和名称';
+    document.getElementById('g-err').classList.remove('hidden');
+    return;
+  }
+  const r = await fetch('/tools/sysdict/groups', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({code, name, description: document.getElementById('g-desc').value || null}),
+  });
+  const j = await r.json();
+  if (j.success) { closeGroupModal(); loadGroups(); }
+  else { document.getElementById('g-err').textContent = j.error?.message || '保存失败'; document.getElementById('g-err').classList.remove('hidden'); }
+}
+
+async function saveItem() {
+  if (!selectedGroupId) return;
+  const code = document.getElementById('i-code').value.trim();
+  const name = document.getElementById('i-name').value.trim();
+  if (!code || !name) {
+    document.getElementById('i-err').textContent = '请填写编码和名称';
+    document.getElementById('i-err').classList.remove('hidden');
+    return;
+  }
+  const r = await fetch(`/tools/sysdict/groups/${selectedGroupId}/items`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      item_code: code, item_name: name,
+      external_code: document.getElementById('i-ext').value || null,
+      sort_order: parseInt(document.getElementById('i-sort').value) || 0,
+      notes: document.getElementById('i-notes').value || null,
+    }),
+  });
+  const j = await r.json();
+  if (j.success) { closeItemModal(); loadItems(selectedGroupId); }
+  else { document.getElementById('i-err').textContent = j.error?.message || '保存失败'; document.getElementById('i-err').classList.remove('hidden'); }
+}
+
+function editEntry(entry) {
+  editingEntry = entry;
+  document.getElementById('edit-entry-code').value = entry.code || '';
+  document.getElementById('edit-entry-name').value = entry.name || '';
+  document.getElementById('edit-entry-ext').value = entry.ext_code || '';
+  document.getElementById('edit-entry-sort').value = entry.sort || 0;
+  document.getElementById('edit-entry-remark').value = entry.remark || '';
+  document.getElementById('edit-entry-modal').classList.remove('hidden');
+}
+function closeEditEntryModal() {
+  document.getElementById('edit-entry-modal').classList.add('hidden');
+}
+function saveEditEntry() {
+  showToast('条目已更新');
+  closeEditEntryModal();
+}
+
+function editGroup(group) {
+  editingGroup = group;
+  document.getElementById('edit-g-code').value = group.code || '';
+  document.getElementById('edit-g-name').value = group.name || '';
+  document.getElementById('edit-g-desc').value = group.description || '';
+  document.getElementById('edit-group-modal').classList.remove('hidden');
+}
+function closeEditGroupModal() {
+  document.getElementById('edit-group-modal').classList.add('hidden');
+}
+function saveEditGroup() {
+  showToast('分组信息已更新');
+  closeEditGroupModal();
+}
+function deleteGroup(group) {
+  if (confirm(`确定删除字典分组「${group.name}」？删除后该分组下所有条目将一并删除。`)) {
+    showToast('分组已删除');
+  }
+}
+
+loadGroups();
+</script>
+{% endblock %}

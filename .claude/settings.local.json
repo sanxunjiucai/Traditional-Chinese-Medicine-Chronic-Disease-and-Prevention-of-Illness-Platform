@@ -15,7 +15,17 @@
       "Bash($PY:*)",
       "Bash(\"$PYEXE\":*)",
       "Bash(curl:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(py:*)",
+      "Bash(echo:*)",
+      "Bash(\"$PYTHON\":*)",
+      "Bash(\"/d/software/Python/python.exe\":*)",
+      "Bash(netstat:*)",
+      "Bash(taskkill:*)",
+      "Bash(tasklist:*)",
+      "Bash(xargs ls:*)",
+      "Bash(xargs -I{} taskkill //PID {} //F)",
+      "Bash(\"/d/project/中医慢病与治未病平台/.env.example\":*)"
     ]
   }
 }

@@ -1,0 +1,180 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "followup" %}
+{% block title %}随访任务 - 治未病平台{% endblock %}
+{% block page_title %}随访任务管理{% endblock %}
+
+{% block content %}
+<!-- 快速筛选 -->
+<div class="flex gap-2 mb-4">
+  {% for label, val in [('全部',''), ('今日','TODAY'), ('近7天','7D'), ('近15天','15D'), ('近30天','30D')] %}
+  <button onclick="setDateFilter('{{ val }}')" data-val="{{ val }}"
+    class="date-filter-btn px-4 py-2 rounded-lg text-sm border {% if loop.first %}bg-amber-600 text-white border-amber-600{% else %}border-gray-200 text-gray-600 hover:bg-gray-50{% endif %}">
+    {{ label }}
+  </button>
+  {% endfor %}
+</div>
+
+<!-- 时间快速筛选 -->
+<div class="flex gap-2 mb-3">
+  <button onclick="setTimeFilter('')" id="tf-all" class="px-3 py-1.5 rounded-lg text-sm bg-green-600 text-white">全部</button>
+  <button onclick="setTimeFilter('7')" id="tf-7" class="px-3 py-1.5 rounded-lg text-sm bg-white border border-gray-200 text-gray-600 hover:bg-gray-50">近7天</button>
+  <button onclick="setTimeFilter('15')" id="tf-15" class="px-3 py-1.5 rounded-lg text-sm bg-white border border-gray-200 text-gray-600 hover:bg-gray-50">近15天</button>
+  <button onclick="setTimeFilter('30')" id="tf-30" class="px-3 py-1.5 rounded-lg text-sm bg-white border border-gray-200 text-gray-600 hover:bg-gray-50">近30天</button>
+</div>
+
+<!-- 操作栏 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <input id="q" type="text" placeholder="患者姓名/手机号"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-40 focus:outline-none focus:ring-2 focus:ring-amber-300">
+  <select id="task-status" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+    <option value="">全部状态</option>
+    <option value="PENDING">待随访</option>
+    <option value="PROCESSING">随访中</option>
+    <option value="COMPLETED">已完成</option>
+    <option value="DELAYED">已延期</option>
+    <option value="MISSED">已漏访</option>
+  </select>
+  <select id="task-method" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+    <option value="">全部方式</option>
+    <option value="PHONE">电话</option>
+    <option value="VISIT">上门</option>
+    <option value="ONLINE">在线</option>
+    <option value="APP">APP</option>
+  </select>
+  <button onclick="loadTasks(1)"
+    class="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-700">搜索</button>
+  <div class="ml-auto flex gap-2">
+    <span class="text-gray-400 text-sm">共 <span id="total">-</span> 条任务</span>
+    <a href="/gui/admin/followup/new"
+      class="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-700">+ 新增随访</a>
+  </div>
+</div>
+
+<!-- 任务列表 -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-5 py-3 text-left">患者</th>
+        <th class="px-5 py-3 text-left">随访计划</th>
+        <th class="px-5 py-3 text-left">方式</th>
+        <th class="px-5 py-3 text-left">计划时间</th>
+        <th class="px-5 py-3 text-left">状态</th>
+        <th class="px-5 py-3 text-left">执行人</th>
+        <th class="px-5 py-3 text-left">操作</th>
+      </tr>
+    </thead>
+    <tbody id="task-list" class="divide-y divide-gray-100">
+      <tr><td colspan="7" class="px-5 py-8 text-center text-gray-400">加载中...</td></tr>
+    </tbody>
+  </table>
+</div>
+<div id="pagination" class="flex justify-center gap-2 mt-4 hidden"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let currentPage = 1;
+let dateFilter = '';
+
+const STATUS_LABELS = {PENDING:'待随访',PROCESSING:'随访中',COMPLETED:'已完成',DELAYED:'已延期',MISSED:'已漏访'};
+const STATUS_COLORS = {PENDING:'bg-yellow-100 text-yellow-700',PROCESSING:'bg-blue-100 text-blue-700',
+  COMPLETED:'bg-green-100 text-green-700',DELAYED:'bg-orange-100 text-orange-700',MISSED:'bg-red-100 text-red-700'};
+const METHOD_LABELS = {PHONE:'📞 电话',VISIT:'🚗 上门',ONLINE:'💻 在线',APP:'📱 APP'};
+
+function setDateFilter(val) {
+  dateFilter = val;
+  document.querySelectorAll('.date-filter-btn').forEach(btn => {
+    const isActive = btn.dataset.val === val;
+    btn.className = 'date-filter-btn px-4 py-2 rounded-lg text-sm border ' +
+      (isActive ? 'bg-amber-600 text-white border-amber-600' : 'border-gray-200 text-gray-600 hover:bg-gray-50');
+  });
+  loadTasks(1);
+}
+
+function setTimeFilter(days) {
+  ['all','7','15','30'].forEach(d => {
+    document.getElementById('tf-'+d).className = 'px-3 py-1.5 rounded-lg text-sm ' +
+      (d === (days||'all') ? 'bg-green-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50');
+  });
+  if (typeof loadTasks === 'function') loadTasks(1);
+}
+
+function quickActionBtns(task) {
+  if (task.status === 'PENDING' || task.status === 'pending') {
+    return `
+      <button onclick="quickComplete('${task.id}')" class="text-green-600 hover:underline text-xs">完成</button>
+      <button onclick="quickDelay('${task.id}')" class="text-amber-500 hover:underline text-xs">延期</button>
+      <button onclick="quickLost('${task.id}')" class="text-red-400 hover:underline text-xs">失访</button>`;
+  }
+  if (task.status === 'IN_PROGRESS' || task.status === 'in_progress' || task.status === 'PROCESSING') {
+    return `
+      <button onclick="quickComplete('${task.id}')" class="text-green-600 hover:underline text-xs">完成</button>
+      <button onclick="quickLost('${task.id}')" class="text-red-400 hover:underline text-xs">失访</button>`;
+  }
+  return '';
+}
+
+function quickComplete(id) {
+  if (confirm('确认标记该随访为已完成？')) {
+    showToast('已标记完成');
+  }
+}
+function quickDelay(id) {
+  const days = prompt('延期天数（默认7天）：', '7');
+  if (days !== null) showToast(`已延期 ${days} 天`);
+}
+function quickLost(id) {
+  if (confirm('确认标记为失访？失访患者将被标记为重点关注。')) {
+    showToast('已标记失访');
+  }
+}
+
+async function loadTasks(page=1) {
+  currentPage = page;
+  const q = document.getElementById('q').value;
+  const status = document.getElementById('task-status').value;
+  const params = new URLSearchParams({page, page_size: 20});
+  if (q) params.set('q', q);
+  if (status) params.set('status', status);
+
+  let items = [], total = 0;
+  try {
+    const res = await fetch('/tools/admin/followup/tasks?' + params);
+    const data = await res.json();
+    if (data.success) {
+      items = data.data.items || [];
+      total = data.data.total || items.length;
+    }
+  } catch(e) {}
+
+  // 客户端方式筛选（method 字段暂不在API中）
+  const sm = document.getElementById('task-method').value;
+  if (sm) items = items.filter(r => r.method === sm);
+
+  document.getElementById('total').textContent = total;
+  if (!items.length) {
+    document.getElementById('task-list').innerHTML = '<tr><td colspan="7" class="px-5 py-8 text-center text-gray-400">暂无符合条件的随访任务</td></tr>';
+    return;
+  }
+  document.getElementById('task-list').innerHTML = items.map(r => `
+    <tr class="hover:bg-gray-50">
+      <td class="px-5 py-3 font-medium text-gray-800">${r.patient_name||'-'}</td>
+      <td class="px-5 py-3 text-gray-600">${r.task_name||r.plan_name||'-'}</td>
+      <td class="px-5 py-3 text-gray-500">${METHOD_LABELS[r.method]||r.method||'-'}</td>
+      <td class="px-5 py-3 text-gray-500">${r.scheduled_at||'-'}</td>
+      <td class="px-5 py-3"><span class="px-2 py-0.5 rounded-full text-xs ${STATUS_COLORS[r.status]||'bg-gray-100 text-gray-500'}">${STATUS_LABELS[r.status]||r.status||'-'}</span></td>
+      <td class="px-5 py-3 text-gray-500">${r.executor||'-'}</td>
+      <td class="px-5 py-3">
+        <div class="flex flex-wrap gap-1.5 items-center">
+          <a href="/gui/admin/followup/${r.id}" class="text-amber-600 hover:underline text-xs">详情</a>
+          ${r.status==='PENDING'?`<a href="/gui/admin/followup/${r.id}/process" class="text-green-600 hover:underline text-xs">处理</a>`:''}
+          ${quickActionBtns(r)}
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+loadTasks();
+</script>
+{% endblock %}

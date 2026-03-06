@@ -1,0 +1,371 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "scale_library" %}
+{% block title %}{% if combo_id %}编辑组合量表{% else %}新建组合量表{% endif %} - 治未病平台{% endblock %}
+{% block page_title %}{% if combo_id %}编辑组合量表{% else %}新建组合量表{% endif %}{% endblock %}
+
+{% block extra_head %}
+<style>
+  .scale-item { transition: background 0.15s; }
+  .scale-item:hover { background: #f9fafb; }
+  .scale-item.dragging { opacity: 0.5; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mb-4 flex items-center gap-2 text-sm text-gray-500">
+  <a href="/gui/admin/scales/combos" class="hover:text-green-600">组合量表</a>
+  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+  </svg>
+  <span class="text-gray-700 font-medium">{% if combo_id %}编辑组合量表{% else %}新建组合量表{% endif %}</span>
+</div>
+
+<div class="max-w-4xl space-y-4">
+
+  <!-- 基本信息 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+      <span class="w-1 h-5 bg-green-500 rounded-full block"></span>
+      基本信息
+    </h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="md:col-span-2">
+        <label class="block text-sm font-medium text-gray-700 mb-1">组合名称 <span class="text-red-500">*</span></label>
+        <input id="combo-name" type="text" placeholder="请输入组合量表名称"
+          value="{% if combo_id %}中医综合评估套餐{% endif %}"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-sm font-medium text-gray-700 mb-1">适用场景说明</label>
+        <textarea id="combo-scene" rows="3" placeholder="描述该组合量表的适用场景和目的..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-300 resize-none">{% if combo_id %}适用于初诊患者的中医体质综合评估，结合情绪与睡眠状态分析，形成个性化调养方案。{% endif %}</textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">适用人群（多选）</label>
+        <div class="flex flex-wrap gap-2" id="audience-checkboxes">
+          <label class="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer">
+            <input type="checkbox" value="general" checked class="rounded text-green-600 focus:ring-green-400"> 普通人群
+          </label>
+          <label class="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer">
+            <input type="checkbox" value="elderly" class="rounded text-green-600 focus:ring-green-400"> 老年人（≥65岁）
+          </label>
+          <label class="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer">
+            <input type="checkbox" value="hypertension" class="rounded text-green-600 focus:ring-green-400"> 高血压患者
+          </label>
+          <label class="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer">
+            <input type="checkbox" value="diabetes" class="rounded text-green-600 focus:ring-green-400"> 糖尿病患者
+          </label>
+          <label class="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer">
+            <input type="checkbox" value="cardio" class="rounded text-green-600 focus:ring-green-400"> 心血管疾病
+          </label>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">状态</label>
+        <select id="combo-status" class="border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-300 w-full">
+          <option value="active">启用</option>
+          <option value="inactive">停用（草稿）</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- 量表配置 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+        <span class="w-1 h-5 bg-blue-500 rounded-full block"></span>
+        量表配置
+      </h3>
+      <button onclick="openScalePicker()"
+        class="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-700 flex items-center gap-1">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        添加量表
+      </button>
+    </div>
+
+    <!-- 表头 -->
+    <div class="grid grid-cols-12 gap-2 px-3 py-2 text-xs font-medium text-gray-500 border-b border-gray-100">
+      <div class="col-span-1 text-center">序号</div>
+      <div class="col-span-5">量表名称</div>
+      <div class="col-span-2 text-center">是否必填</div>
+      <div class="col-span-2 text-center">预计时长（分钟）</div>
+      <div class="col-span-2 text-center">操作</div>
+    </div>
+
+    <div id="selected-scales" class="divide-y divide-gray-100 min-h-[120px]">
+      <!-- 初始示例行，由 JS 渲染 -->
+    </div>
+
+    <div id="empty-scales" class="hidden text-center py-10 text-gray-300">
+      <svg class="w-10 h-10 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7"/>
+      </svg>
+      <p class="text-sm">暂未添加量表，点击"添加量表"开始配置</p>
+    </div>
+
+    <div id="scale-total" class="mt-3 pt-3 border-t border-gray-100 flex items-center justify-end gap-4 text-sm text-gray-500"></div>
+  </div>
+
+  <!-- 结果合成规则 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+      <span class="w-1 h-5 bg-purple-500 rounded-full block"></span>
+      结果合成规则
+    </h3>
+    <div class="space-y-3">
+      <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg border border-gray-100 hover:bg-gray-50">
+        <input type="radio" name="result-mode" value="independent" class="mt-0.5 text-green-600 focus:ring-green-400">
+        <div>
+          <p class="text-sm font-medium text-gray-700">独立显示各量表结果</p>
+          <p class="text-xs text-gray-400 mt-0.5">每个量表的评估结果分别展示，互不影响</p>
+        </div>
+      </label>
+      <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg border border-gray-100 hover:bg-gray-50">
+        <input type="radio" name="result-mode" value="weighted" class="mt-0.5 text-green-600 focus:ring-green-400">
+        <div>
+          <p class="text-sm font-medium text-gray-700">综合评分（自定义权重）</p>
+          <p class="text-xs text-gray-400 mt-0.5">对各量表得分加权汇总，生成综合健康指数</p>
+        </div>
+      </label>
+      <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg border border-purple-200 bg-purple-50">
+        <input type="radio" name="result-mode" value="report" checked class="mt-0.5 text-green-600 focus:ring-green-400">
+        <div class="flex-1">
+          <p class="text-sm font-medium text-gray-700">生成综合报告</p>
+          <p class="text-xs text-gray-400 mt-0.5">整合所有量表结果，由系统或医生生成综合评估报告</p>
+        </div>
+      </label>
+      <div id="report-template-wrap" class="ml-6">
+        <label class="block text-sm font-medium text-gray-700 mb-1">报告模板</label>
+        <textarea id="report-template" rows="4" placeholder="输入综合报告的模板说明，可使用变量如 {{体质类型}}、{{PHQ9得分}}、{{建议}} 等..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 resize-none font-mono">患者 {{姓名}} 完成综合评估：
+体质辨识结果为【{{体质类型}}】，PHQ-9得分 {{PHQ9得分}} 分（{{PHQ9结论}}），睡眠质量评分 {{睡眠分}} 分。
+综合建议：{{综合建议}}</textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- 底部操作 -->
+  <div class="bg-white rounded-xl shadow-sm p-4 flex items-center justify-between">
+    <a href="/gui/admin/scales/combos" class="text-gray-500 hover:text-gray-700 text-sm flex items-center gap-1">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+      </svg>
+      返回列表
+    </a>
+    <div class="flex gap-3">
+      <button onclick="saveDraft()"
+        class="border border-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">保存草稿</button>
+      <button onclick="saveAndEnable()"
+        class="bg-green-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-green-700">保存并启用</button>
+    </div>
+  </div>
+</div>
+
+<!-- 量表选择器弹窗 -->
+<div id="scale-picker-modal" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center hidden">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 max-h-[80vh] flex flex-col">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-semibold text-gray-800 text-lg">选择量表</h3>
+      <button onclick="closeScalePicker()" class="text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <input type="text" placeholder="搜索量表..." id="picker-search"
+      class="border border-gray-200 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-blue-300 w-full"
+      oninput="filterPicker()">
+    <div id="picker-list" class="overflow-y-auto flex-1 space-y-2 pr-1"></div>
+    <div class="flex justify-end mt-4 pt-4 border-t border-gray-100">
+      <button onclick="closeScalePicker()" class="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-blue-700">完成</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="fixed top-4 right-4 z-[100] hidden">
+  <div class="bg-gray-800 text-white px-4 py-2.5 rounded-lg text-sm shadow-lg flex items-center gap-2">
+    <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+    </svg>
+    <span id="toast-msg"></span>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const ALL_SCALES = [
+  { id: 1, name: '中医九体质辨识量表', category: '体质评估', questions: 72, duration: 15 },
+  { id: 2, name: 'PHQ-9 抑郁症筛查量表', category: '心理健康', questions: 9, duration: 5 },
+  { id: 3, name: 'GAD-7 焦虑症筛查量表', category: '心理健康', questions: 7, duration: 4 },
+  { id: 4, name: '匹兹堡睡眠质量指数(PSQI)', category: '睡眠评估', questions: 19, duration: 8 },
+  { id: 5, name: 'ADL 日常生活能力量表', category: '功能评估', questions: 20, duration: 10 },
+  { id: 6, name: 'MMSE 简易精神状态检查', category: '认知评估', questions: 30, duration: 12 },
+  { id: 7, name: 'GDS 老年抑郁量表', category: '心理健康', questions: 15, duration: 6 },
+  { id: 8, name: '高血压自我管理量表', category: '慢病管理', questions: 24, duration: 10 },
+  { id: 9, name: 'DQoL 糖尿病生活质量量表', category: '慢病管理', questions: 46, duration: 18 },
+  { id: 10, name: 'SF-36 健康状况调查量表', category: '综合评估', questions: 36, duration: 15 },
+];
+
+let selectedScales = {% if combo_id %}[
+  { ...ALL_SCALES[0], required: true,  customDuration: 15 },
+  { ...ALL_SCALES[1], required: true,  customDuration: 5 },
+  { ...ALL_SCALES[3], required: false, customDuration: 8 },
+]{% else %}[]{% endif %};
+
+function renderSelectedScales() {
+  const container = document.getElementById('selected-scales');
+  const empty = document.getElementById('empty-scales');
+  const total = document.getElementById('scale-total');
+
+  if (selectedScales.length === 0) {
+    container.innerHTML = '';
+    empty.classList.remove('hidden');
+    total.innerHTML = '';
+    return;
+  }
+  empty.classList.add('hidden');
+
+  container.innerHTML = selectedScales.map((s, i) => `
+    <div class="scale-item grid grid-cols-12 gap-2 px-3 py-3 items-center rounded-lg" data-idx="${i}">
+      <div class="col-span-1 text-center text-sm font-medium text-gray-400">${i + 1}</div>
+      <div class="col-span-5">
+        <p class="text-sm font-medium text-gray-800">${s.name}</p>
+        <p class="text-xs text-gray-400">${s.category} · ${s.questions}题</p>
+      </div>
+      <div class="col-span-2 text-center">
+        <input type="checkbox" ${s.required ? 'checked' : ''} onchange="toggleRequired(${i})"
+          class="rounded text-green-600 focus:ring-green-400">
+      </div>
+      <div class="col-span-2 text-center">
+        <input type="number" value="${s.customDuration}" min="1" max="120" onchange="updateDuration(${i}, this.value)"
+          class="w-16 text-center border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+      </div>
+      <div class="col-span-2 flex items-center justify-center gap-1">
+        <button onclick="moveScale(${i}, -1)" ${i === 0 ? 'disabled' : ''}
+          class="p-1 rounded text-gray-400 hover:text-gray-600 disabled:opacity-30">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/>
+          </svg>
+        </button>
+        <button onclick="moveScale(${i}, 1)" ${i === selectedScales.length - 1 ? 'disabled' : ''}
+          class="p-1 rounded text-gray-400 hover:text-gray-600 disabled:opacity-30">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+        <button onclick="removeScale(${i})" class="p-1 rounded text-red-400 hover:text-red-600">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>`).join('');
+
+  const totalTime = selectedScales.reduce((sum, s) => sum + (s.customDuration || 5), 0);
+  total.innerHTML = `<span class="text-gray-400">共 ${selectedScales.length} 个量表</span>
+    <span class="text-gray-400">预计总时长：<strong class="text-gray-700">${totalTime} 分钟</strong></span>`;
+}
+
+function moveScale(idx, dir) {
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= selectedScales.length) return;
+  [selectedScales[idx], selectedScales[newIdx]] = [selectedScales[newIdx], selectedScales[idx]];
+  renderSelectedScales();
+}
+
+function removeScale(idx) {
+  selectedScales.splice(idx, 1);
+  renderSelectedScales();
+}
+
+function toggleRequired(idx) {
+  selectedScales[idx].required = !selectedScales[idx].required;
+}
+
+function updateDuration(idx, val) {
+  selectedScales[idx].customDuration = parseInt(val) || 5;
+  renderSelectedScales();
+}
+
+function openScalePicker() {
+  document.getElementById('scale-picker-modal').classList.remove('hidden');
+  renderPickerList(ALL_SCALES);
+}
+
+function closeScalePicker() {
+  document.getElementById('scale-picker-modal').classList.add('hidden');
+}
+
+function filterPicker() {
+  const q = document.getElementById('picker-search').value.toLowerCase();
+  const filtered = ALL_SCALES.filter(s => s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q));
+  renderPickerList(filtered);
+}
+
+function renderPickerList(list) {
+  document.getElementById('picker-list').innerHTML = list.map(s => {
+    const selected = selectedScales.some(ss => ss.id === s.id);
+    return `
+      <div class="flex items-center justify-between p-3 rounded-lg border ${selected ? 'border-blue-200 bg-blue-50' : 'border-gray-100 hover:bg-gray-50'} cursor-pointer"
+        onclick="togglePickerScale(${s.id})">
+        <div>
+          <p class="text-sm font-medium text-gray-800">${s.name}</p>
+          <p class="text-xs text-gray-400">${s.category} · ${s.questions}题 · 约${s.duration}分钟</p>
+        </div>
+        <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0
+          ${selected ? 'border-blue-600 bg-blue-600' : 'border-gray-300'}">
+          ${selected ? '<svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function togglePickerScale(id) {
+  const scale = ALL_SCALES.find(s => s.id === id);
+  const existingIdx = selectedScales.findIndex(s => s.id === id);
+  if (existingIdx >= 0) {
+    selectedScales.splice(existingIdx, 1);
+  } else {
+    selectedScales.push({ ...scale, required: true, customDuration: scale.duration });
+  }
+  renderPickerList(ALL_SCALES.filter(s => {
+    const q = document.getElementById('picker-search').value.toLowerCase();
+    return !q || s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q);
+  }));
+  renderSelectedScales();
+}
+
+// 结果模式切换
+document.querySelectorAll('input[name="result-mode"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    const wrap = document.getElementById('report-template-wrap');
+    wrap.classList.toggle('hidden', radio.value !== 'report');
+  });
+});
+
+function saveDraft() {
+  showToast('草稿已保存');
+}
+
+function saveAndEnable() {
+  const name = document.getElementById('combo-name').value.trim();
+  if (!name) { showToast('请填写组合名称'); return; }
+  if (selectedScales.length === 0) { showToast('请至少添加一个量表'); return; }
+  showToast('组合量表已保存并启用');
+  setTimeout(() => { window.location.href = '/gui/admin/scales/combos'; }, 1500);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  t.classList.remove('hidden');
+  setTimeout(() => t.classList.add('hidden'), 3000);
+}
+
+renderSelectedScales();
+</script>
+{% endblock %}

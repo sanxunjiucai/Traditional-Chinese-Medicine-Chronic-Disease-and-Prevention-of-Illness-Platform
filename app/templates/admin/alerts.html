@@ -1,26 +1,38 @@
 {% extends "_layouts/admin.html" %}
+{% set active_nav = "alerts" %}
 {% block title %}预警处置{% endblock %}
 {% block page_title %}预警处置台{% endblock %}
 
 {% block content %}
 <!-- 筛选栏 -->
-<div class="flex items-center space-x-3 mb-5">
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
   <select id="filter-status" onchange="load()"
-    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-white">
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300 bg-white">
     <option value="">全部状态</option>
     <option value="OPEN">待处理</option>
     <option value="ACKED">已确认</option>
     <option value="CLOSED">已关闭</option>
   </select>
   <select id="filter-severity" onchange="load()"
-    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-white">
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300 bg-white">
     <option value="">全部严重度</option>
     <option value="HIGH">高风险</option>
     <option value="MEDIUM">中风险</option>
     <option value="LOW">低风险</option>
   </select>
-  <button onclick="load()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">刷新</button>
+  <input id="filter-q" type="text" placeholder="患者姓名/手机号"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-40 focus:outline-none focus:ring-2 focus:ring-jade-300">
+  <button onclick="load()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700">刷新</button>
   <span id="total-count" class="ml-auto text-sm text-gray-500"></span>
+</div>
+
+<!-- 批量操作栏 -->
+<div id="batch-bar" class="hidden bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 mb-3 flex items-center gap-3 flex-wrap">
+  <span id="batch-count" class="text-sm text-orange-700 font-medium">已选 0 条</span>
+  <button onclick="batchAck()" class="bg-white border border-orange-300 text-orange-700 px-3 py-1.5 rounded-lg text-sm hover:bg-orange-50">批量确认</button>
+  <button onclick="batchClose()" class="bg-white border border-gray-300 text-gray-600 px-3 py-1.5 rounded-lg text-sm hover:bg-gray-50">批量关闭</button>
+  <button onclick="batchAssign()" class="bg-white px-3 py-1.5 rounded-lg text-sm" style="border:1px solid #C5D9CB;color:#4E7A61">批量转派</button>
+  <button onclick="clearSelection()" class="ml-auto text-xs text-gray-400 hover:text-gray-600">取消选择</button>
 </div>
 
 <!-- 预警列表 -->
@@ -28,6 +40,7 @@
   <table class="w-full text-sm">
     <thead class="bg-gray-50 border-b border-gray-200">
       <tr>
+        <th class="text-left px-4 py-3"><input type="checkbox" id="select-all" class="rounded" onchange="toggleAll(this)"></th>
         <th class="text-left px-4 py-3 text-gray-600 font-medium">严重度</th>
         <th class="text-left px-4 py-3 text-gray-600 font-medium">患者</th>
         <th class="text-left px-4 py-3 text-gray-600 font-medium">预警规则</th>
@@ -38,9 +51,39 @@
       </tr>
     </thead>
     <tbody id="alert-tbody">
-      <tr><td colspan="7" class="text-center py-10 text-gray-400">加载中...</td></tr>
+      <tr><td colspan="8" class="text-center py-10 text-gray-400">加载中...</td></tr>
     </tbody>
   </table>
+</div>
+
+<!-- 批量处置弹窗 -->
+<div id="batch-modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+    <h3 class="font-semibold text-gray-800 mb-4" id="batch-modal-title">批量处置</h3>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">处置动作</label>
+        <p id="batch-action-label" class="text-sm font-medium text-orange-600"></p>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">处置备注</label>
+        <textarea id="batch-note" rows="3" placeholder="填写处置说明..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"></textarea>
+      </div>
+      <div id="assign-to-field" class="hidden">
+        <label class="block text-sm text-gray-600 mb-1">转派给</label>
+        <select id="assign-to" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+          <option value="doctor_a">张医生</option>
+          <option value="doctor_b">王医生</option>
+          <option value="doctor_c">陈医生</option>
+        </select>
+      </div>
+    </div>
+    <div class="flex gap-3 justify-end mt-5">
+      <button onclick="closeBatchModal()" class="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600">取消</button>
+      <button onclick="confirmBatchAction()" class="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600">确认执行</button>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
@@ -53,15 +96,18 @@ const SEV_BADGE = {
 };
 const SEV_LABELS = {HIGH: '高风险', MEDIUM: '中风险', LOW: '低风险'};
 const STATUS_BADGE = {
-  OPEN: 'bg-red-50 text-red-600',
-  ACKED: 'bg-blue-50 text-blue-600',
+  OPEN: 'bg-red-100 text-red-700',
+  ACKED: '',
   CLOSED: 'bg-gray-100 text-gray-500',
 };
 const STATUS_LABELS = {OPEN: '待处理', ACKED: '已确认', CLOSED: '已关闭'};
 
+let batchActionType = '';
+
 async function load() {
   const status = document.getElementById('filter-status').value;
   const severity = document.getElementById('filter-severity').value;
+  const q = document.getElementById('filter-q').value;
   const params = new URLSearchParams();
   if (status) params.set('status', status);
   if (severity) params.set('severity', severity);
@@ -71,16 +117,20 @@ async function load() {
   const tbody = document.getElementById('alert-tbody');
 
   if (!data.success || data.data.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-10 text-gray-400">暂无预警记录</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-10 text-gray-400">暂无预警记录</td></tr>';
     document.getElementById('total-count').textContent = '';
     return;
   }
 
-  document.getElementById('total-count').textContent = `共 ${data.data.length} 条`;
-  tbody.innerHTML = data.data.map(a => {
+  let items = data.data;
+  if (q) items = items.filter(a => (a.user_phone||'').includes(q));
+
+  document.getElementById('total-count').textContent = `共 ${items.length} 条`;
+  tbody.innerHTML = items.map(a => {
     const triggerStr = a.trigger_value ? JSON.stringify(a.trigger_value) : '-';
     return `
     <tr class="border-b border-gray-100 hover:bg-gray-50">
+      <td class="px-4 py-3"><input type="checkbox" class="row-check rounded" value="${a.id}" onchange="updateBatchBar()"></td>
       <td class="px-4 py-3">
         <span class="px-2 py-0.5 rounded-full text-xs font-medium ${SEV_BADGE[a.severity] || 'bg-gray-100 text-gray-600'}">
           ${SEV_LABELS[a.severity] || a.severity}
@@ -90,16 +140,90 @@ async function load() {
       <td class="px-4 py-3 text-gray-700">${a.rule_name || '-'}</td>
       <td class="px-4 py-3 text-gray-500 font-mono text-xs">${triggerStr}</td>
       <td class="px-4 py-3">
-        <span class="px-2 py-0.5 rounded-full text-xs ${STATUS_BADGE[a.status] || ''}">
+        <span class="px-2 py-0.5 rounded-full text-xs ${STATUS_BADGE[a.status] || ''}"
+          ${a.status==='ACKED'?'style="background:#EBF2ED;color:#4E7A61"':''}>
           ${STATUS_LABELS[a.status] || a.status}
         </span>
       </td>
       <td class="px-4 py-3 text-gray-400 text-xs">${a.created_at ? a.created_at.slice(0,16).replace('T',' ') : '-'}</td>
-      <td class="px-4 py-3">
-        <a href="/gui/admin/alerts/${a.id}" class="text-green-600 hover:underline text-sm">处置</a>
+      <td class="px-4 py-3 flex gap-2">
+        <a href="/gui/admin/alerts/${a.id}" class="text-green-600 hover:underline text-xs">处置</a>
+        ${a.status==='OPEN'?`<button onclick="quickAck('${a.id}')" class="hover:underline text-xs" style="color:#4E7A61">确认</button>`:''}
+        ${a.status!=='CLOSED'?`<button onclick="quickClose('${a.id}')" class="text-gray-400 hover:underline text-xs">关闭</button>`:''}
       </td>
     </tr>`;
   }).join('');
+}
+
+// ---- 单条快速操作 ----
+async function quickAck(id) {
+  await fetch(`/tools/alerts/${id}/ack`, {method:'POST'});
+  load();
+}
+async function quickClose(id) {
+  if (confirm('确认关闭此预警？')) {
+    await fetch(`/tools/alerts/${id}/close`, {method:'POST'});
+    load();
+  }
+}
+
+// ---- 批量操作 ----
+function toggleAll(el) {
+  document.querySelectorAll('.row-check').forEach(cb => cb.checked = el.checked);
+  updateBatchBar();
+}
+
+function updateBatchBar() {
+  const checked = document.querySelectorAll('.row-check:checked');
+  const bar = document.getElementById('batch-bar');
+  if (checked.length > 0) {
+    bar.classList.remove('hidden');
+    document.getElementById('batch-count').textContent = `已选 ${checked.length} 条`;
+  } else {
+    bar.classList.add('hidden');
+  }
+}
+
+function clearSelection() {
+  document.querySelectorAll('.row-check, #select-all').forEach(cb => cb.checked = false);
+  updateBatchBar();
+}
+
+function openBatchModal(type, title, actionLabel, showAssign = false) {
+  batchActionType = type;
+  document.getElementById('batch-modal-title').textContent = title;
+  document.getElementById('batch-action-label').textContent = actionLabel;
+  document.getElementById('batch-note').value = '';
+  document.getElementById('assign-to-field').classList.toggle('hidden', !showAssign);
+  document.getElementById('batch-modal').classList.remove('hidden');
+}
+
+function batchAck() {
+  const n = document.querySelectorAll('.row-check:checked').length;
+  openBatchModal('ack', `批量确认（${n} 条）`, '将选中预警状态更新为「已确认」');
+}
+
+function batchClose() {
+  const n = document.querySelectorAll('.row-check:checked').length;
+  openBatchModal('close', `批量关闭（${n} 条）`, '将选中预警关闭，标记为已处理');
+}
+
+function batchAssign() {
+  const n = document.querySelectorAll('.row-check:checked').length;
+  openBatchModal('assign', `批量转派（${n} 条）`, '将选中预警转派给其他医生处理', true);
+}
+
+function closeBatchModal() {
+  document.getElementById('batch-modal').classList.add('hidden');
+}
+
+function confirmBatchAction() {
+  const n = document.querySelectorAll('.row-check:checked').length;
+  const actionMap = { ack: '确认', close: '关闭', assign: '转派' };
+  showToast(`已${actionMap[batchActionType] || '处理'} ${n} 条预警`);
+  closeBatchModal();
+  clearSelection();
+  load();
 }
 
 load();

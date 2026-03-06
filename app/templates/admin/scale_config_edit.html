@@ -1,0 +1,192 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "scales" %}
+{% block title %}{% if scale_id %}编辑量表{% else %}新建量表{% endif %} - 治未病平台{% endblock %}
+{% block page_title %}{% if scale_id %}编辑量表{% else %}新建量表{% endif %}{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-3 gap-4">
+  <!-- 左侧：基本信息 -->
+  <div class="col-span-1 space-y-4">
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-4">量表基本信息</h3>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">量表名称 <span class="text-red-500">*</span></label>
+          <input id="scale-name" type="text" placeholder="量表名称"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">量表编码 <span class="text-red-500">*</span></label>
+          <input id="scale-code" type="text" placeholder="唯一编码（如 PHQ9）"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-300">
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">量表类型</label>
+          <select id="scale-type"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            <option value="SINGLE">单量表</option>
+            <option value="COMPOSITE">组合量表</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">分类</label>
+          <select id="scale-category"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            <option value="CONSTITUTION">体质评估</option>
+            <option value="MENTAL">心理健康</option>
+            <option value="FUNCTION">功能评估</option>
+            <option value="CHRONIC">慢病管理</option>
+            <option value="GERIATRIC">老年评估</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">说明</label>
+          <textarea id="scale-desc" rows="3" placeholder="量表用途说明..."
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- 计分规则 -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-4">计分规则</h3>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">计分方式</label>
+          <select id="score-method"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            <option value="SUM">求和</option>
+            <option value="AVG">平均</option>
+            <option value="WEIGHTED">加权</option>
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">最低分</label>
+            <input id="min-score" type="number" value="0"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">最高分</label>
+            <input id="max-score" type="number" value="100"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 分层规则 -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h3 class="font-semibold text-gray-700 mb-3">分层规则</h3>
+      <div id="levels-list" class="space-y-2 mb-3">
+        <div class="flex gap-2 items-center">
+          <input type="number" placeholder="下限" value="0" class="w-16 border border-gray-200 rounded px-2 py-1 text-xs">
+          <span class="text-gray-400">~</span>
+          <input type="number" placeholder="上限" value="4" class="w-16 border border-gray-200 rounded px-2 py-1 text-xs">
+          <input type="text" placeholder="标签" value="正常" class="flex-1 border border-gray-200 rounded px-2 py-1 text-xs">
+        </div>
+        <div class="flex gap-2 items-center">
+          <input type="number" placeholder="下限" value="5" class="w-16 border border-gray-200 rounded px-2 py-1 text-xs">
+          <span class="text-gray-400">~</span>
+          <input type="number" placeholder="上限" value="9" class="w-16 border border-gray-200 rounded px-2 py-1 text-xs">
+          <input type="text" placeholder="标签" value="轻度" class="flex-1 border border-gray-200 rounded px-2 py-1 text-xs">
+        </div>
+      </div>
+      <button onclick="addLevel()" class="text-indigo-600 text-xs hover:underline">+ 添加分层</button>
+    </div>
+  </div>
+
+  <!-- 右侧：题目编辑 -->
+  <div class="col-span-2 space-y-4">
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-gray-700">题目列表</h3>
+        <button onclick="addQuestion()"
+          class="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg text-sm hover:bg-indigo-100">+ 添加题目</button>
+      </div>
+      <div id="questions-list" class="space-y-3">
+        <!-- 示例题目 -->
+        <div class="border border-gray-100 rounded-xl p-4" data-q="1">
+          <div class="flex items-start gap-3">
+            <span class="text-sm font-bold text-indigo-400 mt-1">Q1</span>
+            <div class="flex-1">
+              <input type="text" placeholder="题目内容" value="示例题目1"
+                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+              <div class="grid grid-cols-2 gap-2">
+                <input type="text" placeholder="选项A" value="完全没有（0分）"
+                  class="border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                <input type="text" placeholder="选项B" value="有时（1分）"
+                  class="border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                <input type="text" placeholder="选项C" value="经常（2分）"
+                  class="border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                <input type="text" placeholder="选项D" value="总是（3分）"
+                  class="border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-300">
+              </div>
+            </div>
+            <button onclick="removeQuestion(this)" class="text-gray-300 hover:text-red-400 mt-1">✕</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部按钮 -->
+    <div class="flex gap-3 justify-between">
+      <a href="/gui/admin/scale-config"
+        class="px-5 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">取消</a>
+      <div class="flex gap-2">
+        <button onclick="saveScale('draft')"
+          class="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">保存草稿</button>
+        <button onclick="saveScale('active')"
+          class="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-indigo-700 font-medium">发布量表</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let qCount = 1;
+
+function addQuestion() {
+  qCount++;
+  const div = document.createElement('div');
+  div.className = 'border border-gray-100 rounded-xl p-4';
+  div.innerHTML = `
+    <div class="flex items-start gap-3">
+      <span class="text-sm font-bold text-indigo-400 mt-1">Q${qCount}</span>
+      <div class="flex-1">
+        <input type="text" placeholder="题目内容"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+        <div class="grid grid-cols-2 gap-2">
+          ${['完全没有（0分）','有时（1分）','经常（2分）','总是（3分）'].map(opt => `
+            <input type="text" value="${opt}"
+              class="border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-300">`).join('')}
+        </div>
+      </div>
+      <button onclick="removeQuestion(this)" class="text-gray-300 hover:text-red-400 mt-1">✕</button>
+    </div>`;
+  document.getElementById('questions-list').appendChild(div);
+}
+
+function removeQuestion(btn) {
+  btn.closest('.border').remove();
+}
+
+function addLevel() {
+  const div = document.createElement('div');
+  div.className = 'flex gap-2 items-center';
+  div.innerHTML = `
+    <input type="number" placeholder="下限" class="w-16 border border-gray-200 rounded px-2 py-1 text-xs">
+    <span class="text-gray-400">~</span>
+    <input type="number" placeholder="上限" class="w-16 border border-gray-200 rounded px-2 py-1 text-xs">
+    <input type="text" placeholder="标签" class="flex-1 border border-gray-200 rounded px-2 py-1 text-xs">`;
+  document.getElementById('levels-list').appendChild(div);
+}
+
+function saveScale(status) {
+  showToast(`量表${status==='active'?'发布':'草稿保存'}成功`);
+  window.location.href = '/gui/admin/scale-config';
+}
+</script>
+{% endblock %}

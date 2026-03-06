@@ -1,0 +1,229 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "assessments" %}
+{% block title %}综合健康报告 - 治未病平台{% endblock %}
+{% block page_title %}综合健康报告{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-5">
+
+  <!-- 患者选择 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h3 class="font-semibold text-gray-700 mb-4 flex items-center gap-2">
+      <span class="w-6 h-6 bg-teal-600 text-white rounded-full flex items-center justify-center text-xs">1</span>
+      选择患者
+    </h3>
+    <div class="flex gap-3">
+      <input id="patient-q" type="text" placeholder="点击或输入姓名/手机号搜索"
+        onfocus="searchPatient()" oninput="debouncePatient()" autocomplete="off"
+        class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300">
+      <button onclick="searchPatient()" class="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-teal-700">搜索</button>
+    </div>
+    <div id="patient-result" class="hidden mt-2 border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-40 overflow-y-auto"></div>
+    <div id="selected-patient" class="hidden mt-3 bg-teal-50 rounded-lg p-3 flex items-center justify-between">
+      <div>
+        <span class="text-teal-700 font-medium text-sm" id="patient-name-display"></span>
+        <span class="text-gray-500 text-xs ml-2" id="patient-info-display"></span>
+      </div>
+      <button onclick="clearPatient()" class="text-xs text-gray-400 hover:text-gray-600">更换</button>
+    </div>
+  </div>
+
+  <!-- 选择评估报告 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h3 class="font-semibold text-gray-700 mb-2 flex items-center gap-2">
+      <span class="w-6 h-6 bg-teal-600 text-white rounded-full flex items-center justify-center text-xs">2</span>
+      选择评估报告（可多选）
+    </h3>
+    <p class="text-xs text-gray-500 mb-4">从该患者已完成的评估报告中选择需要合并的报告，可跨类型（体质评估 + 健康评估）。</p>
+    <div id="report-list" class="space-y-2">
+      <div class="text-gray-400 text-sm text-center py-4">请先选择患者</div>
+    </div>
+    <div id="selected-count" class="hidden mt-3 text-sm text-teal-700 font-medium">
+      已选择 <span id="count-num">0</span> 份报告
+    </div>
+  </div>
+
+  <!-- 综合报告设置 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h3 class="font-semibold text-gray-700 mb-4 flex items-center gap-2">
+      <span class="w-6 h-6 bg-teal-600 text-white rounded-full flex items-center justify-center text-xs">3</span>
+      综合报告设置
+    </h3>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">报告标题 <span class="text-red-500">*</span></label>
+        <input id="report-title" type="text" placeholder="如：张三综合健康评估报告（2026年3月）"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300">
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">总评结论</label>
+        <textarea id="report-conclusion" rows="4"
+          placeholder="综合各项评估结果，对患者健康状况的总体评价..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">综合建议</label>
+        <textarea id="report-suggestion" rows="4"
+          placeholder="基于各评估结果，给出的综合健康管理建议..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300"></textarea>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">风险等级</label>
+          <select id="risk-level" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+            <option value="">自动评定</option>
+            <option value="LOW">低风险</option>
+            <option value="MEDIUM">中风险</option>
+            <option value="HIGH">高风险</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">下次评估建议时间</label>
+          <input id="next-assess-date" type="date"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 提交按钮 -->
+  <div class="flex gap-3 justify-between">
+    <a href="/gui/admin/health-assess"
+      class="px-5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">取消</a>
+    <div class="flex gap-3">
+      <button onclick="generateReport(false)"
+        class="px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">保存草稿</button>
+      <button onclick="generateReport(true)"
+        class="bg-teal-600 text-white px-6 py-2.5 rounded-lg text-sm hover:bg-teal-700 font-medium">生成并发布综合报告</button>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let selectedPatientId = null;
+let selectedReports = new Set();
+
+// 演示报告数据
+const DEMO_REPORTS = [
+  { id: 'r001', type: '体质评估', title: '中医体质辨识报告', date: '2026-02-15', score: 72, status: 'REPORTED', result: '气虚质' },
+  { id: 'r002', type: '健康评估', title: '综合健康评估报告', date: '2026-02-20', score: 68, status: 'REPORTED', result: '亚健康' },
+  { id: 'r003', type: '量表评估', title: '老年综合评估量表', date: '2026-01-10', score: 85, status: 'REPORTED', result: '生活自理' },
+];
+
+let _allPatients = null;
+let _pTimer = null;
+
+async function loadAllPatients() {
+  if (_allPatients !== null) return _allPatients;
+  try {
+    const r = await fetch('/tools/archive/archives?page_size=100');
+    const j = await r.json();
+    _allPatients = (j.success && j.data?.items) ? j.data.items : [];
+  } catch { _allPatients = []; }
+  return _allPatients;
+}
+
+function debouncePatient() {
+  clearTimeout(_pTimer);
+  _pTimer = setTimeout(searchPatient, 200);
+}
+
+async function searchPatient() {
+  const q = document.getElementById('patient-q').value.trim();
+  const patients = await loadAllPatients();
+  const filtered = q ? patients.filter(p => p.name.includes(q) || (p.phone||'').includes(q)) : patients;
+  const resultDiv = document.getElementById('patient-result');
+  if (!filtered.length) {
+    resultDiv.innerHTML = '<div class="px-3 py-3 text-gray-400 text-sm text-center">未找到匹配患者</div>';
+    resultDiv.classList.remove('hidden');
+    return;
+  }
+  resultDiv.innerHTML = filtered.slice(0, 30).map(a => `
+    <div class="px-3 py-2 hover:bg-teal-50 cursor-pointer flex items-center gap-3 text-sm"
+         onclick="selectPatient('${a.id}','${a.name}','${a.gender||''}','${a.birth_date||''}')">
+      <span class="font-medium text-gray-800">${a.name}</span>
+      <span class="text-gray-400 text-xs">${a.phone||''}</span>
+      <span class="text-gray-400 text-xs">${a.gender==='male'?'男':a.gender==='female'?'女':''}</span>
+    </div>`).join('');
+  resultDiv.classList.remove('hidden');
+}
+
+function selectPatient(id, name, gender, birthDate) {
+  selectedPatientId = id;
+  document.getElementById('patient-name-display').textContent = name;
+  document.getElementById('patient-info-display').textContent =
+    `${gender==='male'?'男':gender==='female'?'女':''}  ${birthDate||''}`;
+  document.getElementById('selected-patient').classList.remove('hidden');
+  document.getElementById('patient-result').classList.add('hidden');
+  document.getElementById('report-title').value = `${name}综合健康评估报告（${new Date().getFullYear()}年${new Date().getMonth()+1}月）`;
+  loadPatientReports(id);
+}
+
+function clearPatient() {
+  selectedPatientId = null;
+  selectedReports.clear();
+  document.getElementById('selected-patient').classList.add('hidden');
+  document.getElementById('patient-q').value = '';
+  document.getElementById('report-list').innerHTML = '<div class="text-gray-400 text-sm text-center py-4">请先选择患者</div>';
+  document.getElementById('selected-count').classList.add('hidden');
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#patient-q') && !e.target.closest('#patient-result')) {
+    document.getElementById('patient-result').classList.add('hidden');
+  }
+});
+
+function loadPatientReports(patientId) {
+  // 演示：展示该患者的评估报告
+  const reports = DEMO_REPORTS;
+  if (!reports.length) {
+    document.getElementById('report-list').innerHTML = '<div class="text-gray-400 text-sm text-center py-4">该患者暂无已完成的评估报告</div>';
+    return;
+  }
+  document.getElementById('report-list').innerHTML = reports.map(r => `
+    <label class="flex items-start gap-3 p-3 rounded-lg border border-gray-200 hover:border-teal-300 cursor-pointer transition-colors">
+      <input type="checkbox" value="${r.id}" onchange="updateSelectedCount()"
+        class="mt-0.5 rounded text-teal-600">
+      <div class="flex-1">
+        <div class="flex items-center gap-2">
+          <span class="font-medium text-sm text-gray-800">${r.title}</span>
+          <span class="px-2 py-0.5 rounded-full text-xs bg-teal-100 text-teal-700">${r.type}</span>
+        </div>
+        <div class="flex items-center gap-3 mt-1 text-xs text-gray-500">
+          <span>${r.date}</span>
+          <span>得分：<strong class="text-teal-600">${r.score}分</strong></span>
+          <span>结论：${r.result}</span>
+        </div>
+      </div>
+    </label>`).join('');
+  document.getElementById('selected-count').classList.remove('hidden');
+}
+
+function updateSelectedCount() {
+  const checked = document.querySelectorAll('#report-list input[type=checkbox]:checked');
+  document.getElementById('count-num').textContent = checked.length;
+}
+
+function generateReport(publish) {
+  if (!selectedPatientId) { showToast('请先选择患者'); return; }
+  const checked = document.querySelectorAll('#report-list input[type=checkbox]:checked');
+  if (!checked.length) { showToast('请至少选择一份评估报告'); return; }
+  const title = document.getElementById('report-title').value.trim();
+  if (!title) { showToast('请填写报告标题'); return; }
+  showToast(`综合报告已${publish?'生成并发布':'保存草稿'}`);
+  window.location.href = '/gui/admin/health-assess';
+}
+
+// 从URL参数自动选择基础报告
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('base')) {
+  setTimeout(() => {
+    document.querySelector('#report-list input[value="' + urlParams.get('base') + '"]')?.click();
+  }, 500);
+}
+</script>
+{% endblock %}

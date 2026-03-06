@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>治未病·诊中助手</title>
+  <style>
+    /* ── 全局重置 ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 340px;
+      min-height: 200px;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 13px;
+      color: #1f2937;
+      background: #ffffff;
+    }
+
+    /* ── 顶部标题 ── */
+    .popup-header {
+      background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+      color: white;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .popup-header .logo { font-size: 20px; line-height: 1; }
+    .popup-header-text { flex: 1; }
+    .popup-header-text h1 { font-size: 14px; font-weight: 700; letter-spacing: 0.5px; }
+    .popup-header-text p { font-size: 11px; opacity: 0.8; margin-top: 1px; }
+
+    /* ── 状态指示 ── */
+    .status-bar {
+      padding: 8px 16px;
+      background: #f0fdf4;
+      border-bottom: 1px solid #bbf7d0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #374151;
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #d1d5db;
+      flex-shrink: 0;
+    }
+    .status-dot.active { background: #16a34a; animation: pulse 1.5s infinite; }
+    .status-dot.error  { background: #dc2626; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
+    }
+
+    /* ── 主体内容 ── */
+    .popup-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 14px; }
+
+    /* ── 表单组 ── */
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .form-input {
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      padding: 7px 10px;
+      font-size: 12px;
+      color: #1f2937;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      width: 100%;
+    }
+    .form-input:focus {
+      border-color: #16a34a;
+      box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.15);
+    }
+    .form-hint { font-size: 10px; color: #9ca3af; line-height: 1.4; }
+
+    /* ── 保存按钮 ── */
+    .btn {
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      font-family: inherit;
+      transition: background 0.2s;
+      text-align: center;
+    }
+    .btn-primary { background: #16a34a; color: white; width: 100%; }
+    .btn-primary:hover { background: #15803d; }
+    .btn-success { background: #d1fae5; color: #065f46; }
+
+    /* ── 手动搜索区 ── */
+    .search-section {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .search-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .search-row { display: flex; gap: 6px; }
+    .search-input {
+      flex: 1;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      padding: 7px 10px;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-input:focus { border-color: #16a34a; }
+    .search-btn {
+      padding: 7px 12px;
+      background: #16a34a;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      font-family: inherit;
+      transition: background 0.2s;
+    }
+    .search-btn:hover { background: #15803d; }
+    .search-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .search-result { margin-top: 8px; font-size: 12px; color: #374151; min-height: 20px; }
+    .search-result.success { color: #15803d; }
+    .search-result.error { color: #dc2626; }
+
+    /* ── 底部链接 ── */
+    .popup-footer {
+      padding: 10px 16px;
+      border-top: 1px solid #e5e7eb;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .footer-link {
+      font-size: 11px;
+      color: #16a34a;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .footer-link:hover { text-decoration: underline; }
+    .version { font-size: 10px; color: #9ca3af; }
+
+    /* ── 分隔线 ── */
+    .divider {
+      height: 1px;
+      background: #e5e7eb;
+      margin: 0 -16px;
+    }
+
+    /* ── 连接测试结果 ── */
+    #conn-result {
+      font-size: 11px;
+      padding: 4px 0;
+      min-height: 18px;
+    }
+    #conn-result.ok { color: #15803d; }
+    #conn-result.fail { color: #dc2626; }
+  </style>
+</head>
+<body>
+
+  <!-- 顶部标题栏 -->
+  <div class="popup-header">
+    <span class="logo">🌿</span>
+    <div class="popup-header-text">
+      <h1>治未病·诊中助手</h1>
+      <p>中医慢病与治未病平台</p>
+    </div>
+  </div>
+
+  <!-- 当前状态 -->
+  <div class="status-bar">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">正在检测当前页面…</span>
+  </div>
+
+  <div class="popup-body">
+
+    <!-- 服务器配置 -->
+    <div class="form-group">
+      <label class="form-label" for="server-url">后端服务地址</label>
+      <input class="form-input" id="server-url"
+        type="url" placeholder="http://localhost:8010"
+        autocomplete="off" spellcheck="false" />
+      <span id="conn-result"></span>
+      <span class="form-hint">治未病平台的访问地址，默认 http://localhost:8010</span>
+    </div>
+
+    <!-- URL参数名配置 -->
+    <div class="form-group">
+      <label class="form-label" for="param-names">HIS患者ID参数名</label>
+      <input class="form-input" id="param-names"
+        type="text" placeholder="patient_id,pid,id"
+        autocomplete="off" />
+      <span class="form-hint">多个参数名用英文逗号分隔，插件将依次从URL中读取</span>
+    </div>
+
+    <!-- 保存按钮 -->
+    <button class="btn btn-primary" id="save-btn">保存配置</button>
+
+    <div class="divider"></div>
+
+    <!-- 手动搜索 -->
+    <div class="search-section">
+      <div class="search-section-title">手动搜索患者（自动检测失败时使用）</div>
+      <div class="search-row">
+        <input class="search-input" id="search-input"
+          type="text" placeholder="输入患者姓名或档案号"
+          autocomplete="off" />
+        <button class="search-btn" id="search-btn">搜索</button>
+      </div>
+      <div class="search-result" id="search-result"></div>
+    </div>
+
+  </div>
+
+  <!-- 底部 -->
+  <div class="popup-footer">
+    <a class="footer-link" id="open-platform">打开治未病平台 ↗</a>
+    <span class="version">v1.0.0</span>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

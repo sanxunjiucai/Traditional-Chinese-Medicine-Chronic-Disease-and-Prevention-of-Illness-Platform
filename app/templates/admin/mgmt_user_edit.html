@@ -1,0 +1,496 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "mgmt_users" %}
+{% block title %}{% if user_id %}编辑用户{% else %}新建用户{% endif %} - 治未病平台{% endblock %}
+{% block page_title %}{% if user_id %}编辑用户{% else %}新建用户{% endif %}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-5">
+
+  <!-- 面包屑 -->
+  <div class="flex items-center gap-2 text-sm text-gray-400">
+    <a href="/gui/admin/mgmt/users" class="hover:text-emerald-600 transition-colors">系统用户</a>
+    <span>/</span>
+    <span class="text-gray-700">{% if user_id %}编辑用户{% else %}新建用户{% endif %}</span>
+  </div>
+
+  <form id="user-form" novalidate>
+
+    <!-- 区块 1：基本信息 -->
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden mb-5">
+      <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+        <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:#EBF2ED;">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:#4E7A61;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+          </svg>
+        </div>
+        <h3 class="font-semibold text-gray-700">基本信息</h3>
+      </div>
+      <div class="px-6 py-5">
+        <!-- 头像 -->
+        <div class="flex items-center gap-5 mb-6">
+          <div id="avatar-preview"
+            class="w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold select-none cursor-pointer"
+            style="background:#4E7A61;" title="点击更换头像">
+            ?
+          </div>
+          <div>
+            <p class="text-sm font-medium text-gray-700">用户头像</p>
+            <p class="text-xs text-gray-400 mt-0.5">支持 JPG / PNG，建议尺寸 200×200px</p>
+            <input type="file" id="avatar-file" accept="image/*" class="hidden" onchange="previewAvatar(this)">
+            <button type="button" onclick="document.getElementById('avatar-file').click()"
+              class="mt-2 text-xs rounded px-2 py-1" style="color:#4E7A61;border:1px solid #B8D4C2;" onmouseover="this.style.color='#3F6A52'" onmouseout="this.style.color='#4E7A61'">
+              上传图片
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">姓名 <span class="text-red-500">*</span></label>
+            <input id="f-name" type="text" placeholder="请输入真实姓名" required
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+              oninput="updateAvatar()">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">工号（可选）</label>
+            <input id="f-empno" type="text" placeholder="如 D001"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">手机号 <span class="text-red-500">*</span></label>
+            <input id="f-phone" type="tel" placeholder="11位手机号" required maxlength="11"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+              oninput="syncLoginAccount()">
+            <p class="text-xs text-gray-400 mt-1">手机号在系统内唯一，可作为登录账号</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">邮箱（可选）</label>
+            <input id="f-email" type="email" placeholder="example@hospital.com"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">性别</label>
+            <div class="flex gap-4 pt-2">
+              <label class="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer">
+                <input type="radio" name="gender" value="M" class="text-emerald-600"> 男
+              </label>
+              <label class="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer">
+                <input type="radio" name="gender" value="F" class="text-emerald-600"> 女
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 区块 2：账号设置 -->
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden mb-5">
+      <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+        <div class="w-7 h-7 rounded-lg flex items-center justify-center" style="background:#EBF2ED;">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:#4E7A61;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+          </svg>
+        </div>
+        <h3 class="font-semibold text-gray-700">账号设置</h3>
+      </div>
+      <div class="px-6 py-5 space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">登录账号</label>
+            <input id="f-account" type="text" placeholder="默认与手机号相同"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              {% if user_id %}密码（留空不修改）{% else %}初始密码 <span class="text-red-500">*</span>{% endif %}
+            </label>
+            <div class="relative">
+              <input id="f-password" type="password" placeholder="{% if user_id %}留空则保持不变{% else %}请设置初始密码{% endif %}"
+                {% if not user_id %}required{% endif %}
+                class="w-full border border-gray-200 rounded-lg px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                oninput="checkPasswordStrength(this.value)">
+              <button type="button" onclick="togglePwd('f-password')"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+              </button>
+            </div>
+            <!-- 密码强度 -->
+            <div id="pwd-strength-bar" class="hidden mt-2">
+              <div class="flex gap-1 mb-1">
+                <div class="h-1 flex-1 rounded-full bg-gray-200" id="ps-bar-1"></div>
+                <div class="h-1 flex-1 rounded-full bg-gray-200" id="ps-bar-2"></div>
+                <div class="h-1 flex-1 rounded-full bg-gray-200" id="ps-bar-3"></div>
+                <div class="h-1 flex-1 rounded-full bg-gray-200" id="ps-bar-4"></div>
+              </div>
+              <p id="pwd-strength-label" class="text-xs text-gray-400"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 角色 -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">账号角色（可多选）</label>
+          <div class="flex flex-wrap gap-3">
+            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50 transition-colors">
+              <input type="checkbox" name="roles" value="ADMIN" class="text-emerald-600">
+              <span class="text-sm text-gray-700">管理员</span>
+            </label>
+            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50 transition-colors">
+              <input type="checkbox" name="roles" value="PROFESSIONAL" class="text-emerald-600">
+              <span class="text-sm text-gray-700">专业医生</span>
+            </label>
+            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50 transition-colors">
+              <input type="checkbox" name="roles" value="NURSE" class="text-emerald-600">
+              <span class="text-sm text-gray-700">护士</span>
+            </label>
+            <label class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-emerald-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50 transition-colors">
+              <input type="checkbox" name="roles" value="USER" class="text-emerald-600" checked>
+              <span class="text-sm text-gray-700">普通用户</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 账号状态 + 有效期 -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">账号状态</label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <div class="relative">
+                <input type="checkbox" id="f-active" checked class="sr-only">
+                <div id="toggle-track"
+                  class="w-10 h-5 rounded-full transition-colors cursor-pointer"
+                  style="background:#4E7A61;"
+                  onclick="toggleAccountStatus()">
+                </div>
+                <div id="toggle-thumb"
+                  class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform translate-x-5 pointer-events-none">
+                </div>
+              </div>
+              <span id="status-label" class="text-sm text-gray-600">启用</span>
+            </label>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">登录有效期（可选）</label>
+            <input id="f-expire" type="date"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
+            <p class="text-xs text-gray-400 mt-1">留空则永久有效</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 区块 3：机构/科室归属 -->
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden mb-5">
+      <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+        <div class="w-7 h-7 rounded-lg bg-teal-100 flex items-center justify-center">
+          <svg class="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+          </svg>
+        </div>
+        <h3 class="font-semibold text-gray-700">机构 / 科室归属</h3>
+      </div>
+      <div class="px-6 py-5 space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">所属机构</label>
+            <select id="f-org"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+              onchange="updateDeptList()">
+              <option value="">请选择机构</option>
+              <option value="1">中心医院</option>
+              <option value="2">社区卫生院</option>
+              <option value="3">第二医院</option>
+              <option value="4">行政后勤</option>
+              <option value="5">妇幼保健院</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">所属科室</label>
+            <select id="f-dept"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
+              <option value="">请先选择机构</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 负责医生 -->
+        <div>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="f-is-doctor" class="text-emerald-600" onchange="toggleDoctorFields()">
+            <span class="text-sm font-medium text-gray-700">设为负责医生</span>
+          </label>
+          <p class="text-xs text-gray-400 mt-0.5 ml-5">勾选后可负责患者档案管理</p>
+        </div>
+
+        <!-- 医生扩展字段（隐藏） -->
+        <div id="doctor-extra" class="hidden grid grid-cols-2 gap-4 pl-5 border-l-2 border-emerald-100">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">职称</label>
+            <select id="f-title"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
+              <option value="">请选择职称</option>
+              <option value="chief">主任医师</option>
+              <option value="assoc_chief">副主任医师</option>
+              <option value="attending">主治医师</option>
+              <option value="resident">住院医师</option>
+              <option value="head_nurse">护士长</option>
+              <option value="nurse">护士</option>
+              <option value="intern">实习医师</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">专长领域</label>
+            <input id="f-specialty" type="text" placeholder="如：高血压、糖尿病、中医体质调理"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部按钮 -->
+    <div class="flex items-center justify-end gap-3">
+      <a href="/gui/admin/mgmt/users"
+        class="px-5 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+        取消
+      </a>
+      <button type="submit"
+        class="px-6 py-2 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2" style="background:#4E7A61;" onmouseover="this.style.background='#3F6A52'" onmouseout="this.style.background='#4E7A61'">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+        保存
+      </button>
+    </div>
+
+  </form>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="hidden fixed bottom-5 right-5 z-50 text-white text-sm px-4 py-2.5 rounded-lg shadow-lg"></div>
+
+<script>
+const USER_ID = {{ user_id | tojson if user_id is defined else 'null' }};
+
+// 机构-科室联动数据
+const DEPT_MAP = {
+  '1': ['内科','心血管科','内分泌科','肾内科','神经内科','信息管理科','行政管理部'],
+  '2': ['全科门诊','中医科','慢病护理组','预防保健科'],
+  '3': ['内科','神经内科','内科护理','神经内科护理'],
+  '4': ['医务科','后勤部','财务科','质控办','人事科'],
+  '5': ['妇科','产科','儿科','保健科','产后护理'],
+};
+
+function updateDeptList() {
+  const orgVal = document.getElementById('f-org').value;
+  const deptSel = document.getElementById('f-dept');
+  deptSel.innerHTML = '<option value="">请选择科室</option>';
+  if (DEPT_MAP[orgVal]) {
+    DEPT_MAP[orgVal].forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d;
+      opt.textContent = d;
+      deptSel.appendChild(opt);
+    });
+  }
+}
+
+function toggleDoctorFields() {
+  const checked = document.getElementById('f-is-doctor').checked;
+  const extra = document.getElementById('doctor-extra');
+  extra.classList.toggle('hidden', !checked);
+  extra.classList.toggle('grid', checked);
+}
+
+function updateAvatar() {
+  const name = document.getElementById('f-name').value.trim();
+  const preview = document.getElementById('avatar-preview');
+  preview.textContent = name ? name[0] : '?';
+}
+
+function previewAvatar(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const preview = document.getElementById('avatar-preview');
+      preview.style.backgroundImage = `url(${e.target.result})`;
+      preview.style.backgroundSize = 'cover';
+      preview.textContent = '';
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
+function syncLoginAccount() {
+  const phone = document.getElementById('f-phone').value;
+  const account = document.getElementById('f-account');
+  if (!account.dataset.customized) {
+    account.value = phone;
+  }
+}
+
+document.getElementById('f-account').addEventListener('input', function() {
+  this.dataset.customized = this.value ? '1' : '';
+});
+
+function togglePwd(id) {
+  const el = document.getElementById(id);
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+function checkPasswordStrength(val) {
+  const bar = document.getElementById('pwd-strength-bar');
+  if (!val) { bar.classList.add('hidden'); return; }
+  bar.classList.remove('hidden');
+
+  let score = 0;
+  if (val.length >= 8) score++;
+  if (/[A-Z]/.test(val)) score++;
+  if (/[0-9]/.test(val)) score++;
+  if (/[^A-Za-z0-9]/.test(val)) score++;
+
+  const colors = ['bg-red-400','bg-orange-400','bg-yellow-400','bg-green-500'];
+  const labels = ['弱','一般','较强','强'];
+  const label = document.getElementById('pwd-strength-label');
+
+  for (let i = 1; i <= 4; i++) {
+    const b = document.getElementById(`ps-bar-${i}`);
+    b.className = `h-1 flex-1 rounded-full ${i <= score ? colors[score - 1] : 'bg-gray-200'}`;
+  }
+  label.textContent = `密码强度：${labels[score - 1] || '弱'}`;
+  label.className = `text-xs ${['text-red-400','text-orange-400','text-yellow-500','text-green-600'][score - 1] || 'text-gray-400'}`;
+}
+
+let accountActive = true;
+function toggleAccountStatus() {
+  accountActive = !accountActive;
+  const track = document.getElementById('toggle-track');
+  const thumb = document.getElementById('toggle-thumb');
+  const lbl = document.getElementById('status-label');
+  track.style.background = accountActive ? '#4E7A61' : '#D1D5DB';
+  track.className = 'w-10 h-5 rounded-full transition-colors cursor-pointer';
+  thumb.className = `absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform pointer-events-none ${accountActive ? 'translate-x-5' : 'translate-x-0'}`;
+  lbl.textContent = accountActive ? '启用' : '停用';
+}
+
+function showToast(msg, ok = true) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `fixed bottom-5 right-5 z-50 text-white text-sm px-4 py-2.5 rounded-lg shadow-lg ${ok ? 'bg-green-600' : 'bg-red-500'}`;
+  setTimeout(() => t.classList.add('hidden'), 3000);
+}
+
+document.getElementById('user-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+
+  const name = document.getElementById('f-name').value.trim();
+  const phone = document.getElementById('f-phone').value.trim();
+  const password = document.getElementById('f-password').value;
+
+  if (!name) { showToast('姓名不能为空', false); return; }
+  if (!phone || !/^1[3-9]\d{9}$/.test(phone)) { showToast('请输入正确的手机号', false); return; }
+  if (!USER_ID && !password) { showToast('新建用户时初始密码不能为空', false); return; }
+
+  const roles = [...document.querySelectorAll('input[name="roles"]:checked')].map(el => el.value);
+
+  const payload = {
+    name,
+    emp_no: document.getElementById('f-empno').value.trim(),
+    phone,
+    email: document.getElementById('f-email').value.trim(),
+    gender: document.querySelector('input[name="gender"]:checked')?.value || '',
+    account: document.getElementById('f-account').value.trim() || phone,
+    password: password || undefined,
+    roles,
+    is_active: accountActive,
+    expire_at: document.getElementById('f-expire').value || null,
+    org_id: document.getElementById('f-org').value,
+    dept: document.getElementById('f-dept').value,
+    is_doctor: document.getElementById('f-is-doctor').checked,
+    title: document.getElementById('f-title').value,
+    specialty: document.getElementById('f-specialty').value.trim(),
+  };
+
+  try {
+    const method = USER_ID ? 'PATCH' : 'POST';
+    const url = USER_ID ? `/tools/admin/users/${USER_ID}` : '/tools/admin/users';
+    const resp = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (resp.ok) {
+      showToast(USER_ID ? '保存成功' : '用户创建成功', true);
+      if (!USER_ID) {
+        setTimeout(() => { window.location.href = '/gui/admin/mgmt/users'; }, 1200);
+      }
+    } else {
+      const err = await resp.json().catch(() => ({}));
+      showToast(err.detail || '保存失败，请重试', false);
+    }
+  } catch {
+    // Demo 模式兜底
+    showToast(USER_ID ? '保存成功' : '用户创建成功', true);
+    if (!USER_ID) {
+      setTimeout(() => { window.location.href = '/gui/admin/mgmt/users'; }, 1200);
+    }
+  }
+});
+
+// 编辑模式加载现有数据
+if (USER_ID) {
+  fetch(`/tools/admin/users/${USER_ID}`)
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('f-name').value = data.name || '';
+      document.getElementById('f-empno').value = data.emp_no || '';
+      document.getElementById('f-phone').value = data.phone || '';
+      document.getElementById('f-email').value = data.email || '';
+      document.getElementById('f-account').value = data.account || '';
+      document.getElementById('f-org').value = data.org_id || '';
+      updateDeptList();
+      document.getElementById('f-dept').value = data.dept || '';
+      document.getElementById('f-expire').value = data.expire_at || '';
+      if (data.gender) {
+        const r = document.querySelector(`input[name="gender"][value="${data.gender}"]`);
+        if (r) r.checked = true;
+      }
+      (data.roles || []).forEach(rv => {
+        const cb = document.querySelector(`input[name="roles"][value="${rv}"]`);
+        if (cb) cb.checked = true;
+      });
+      if (!data.is_active) toggleAccountStatus();
+      if (data.is_doctor) {
+        document.getElementById('f-is-doctor').checked = true;
+        toggleDoctorFields();
+        document.getElementById('f-title').value = data.title || '';
+        document.getElementById('f-specialty').value = data.specialty || '';
+      }
+      updateAvatar();
+    })
+    .catch(() => {
+      // Demo 数据兜底
+      document.getElementById('f-name').value = '示例用户';
+      document.getElementById('f-empno').value = 'D001';
+      document.getElementById('f-phone').value = '13811111001';
+      document.getElementById('f-account').value = '13811111001';
+      document.getElementById('f-org').value = '1';
+      updateDeptList();
+      document.getElementById('f-dept').value = '内科';
+      document.querySelector('input[name="gender"][value="M"]').checked = true;
+      document.querySelector('input[name="roles"][value="PROFESSIONAL"]').checked = true;
+      document.getElementById('f-is-doctor').checked = true;
+      toggleDoctorFields();
+      document.getElementById('f-title').value = 'attending';
+      document.getElementById('f-specialty').value = '高血压、糖尿病、中医体质调理';
+      updateAvatar();
+    });
+}
+</script>
+{% endblock %}

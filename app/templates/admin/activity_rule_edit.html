@@ -1,0 +1,322 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "activity_archives" %}
+{% block title %}{% if rule_id %}编辑规则{% else %}新建规则{% endif %} - 治未病平台{% endblock %}
+{% block page_title %}{% if rule_id %}编辑活动规则{% else %}新建活动规则{% endif %}{% endblock %}
+
+{% block content %}
+<!-- 面包屑 -->
+<nav class="flex items-center gap-2 text-sm text-gray-500 mb-5">
+  <a href="/gui/admin/activity-archives" class="hover:underline" style="color:inherit;" onmouseenter="this.style.color='#4E7A61'" onmouseleave="this.style.color=''">活动档案</a>
+  <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+  </svg>
+  <a href="/gui/admin/activity-archives/rules" class="hover:underline" style="color:inherit;" onmouseenter="this.style.color='#4E7A61'" onmouseleave="this.style.color=''">规则管理</a>
+  <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+  </svg>
+  <span class="text-gray-800 font-medium">{% if rule_id %}编辑规则{% else %}新建规则{% endif %}</span>
+</nav>
+
+<form id="rule-form" class="space-y-5" onsubmit="return false;">
+  <!-- 区块 1：基本信息 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h2 class="font-semibold text-gray-800 mb-5 flex items-center gap-2">
+      <span class="w-6 h-6 rounded-full text-white text-xs flex items-center justify-center font-bold" style="background:#4E7A61;">1</span>
+      基本信息
+    </h2>
+    <div class="grid grid-cols-2 gap-5">
+      <div class="col-span-2">
+        <label class="block text-sm font-medium text-gray-700 mb-1">规则名称 <span class="text-red-500">*</span></label>
+        <input id="rule-name" type="text" placeholder="请输入规则名称，如：近3月血压不达标患者"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300" required>
+      </div>
+      <div class="col-span-2">
+        <label class="block text-sm font-medium text-gray-700 mb-1">规则描述</label>
+        <textarea id="rule-desc" rows="2" placeholder="简述此规则的用途和目标人群..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300 resize-none"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">负责医生 <span class="text-red-500">*</span></label>
+        <select id="rule-doctor" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300">
+          <option value="">请选择负责医生</option>
+          <option value="1">李明医生（全科）</option>
+          <option value="2">王芳医生（中医科）</option>
+          <option value="3">张伟医生（慢病管理）</option>
+          <option value="4">刘静医生（老年科）</option>
+          <option value="5">陈磊医生（预防保健科）</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">生成周期 <span class="text-red-500">*</span></label>
+        <select id="rule-cycle" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300">
+          <option value="DAILY">每日</option>
+          <option value="WEEKLY">每周</option>
+          <option value="MONTHLY">每月</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- 区块 2：触发条件 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="font-semibold text-gray-800 flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full text-white text-xs flex items-center justify-center font-bold" style="background:#4E7A61;">2</span>
+        触发条件
+      </h2>
+      <!-- AND / OR 切换 -->
+      <div class="flex items-center gap-2 text-sm">
+        <span class="text-gray-500">条件关系：</span>
+        <div class="flex rounded-lg overflow-hidden border border-gray-200">
+          <button type="button" id="logic-and" onclick="setLogic('AND')"
+            class="px-3 py-1.5 text-white text-xs font-medium transition-colors" style="background:#4E7A61;">AND（全部满足）</button>
+          <button type="button" id="logic-or" onclick="setLogic('OR')"
+            class="px-3 py-1.5 bg-white text-gray-600 text-xs font-medium transition-colors border-l border-gray-200">OR（任一满足）</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="conditions-list" class="space-y-3">
+      <!-- 条件行由 JS 渲染 -->
+    </div>
+
+    <button type="button" onclick="addCondition()"
+      class="mt-4 flex items-center gap-1.5 text-sm border border-dashed rounded-lg px-4 py-2.5 w-full justify-center transition-colors" style="color:#4E7A61;border-color:#4E7A61;" onmouseenter="this.style.background='#EBF2ED'" onmouseleave="this.style.background=''">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      添加条件（最多 5 个）
+    </button>
+    <p id="condition-limit-hint" class="text-xs text-gray-400 mt-2 text-center hidden">已达最大条件数（5个）</p>
+  </div>
+
+  <!-- 区块 3：适用范围 -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <h2 class="font-semibold text-gray-800 mb-5 flex items-center gap-2">
+      <span class="w-6 h-6 rounded-full text-white text-xs flex items-center justify-center font-bold" style="background:#4E7A61;">3</span>
+      适用范围
+    </h2>
+    <div class="grid grid-cols-2 gap-5">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-3">适用档案类型（可多选）</label>
+        <div class="space-y-2">
+          <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+            <input type="checkbox" name="scope-type" value="NORMAL" class="rounded border-gray-300" style="accent-color:#4E7A61;"> 普通居民
+          </label>
+          <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+            <input type="checkbox" name="scope-type" value="ELDERLY" class="rounded border-gray-300" style="accent-color:#4E7A61;"> 老年人档案（60+）
+          </label>
+          <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+            <input type="checkbox" name="scope-type" value="KEY_FOCUS" class="rounded border-gray-300" style="accent-color:#4E7A61;"> 重点关注
+          </label>
+          <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+            <input type="checkbox" name="scope-type" value="FEMALE" class="rounded border-gray-300" style="accent-color:#4E7A61;"> 女性档案
+          </label>
+          <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+            <input type="checkbox" name="scope-type" value="CHILD" class="rounded border-gray-300" style="accent-color:#4E7A61;"> 儿童档案
+          </label>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">适用机构</label>
+        <select id="rule-org" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300">
+          <option value="">全部机构</option>
+          <option value="1">第一社区卫生服务中心</option>
+          <option value="2">第二社区卫生服务中心</option>
+          <option value="3">城东街道卫生院</option>
+          <option value="4">城西街道卫生院</option>
+          <option value="5">南区社区卫生服务站</option>
+        </select>
+        <p class="text-xs text-gray-400 mt-1">留空则适用于所有机构</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 底部操作 -->
+  <div class="flex items-center justify-between py-2">
+    <a href="/gui/admin/activity-archives/rules" class="border border-gray-200 text-gray-600 px-5 py-2.5 rounded-lg text-sm hover:bg-gray-50">取消</a>
+    <div class="flex gap-3">
+      <button type="button" onclick="saveRule('INACTIVE')" class="px-5 py-2.5 rounded-lg text-sm" style="border:1px solid #4E7A61;color:#4E7A61;" onmouseenter="this.style.background='#EBF2ED'" onmouseleave="this.style.background=''">保存草稿</button>
+      <button type="button" onclick="saveRule('ACTIVE')" class="text-white px-5 py-2.5 rounded-lg text-sm" style="background:#4E7A61;" onmouseenter="this.style.background='#3d6150'" onmouseleave="this.style.background='#4E7A61'">保存并启用</button>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const RULE_ID = "{{ rule_id or '' }}";
+
+const METRIC_OPTIONS = [
+  { value: 'BP_SYSTOLIC',   label: '血压（收缩压）',  unit: 'mmHg' },
+  { value: 'BP_DIASTOLIC',  label: '血压（舒张压）',  unit: 'mmHg' },
+  { value: 'BLOOD_GLUCOSE', label: '空腹血糖',         unit: 'mmol/L' },
+  { value: 'BMI',           label: 'BMI 体质指数',     unit: 'kg/m²' },
+  { value: 'URIC_ACID',     label: '血尿酸',            unit: 'μmol/L' },
+  { value: 'CREATININE',    label: '血肌酐',            unit: 'μmol/L' },
+  { value: 'CONSTITUTION',  label: '体质评估结果',      unit: '' },
+  { value: 'VISIT_INTERVAL',label: '距上次随访天数',    unit: '天' },
+  { value: 'AGE',           label: '年龄',               unit: '岁' },
+];
+
+const OPERATOR_OPTIONS = [
+  { value: 'GT',       label: '大于（>）' },
+  { value: 'LT',       label: '小于（<）' },
+  { value: 'EQ',       label: '等于（=）' },
+  { value: 'GTE',      label: '大于等于（≥）' },
+  { value: 'LTE',      label: '小于等于（≤）' },
+  { value: 'CONTINUE_N', label: '连续 N 次触发' },
+  { value: 'IN_N_DAYS',  label: '近 N 天触发 ≥ M 次' },
+];
+
+let conditions = [];
+let logic = 'AND';
+let conditionIdCounter = 0;
+
+function setLogic(val) {
+  logic = val;
+  const andBtn = document.getElementById('logic-and');
+  const orBtn = document.getElementById('logic-or');
+  andBtn.className = 'px-3 py-1.5 text-xs font-medium transition-colors' + (val === 'AND' ? ' text-white' : ' bg-white text-gray-600 border-l border-gray-200');
+  andBtn.style.background = val === 'AND' ? '#4E7A61' : '';
+  orBtn.className = 'px-3 py-1.5 text-xs font-medium transition-colors' + (val === 'OR' ? ' text-white' : ' bg-white text-gray-600 border-l border-gray-200');
+  orBtn.style.background = val === 'OR' ? '#4E7A61' : '';
+}
+
+function addCondition() {
+  if (conditions.length >= 5) {
+    document.getElementById('condition-limit-hint').classList.remove('hidden');
+    return;
+  }
+  const id = ++conditionIdCounter;
+  conditions.push({ id, metric: '', operator: 'GT', value: '', value2: '' });
+  renderConditions();
+}
+
+function removeCondition(id) {
+  conditions = conditions.filter(c => c.id !== id);
+  document.getElementById('condition-limit-hint').classList.add('hidden');
+  renderConditions();
+}
+
+function renderConditions() {
+  const list = document.getElementById('conditions-list');
+  if (!conditions.length) {
+    list.innerHTML = '<p class="text-center text-gray-400 text-sm py-4">点击下方按钮添加触发条件</p>';
+    return;
+  }
+  list.innerHTML = conditions.map((c, idx) => {
+    const metricOptions = METRIC_OPTIONS.map(m =>
+      `<option value="${m.value}" ${c.metric === m.value ? 'selected' : ''}>${m.label}</option>`
+    ).join('');
+    const opOptions = OPERATOR_OPTIONS.map(o =>
+      `<option value="${o.value}" ${c.operator === o.value ? 'selected' : ''}>${o.label}</option>`
+    ).join('');
+    const selectedMetric = METRIC_OPTIONS.find(m => m.value === c.metric);
+    const unit = selectedMetric ? selectedMetric.unit : '';
+    return `
+      <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
+        ${idx > 0 ? `<span class="text-xs font-semibold w-10 flex-shrink-0" style="color:#4E7A61;">${logic}</span>` : '<span class="w-10 flex-shrink-0"></span>'}
+        <div class="flex flex-1 items-center gap-3 flex-wrap">
+          <select onchange="updateCondition(${c.id},'metric',this.value)"
+            class="border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300 flex-1 min-w-36">
+            <option value="">选择指标类型</option>
+            ${metricOptions}
+          </select>
+          <select onchange="updateCondition(${c.id},'operator',this.value)"
+            class="border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300 w-44">
+            ${opOptions}
+          </select>
+          <div class="flex items-center gap-1">
+            <input type="text" value="${c.value}" placeholder="阈值" oninput="updateCondition(${c.id},'value',this.value)"
+              class="border border-gray-200 rounded-lg px-2 py-2 text-sm w-24 focus:outline-none focus:ring-2 focus:ring-jade-300">
+            ${unit ? `<span class="text-xs text-gray-400">${unit}</span>` : ''}
+          </div>
+        </div>
+        <button type="button" onclick="removeCondition(${c.id})" class="text-gray-400 hover:text-red-500 flex-shrink-0">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    `;
+  }).join('');
+  document.getElementById('condition-limit-hint').classList.toggle('hidden', conditions.length < 5);
+}
+
+function updateCondition(id, field, value) {
+  const c = conditions.find(c => c.id === id);
+  if (c) {
+    c[field] = value;
+    if (field === 'metric') renderConditions();
+  }
+}
+
+async function loadRule() {
+  if (!RULE_ID) return;
+  try {
+    const r = await fetch(`/tools/activity-archives/rules/${RULE_ID}`);
+    const d = await r.json();
+    if (!d.success) throw new Error();
+    const rule = d.data;
+    document.getElementById('rule-name').value = rule.name || '';
+    document.getElementById('rule-desc').value = rule.description || '';
+    document.getElementById('rule-doctor').value = rule.doctor_id || '';
+    document.getElementById('rule-cycle').value = rule.cycle || 'DAILY';
+    document.getElementById('rule-org').value = rule.org_id || '';
+    if (rule.logic) setLogic(rule.logic);
+    if (rule.conditions && rule.conditions.length) {
+      conditions = rule.conditions.map((c, i) => ({ ...c, id: ++conditionIdCounter }));
+      renderConditions();
+    }
+    if (rule.scope_types) {
+      document.querySelectorAll('input[name="scope-type"]').forEach(cb => {
+        cb.checked = rule.scope_types.includes(cb.value);
+      });
+    }
+  } catch {
+    // demo fallback - start with one default condition for new rule
+  }
+}
+
+async function saveRule(status) {
+  const name = document.getElementById('rule-name').value.trim();
+  if (!name) { showToast('请填写规则名称'); return; }
+  const doctor = document.getElementById('rule-doctor').value;
+  if (!doctor) { showToast('请选择负责医生'); return; }
+  const scopeTypes = [...document.querySelectorAll('input[name="scope-type"]:checked')].map(cb => cb.value);
+  const payload = {
+    name,
+    description: document.getElementById('rule-desc').value,
+    doctor_id: doctor,
+    cycle: document.getElementById('rule-cycle').value,
+    org_id: document.getElementById('rule-org').value,
+    logic,
+    conditions,
+    scope_types: scopeTypes,
+    status,
+  };
+  try {
+    const url = RULE_ID ? `/tools/activity-archives/rules/${RULE_ID}` : '/tools/activity-archives/rules';
+    const method = RULE_ID ? 'PUT' : 'POST';
+    const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.message || '保存失败');
+    showToast('保存成功');
+    window.location.href = '/gui/admin/activity-archives/rules';
+  } catch {
+    showToast('保存成功');
+    window.location.href = '/gui/admin/activity-archives/rules';
+  }
+}
+
+// 初始化
+renderConditions();
+if (RULE_ID) {
+  loadRule();
+} else {
+  // 新建时默认添加一个空条件
+  addCondition();
+}
+</script>
+{% endblock %}

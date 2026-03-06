@@ -1,0 +1,432 @@
+{% extends "_layouts/admin.html" %}
+{% block title %}危急值通知模板配置{% endblock %}
+{% block page_title %}危急值通知模板配置{% endblock %}
+{% set active_nav = "alert_rules" %}
+
+{% block extra_head %}
+<style>
+  .tab-active { border-bottom: 2px solid #dc2626; color: #dc2626; font-weight: 600; }
+  .tab-inactive { border-bottom: 2px solid transparent; color: #6b7280; }
+  .tab-inactive:hover { color: #374151; }
+  .var-token { display:inline; background:#EBF2ED; color:#3F6A52; border-radius:4px; padding:0 3px; font-weight:500; }
+  .char-warn { color: #dc2626; font-weight: 600; }
+  .template-card { transition: box-shadow 0.15s; }
+  .template-card:hover { box-shadow: 0 4px 16px rgba(220,38,38,0.10); }
+  .scene-high { background:#fef2f2; color:#dc2626; }
+  .scene-mid  { background:#fff7ed; color:#ea580c; }
+  .scene-low  { background:#fefce8; color:#ca8a04; }
+  .scene-custom { background:#f5f3ff; color:#7c3aed; }
+  .preview-box { background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; min-height:60px; padding:10px 14px; font-size:13px; color:#374151; line-height:1.6; }
+  .var-pill { cursor:pointer; transition:background 0.1s; }
+  .var-pill:hover { background:#C5D9CB; }
+  #modal { max-height:94vh; overflow-y:auto; }
+  .modal-overlay { background:rgba(0,0,0,0.45); }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Tab 导航 -->
+<div class="flex border-b border-gray-200 mb-5 bg-white rounded-t-xl px-5">
+  <button id="tab-sms" onclick="switchTab('sms')"
+    class="tab-active px-5 py-3.5 text-sm transition-colors">📱 短信模板</button>
+  <button id="tab-system" onclick="switchTab('system')"
+    class="tab-inactive px-5 py-3.5 text-sm transition-colors">🔔 站内消息模板</button>
+</div>
+
+<!-- 操作栏 -->
+<div class="flex flex-wrap items-center gap-3 mb-5">
+  <div class="relative flex-1 min-w-48">
+    <svg class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
+    </svg>
+    <input type="search" id="search-tpl" placeholder="搜索模板名称或内容..."
+      class="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-300 bg-white"
+      oninput="filterTemplates()">
+  </div>
+  <select id="filter-scene" onchange="filterTemplates()"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-300">
+    <option value="">全部场景</option>
+    <option value="high">高风险预警</option>
+    <option value="mid">中风险提示</option>
+    <option value="low">低风险告知</option>
+    <option value="custom">自定义触发</option>
+  </select>
+  <select id="filter-status" onchange="filterTemplates()"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-300">
+    <option value="">全部状态</option>
+    <option value="active">启用</option>
+    <option value="inactive">停用</option>
+  </select>
+  <button onclick="openModal(null)"
+    class="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+    </svg>
+    新建模板
+  </button>
+</div>
+
+<!-- 模板列表 -->
+<div id="tpl-list" class="space-y-3"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- 新建/编辑弹窗 -->
+<div id="modal-overlay" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center hidden">
+  <div id="modal" class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 overflow-hidden">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-red-50">
+      <h3 id="modal-title" class="text-base font-semibold text-red-700">新建通知模板</h3>
+      <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="grid grid-cols-5 divide-x divide-gray-100">
+      <!-- 左侧编辑区 -->
+      <div class="col-span-3 px-6 py-5 space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">模板名称 <span class="text-red-500">*</span></label>
+            <input type="text" id="tpl-name" placeholder="模板名称"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">模板类型</label>
+            <select id="tpl-type" onchange="updateTypeHint()"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 bg-white">
+              <option value="sms">短信</option>
+              <option value="system">站内消息</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">适用场景</label>
+            <select id="tpl-scene"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 bg-white">
+              <option value="high">高风险预警</option>
+              <option value="mid">中风险提示</option>
+              <option value="low">低风险告知</option>
+              <option value="custom">自定义触发</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">状态</label>
+            <select id="tpl-status"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 bg-white">
+              <option value="active">启用</option>
+              <option value="inactive">停用</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">模板内容 <span class="text-red-500">*</span></label>
+          <textarea id="tpl-content" rows="5" placeholder="输入模板内容，点击右侧变量可插入占位符..."
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"
+            oninput="updateCharCount(); updatePreview()"></textarea>
+          <div id="char-count-bar" class="flex items-center justify-between mt-1">
+            <span class="text-xs text-gray-400">短信限制：70字/条，超出按多条计费</span>
+            <span id="char-count" class="text-xs text-gray-400">0 字</span>
+          </div>
+        </div>
+        <!-- 预览区 -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">发送效果预览</label>
+          <div id="preview-box" class="preview-box">（在内容框输入内容后自动预览）</div>
+        </div>
+      </div>
+      <!-- 右侧变量列表 -->
+      <div class="col-span-2 px-5 py-5">
+        <div class="text-sm font-medium text-gray-700 mb-3">可用变量 <span class="text-xs text-gray-400">（点击插入）</span></div>
+        <div class="space-y-2" id="var-list">
+          <div class="var-pill text-xs px-3 py-2 rounded-lg" style="background:#EBF2ED;color:#4E7A61" onclick="insertVar('{患者姓名}')">
+            <div class="font-medium">{患者姓名}</div>
+            <div class="text-xs" style="color:#6A9E7F">患者的真实姓名</div>
+          </div>
+          <div class="var-pill text-xs px-3 py-2 rounded-lg" style="background:#EBF2ED;color:#4E7A61" onclick="insertVar('{联系电话}')">
+            <div class="font-medium">{联系电话}</div>
+            <div class="text-xs" style="color:#6A9E7F">患者登记手机号</div>
+          </div>
+          <div class="var-pill text-xs px-3 py-2 rounded-lg" style="background:#EBF2ED;color:#4E7A61" onclick="insertVar('{指标名称}')">
+            <div class="font-medium">{指标名称}</div>
+            <div class="text-xs" style="color:#6A9E7F">触发预警的指标，如"收缩压"</div>
+          </div>
+          <div class="var-pill text-xs px-3 py-2 rounded-lg" style="background:#EBF2ED;color:#4E7A61" onclick="insertVar('{指标值}')">
+            <div class="font-medium">{指标值}</div>
+            <div class="text-xs" style="color:#6A9E7F">实测数值，如"185"</div>
+          </div>
+          <div class="var-pill text-xs px-3 py-2 rounded-lg" style="background:#EBF2ED;color:#4E7A61" onclick="insertVar('{阈值}')">
+            <div class="font-medium">{阈值}</div>
+            <div class="text-xs" style="color:#6A9E7F">规则设定阈值，如"180"</div>
+          </div>
+          <div class="var-pill text-xs px-3 py-2 rounded-lg" style="background:#EBF2ED;color:#4E7A61" onclick="insertVar('{预警时间}')">
+            <div class="font-medium">{预警时间}</div>
+            <div class="text-xs" style="color:#6A9E7F">触发时间，如"2026-03-03 14:30"</div>
+          </div>
+          <div class="var-pill text-xs px-3 py-2 rounded-lg" style="background:#EBF2ED;color:#4E7A61" onclick="insertVar('{随访医生}')">
+            <div class="font-medium">{随访医生}</div>
+            <div class="text-xs" style="color:#6A9E7F">负责医生姓名</div>
+          </div>
+          <div class="var-pill text-xs px-3 py-2 rounded-lg" style="background:#EBF2ED;color:#4E7A61" onclick="insertVar('{机构名称}')">
+            <div class="font-medium">{机构名称}</div>
+            <div class="text-xs" style="color:#6A9E7F">发送机构全称</div>
+          </div>
+        </div>
+        <div class="mt-4 p-3 bg-yellow-50 rounded-lg">
+          <div class="text-xs font-medium text-yellow-700 mb-1">示例值（用于预览）</div>
+          <div class="text-xs text-yellow-600">
+            患者姓名→李建国<br>
+            指标名称→收缩压<br>
+            指标值→185 mmHg<br>
+            阈值→180 mmHg<br>
+            随访医生→王医生<br>
+            机构名称→社区卫生服务中心
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50">
+      <button onclick="closeModal()" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-100">取消</button>
+      <button onclick="saveTpl()" class="px-6 py-2 text-sm bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors">保存模板</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SAMPLE_VALUES = {
+  '{患者姓名}':'李建国', '{联系电话}':'138****4001', '{指标名称}':'收缩压',
+  '{指标值}':'185 mmHg', '{阈值}':'180 mmHg', '{预警时间}':'2026-03-03 14:30',
+  '{随访医生}':'王明医生', '{机构名称}':'阳光社区卫生服务中心'
+};
+
+const SCENE_META = {
+  high: { label:'高风险预警', cls:'scene-high' },
+  mid:  { label:'中风险提示', cls:'scene-mid' },
+  low:  { label:'低风险告知', cls:'scene-low' },
+  custom:{ label:'自定义触发', cls:'scene-custom' },
+};
+
+let allTplSms = [
+  { id:1, type:'sms', name:'高血压危急值-立即通知', scene:'high', status:'active', updatedAt:'2026-02-15',
+    content:'【{机构名称}】危急预警：您的患者{患者姓名}于{预警时间}检测{指标名称}达{指标值}（阈值{阈值}），请及时处置。随访医生：{随访医生}' },
+  { id:2, type:'sms', name:'血糖危急值-短信通知', scene:'high', status:'active', updatedAt:'2026-02-20',
+    content:'【{机构名称}】紧急！{患者姓名}血糖异常：{指标名称}{指标值}，超出安全阈值{阈值}，触发时间{预警时间}，请联系{随访医生}医生处理。' },
+  { id:3, type:'sms', name:'中风险健康提示', scene:'mid', status:'active', updatedAt:'2026-01-10',
+    content:'【{机构名称}】健康提示：{患者姓名}的{指标名称}为{指标值}，略超参考值{阈值}，建议及时随访。主管医生：{随访医生}' },
+  { id:4, type:'sms', name:'低风险定期提醒', scene:'low', status:'active', updatedAt:'2026-01-05',
+    content:'【{机构名称}】您好，{患者姓名}近期{指标名称}为{指标值}，建议保持健康生活方式，按时复诊。如有疑问请联系{随访医生}。' },
+  { id:5, type:'sms', name:'慢阻肺急性加重通知', scene:'high', status:'active', updatedAt:'2026-02-28',
+    content:'【{机构名称}】危急！{患者姓名}于{预警时间}出现{指标名称}异常（{指标值}，阈值{阈值}），疑似急性加重，请速与{随访医生}联系或拨打120。' },
+  { id:6, type:'sms', name:'节假日备用通知（已停用）', scene:'custom', status:'inactive', updatedAt:'2025-12-01',
+    content:'【{机构名称}】节假日通知：{患者姓名}于{预警时间}触发{指标名称}预警（{指标值}），请值班医生{随访医生}及时处理。' },
+];
+
+let allTplSystem = [
+  { id:101, type:'system', name:'高危预警-站内通知（主管医生）', scene:'high', status:'active', updatedAt:'2026-02-18',
+    content:'⚠️ 危急值预警\n患者：{患者姓名} | {预警时间}\n指标：{指标名称} 实测值 {指标值}（阈值 {阈值}）\n请立即查看患者档案并采取处置措施。\n---\n{机构名称} 预警系统' },
+  { id:102, type:'system', name:'中风险提示-站内通知', scene:'mid', status:'active', updatedAt:'2026-02-10',
+    content:'📋 健康风险提示\n患者 {患者姓名} 的{指标名称}为 {指标值}，略超参考阈值 {阈值}。\n建议安排随访或电话回访。\n负责人：{随访医生}' },
+  { id:103, type:'system', name:'低风险定期推送', scene:'low', status:'active', updatedAt:'2026-01-20',
+    content:'📌 健康监测报告\n{患者姓名} 本次{指标名称}测量结果：{指标值}，参考阈值：{阈值}。\n整体风险较低，请继续关注。{随访医生} 医生已知晓。' },
+  { id:104, type:'system', name:'危急值-多级联合通知', scene:'high', status:'active', updatedAt:'2026-03-01',
+    content:'🔴 高危预警（多级通知）\n【患者】{患者姓名} 【触发时间】{预警时间}\n【异常指标】{指标名称} = {指标值}（预设阈值：{阈值}）\n本通知已同步发送给家属及医护团队，请及时处置并记录处理结果。' },
+  { id:105, type:'system', name:'季度复查到期提醒', scene:'custom', status:'inactive', updatedAt:'2025-11-15',
+    content:'📅 复查提醒\n{患者姓名} 的季度健康复查时间将至，请{随访医生}安排复查计划，并通知患者本人（{联系电话}）提前预约。' },
+];
+
+let currentTab = 'sms';
+let editingId = null;
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-sms').className = tab === 'sms' ? 'tab-active px-5 py-3.5 text-sm transition-colors' : 'tab-inactive px-5 py-3.5 text-sm transition-colors';
+  document.getElementById('tab-system').className = tab === 'system' ? 'tab-active px-5 py-3.5 text-sm transition-colors' : 'tab-inactive px-5 py-3.5 text-sm transition-colors';
+  filterTemplates();
+}
+
+function renderVar(content) {
+  const vars = ['{患者姓名}','{联系电话}','{指标名称}','{指标值}','{阈值}','{预警时间}','{随访医生}','{机构名称}'];
+  let html = content.replace(/\n/g, '<br>');
+  vars.forEach(v => {
+    html = html.split(v).join(`<span class="var-token">${v}</span>`);
+  });
+  return html;
+}
+
+function renderPreview(content) {
+  let txt = content;
+  Object.keys(SAMPLE_VALUES).forEach(k => { txt = txt.split(k).join(SAMPLE_VALUES[k]); });
+  return txt.replace(/\n/g, '<br>');
+}
+
+function filterTemplates() {
+  const q = document.getElementById('search-tpl').value.toLowerCase();
+  const scene = document.getElementById('filter-scene').value;
+  const st = document.getElementById('filter-status').value;
+  const source = currentTab === 'sms' ? allTplSms : allTplSystem;
+  const data = source.filter(t => {
+    const matchQ = !q || t.name.toLowerCase().includes(q) || t.content.toLowerCase().includes(q);
+    const matchScene = !scene || t.scene === scene;
+    const matchSt = !st || t.status === st;
+    return matchQ && matchScene && matchSt;
+  });
+  const container = document.getElementById('tpl-list');
+  if (!data.length) {
+    container.innerHTML = '<div class="text-center py-12 text-gray-400 bg-white rounded-xl">没有找到匹配的模板</div>';
+    return;
+  }
+  const SMS_LIMIT = 70;
+  container.innerHTML = data.map(t => {
+    const sm = SCENE_META[t.scene];
+    const charLen = t.content.length;
+    const isSms = t.type === 'sms';
+    const charWarn = isSms && charLen > SMS_LIMIT;
+    const statusHtml = t.status === 'active'
+      ? '<span class="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">启用</span>'
+      : '<span class="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full">停用</span>';
+    return `
+      <div class="template-card bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="px-5 py-4 flex items-start justify-between gap-4">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap mb-2">
+              <span class="font-semibold text-gray-800 text-sm">${t.name}</span>
+              <span class="text-xs px-2 py-0.5 rounded-full ${sm.cls}">${sm.label}</span>
+              ${statusHtml}
+            </div>
+            <div class="text-sm text-gray-600 leading-relaxed mb-2 line-clamp-3">${renderVar(t.content)}</div>
+            <div class="flex items-center gap-4 text-xs text-gray-400">
+              ${isSms ? `<span class="${charWarn ? 'char-warn' : ''}">
+                ${charLen} 字${charWarn ? `（超出 ${charLen - SMS_LIMIT} 字，按 ${Math.ceil(charLen/70)} 条计费）` : `/70 字限制`}
+              </span>` : `<span>${charLen} 字</span>`}
+              <span>更新于 ${t.updatedAt}</span>
+            </div>
+          </div>
+          <div class="flex flex-col gap-2 flex-shrink-0">
+            <button onclick="openModal(${t.id})" class="text-xs px-3 py-1 rounded-lg transition-colors" style="color:#4E7A61;border:1px solid #C5D9CB" onmouseover="this.style.background='#EBF2ED'" onmouseout="this.style.background=''">编辑</button>
+            <button onclick="copyTpl(${t.id})" class="text-xs text-gray-600 hover:text-gray-800 px-3 py-1 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">复制</button>
+            <button onclick="toggleTpl(${t.id})" class="text-xs ${t.status === 'active' ? 'text-orange-600 hover:text-orange-800 border-orange-200 hover:bg-orange-50' : 'text-green-600 hover:text-green-800 border-green-200 hover:bg-green-50'} px-3 py-1 border rounded-lg transition-colors">
+              ${t.status === 'active' ? '停用' : '启用'}
+            </button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function openModal(id) {
+  editingId = id;
+  document.getElementById('modal-overlay').classList.remove('hidden');
+  const source = [...allTplSms, ...allTplSystem];
+  if (id) {
+    const t = source.find(x => x.id === id);
+    document.getElementById('modal-title').textContent = '编辑通知模板';
+    document.getElementById('tpl-name').value = t.name;
+    document.getElementById('tpl-type').value = t.type;
+    document.getElementById('tpl-scene').value = t.scene;
+    document.getElementById('tpl-status').value = t.status;
+    document.getElementById('tpl-content').value = t.content;
+  } else {
+    document.getElementById('modal-title').textContent = '新建通知模板';
+    document.getElementById('tpl-name').value = '';
+    document.getElementById('tpl-type').value = currentTab;
+    document.getElementById('tpl-scene').value = 'high';
+    document.getElementById('tpl-status').value = 'active';
+    document.getElementById('tpl-content').value = '';
+  }
+  updateCharCount();
+  updatePreview();
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.add('hidden');
+}
+
+function updateCharCount() {
+  const len = document.getElementById('tpl-content').value.length;
+  const el = document.getElementById('char-count');
+  const type = document.getElementById('tpl-type').value;
+  el.textContent = `${len} 字`;
+  if (type === 'sms' && len > 70) {
+    el.className = 'text-xs char-warn';
+    el.textContent = `${len} 字（超出 ${len - 70} 字，按 ${Math.ceil(len/70)} 条计费）`;
+  } else {
+    el.className = 'text-xs text-gray-400';
+  }
+}
+
+function updateTypeHint() {
+  updateCharCount();
+}
+
+function updatePreview() {
+  const content = document.getElementById('tpl-content').value;
+  const box = document.getElementById('preview-box');
+  if (!content.trim()) {
+    box.innerHTML = '（在内容框输入内容后自动预览）';
+    box.className = 'preview-box text-gray-400 italic';
+    return;
+  }
+  box.className = 'preview-box';
+  box.innerHTML = renderPreview(content);
+}
+
+function insertVar(varStr) {
+  const ta = document.getElementById('tpl-content');
+  const start = ta.selectionStart;
+  const end = ta.selectionEnd;
+  const val = ta.value;
+  ta.value = val.substring(0, start) + varStr + val.substring(end);
+  ta.selectionStart = ta.selectionEnd = start + varStr.length;
+  ta.focus();
+  updateCharCount();
+  updatePreview();
+}
+
+function saveTpl() {
+  const name = document.getElementById('tpl-name').value.trim();
+  const content = document.getElementById('tpl-content').value.trim();
+  if (!name || !content) { showToast('请填写模板名称和内容'); return; }
+  const data = {
+    id: editingId || Date.now(),
+    type: document.getElementById('tpl-type').value,
+    name,
+    scene: document.getElementById('tpl-scene').value,
+    status: document.getElementById('tpl-status').value,
+    content,
+    updatedAt: new Date().toISOString().slice(0,10),
+  };
+  const arr = data.type === 'sms' ? allTplSms : allTplSystem;
+  if (editingId) {
+    const idx = arr.findIndex(t => t.id === editingId);
+    if (idx >= 0) arr[idx] = data;
+  } else {
+    arr.unshift(data);
+  }
+  closeModal();
+  filterTemplates();
+}
+
+function copyTpl(id) {
+  const source = [...allTplSms, ...allTplSystem];
+  const t = source.find(x => x.id === id);
+  const copy = { ...t, id: Date.now(), name: t.name + ' (副本)', updatedAt: new Date().toISOString().slice(0,10) };
+  if (t.type === 'sms') allTplSms.unshift(copy);
+  else allTplSystem.unshift(copy);
+  filterTemplates();
+}
+
+function toggleTpl(id) {
+  const source = [...allTplSms, ...allTplSystem];
+  const t = source.find(x => x.id === id);
+  t.status = t.status === 'active' ? 'inactive' : 'active';
+  filterTemplates();
+}
+
+document.getElementById('modal-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+filterTemplates();
+</script>
+{% endblock %}

@@ -1,0 +1,182 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "health_education" %}
+{% block title %}宣教模板库 - 治未病平台{% endblock %}
+{% block page_title %}中医宣教模板库{% endblock %}
+
+{% block content %}
+<!-- 筛选栏 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <input id="q" type="text" placeholder="模板名称/关键词"
+    class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-green-300">
+  <select id="type-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+    <option value="">全部类型</option>
+    <option value="CONSTITUTION">体质调理</option>
+    <option value="DISEASE">疾病管理</option>
+    <option value="DIET">饮食指导</option>
+    <option value="EXERCISE">运动保健</option>
+    <option value="SEASONAL">节气养生</option>
+    <option value="MEDICATION">用药指导</option>
+    <option value="GENERAL">通用知识</option>
+  </select>
+  <select id="scope-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+    <option value="">全部范围</option>
+    <option value="PUBLIC">公开</option>
+    <option value="DEPT">科室</option>
+    <option value="PERSONAL">个人</option>
+  </select>
+  <button onclick="loadTemplates()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">查询</button>
+  <div class="ml-auto">
+    <a href="/gui/admin/health-education/templates/new"
+      class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">+ 新建模板</a>
+  </div>
+</div>
+
+<!-- 模板卡片网格 -->
+<div id="template-grid" class="grid grid-cols-3 gap-4"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const TYPE_LABELS = {
+  CONSTITUTION: '体质调理',
+  DISEASE: '疾病管理',
+  DIET: '饮食指导',
+  EXERCISE: '运动保健',
+  SEASONAL: '节气养生',
+  MEDICATION: '用药指导',
+  GENERAL: '通用知识'
+};
+const TYPE_COLORS = {
+  CONSTITUTION: 'bg-green-100 text-green-700',
+  DISEASE: 'bg-red-100 text-red-700',
+  DIET: 'bg-orange-100 text-orange-700',
+  EXERCISE: 'bg-jade-light text-jade',
+  SEASONAL: 'bg-teal-100 text-teal-700',
+  MEDICATION: 'bg-purple-100 text-purple-700',
+  GENERAL: 'bg-gray-100 text-gray-600'
+};
+const SCOPE_LABELS = { PUBLIC: '公开', DEPT: '科室', PERSONAL: '个人' };
+const CHANNEL_ICONS = {
+  APP: '<span class="inline-flex items-center gap-0.5" style="color:#4E7A61"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>APP</span>',
+  SMS: '<span class="inline-flex items-center gap-0.5 text-green-500"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>短信</span>',
+  INTERNAL: '<span class="inline-flex items-center gap-0.5 text-purple-500"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>站内信</span>'
+};
+
+const demoTemplates = [
+  {
+    id: '1',
+    name: '气虚体质调养全攻略',
+    type: 'CONSTITUTION',
+    scope: 'PUBLIC',
+    channels: ['APP', 'INTERNAL'],
+    author: '王医生',
+    usedCount: 83,
+    summary: '气虚体质以神疲乏力、语声低怯、易出汗为主要表现，调养重在补气健脾，从饮食、起居、运动、穴位四方面给出具体指导。'
+  },
+  {
+    id: '2',
+    name: '高血压患者居家管理指南',
+    type: 'DISEASE',
+    scope: 'PUBLIC',
+    channels: ['APP', 'SMS'],
+    author: '李主任',
+    usedCount: 214,
+    summary: '高血压患者日常管理要点，包括血压监测方法、限盐饮食、适量运动、情绪调节及中医穴位辅助降压技巧。'
+  },
+  {
+    id: '3',
+    name: '春季节气养生宣教',
+    type: 'SEASONAL',
+    scope: 'PUBLIC',
+    channels: ['APP', 'INTERNAL', 'SMS'],
+    author: '张医生',
+    usedCount: 341,
+    summary: '春季顺应肝气升发，养肝护肝为要。介绍春季饮食宜忌、运动保健、穴位按摩及情志调摄，帮助患者平稳过渡春季。'
+  },
+  {
+    id: '4',
+    name: '糖尿病中医饮食调养',
+    type: 'DIET',
+    scope: 'DEPT',
+    channels: ['APP'],
+    author: '陈医生',
+    usedCount: 57,
+    summary: '结合中医食疗理论，为糖尿病患者推荐低GI药食同源食材，详细说明饮食搭配原则、进餐时间及禁忌食物。'
+  },
+  {
+    id: '5',
+    name: '中老年运动保健指导',
+    type: 'EXERCISE',
+    scope: 'PUBLIC',
+    channels: ['APP', 'SMS'],
+    author: '王医生',
+    usedCount: 176,
+    summary: '以太极拳、八段锦、五禽戏为核心，给出中老年人适合的运动方式、强度要求、注意事项及运动前后保健穴位。'
+  },
+  {
+    id: '6',
+    name: '中药汤剂服用指导',
+    type: 'MEDICATION',
+    scope: 'PERSONAL',
+    channels: ['INTERNAL'],
+    author: '张医生',
+    usedCount: 38,
+    summary: '详细讲解中药汤剂的正确煎煮方法、服药时间、服药温度、与饮食的配合要求及服药期间的注意事项。'
+  }
+];
+
+function loadTemplates() {
+  const q = document.getElementById('q').value.toLowerCase();
+  const typeFilter = document.getElementById('type-filter').value;
+  const scopeFilter = document.getElementById('scope-filter').value;
+
+  const filtered = demoTemplates.filter(t => {
+    const matchQ = !q || t.name.toLowerCase().includes(q) || t.summary.toLowerCase().includes(q);
+    const matchType = !typeFilter || t.type === typeFilter;
+    const matchScope = !scopeFilter || t.scope === scopeFilter;
+    return matchQ && matchType && matchScope;
+  });
+
+  const grid = document.getElementById('template-grid');
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div class="col-span-3 text-center py-12 text-gray-400">暂无匹配的宣教模板</div>';
+    return;
+  }
+
+  grid.innerHTML = filtered.map(t => `
+    <div class="bg-white rounded-xl shadow-sm p-5 hover:shadow-md transition-shadow">
+      <div class="flex items-start justify-between mb-3">
+        <span class="px-2 py-0.5 rounded-full text-xs font-medium ${TYPE_COLORS[t.type]}">${TYPE_LABELS[t.type]}</span>
+        <span class="text-xs text-gray-400">${SCOPE_LABELS[t.scope]}</span>
+      </div>
+      <h3 class="font-semibold text-gray-800 mb-2">${t.name}</h3>
+      <p class="text-xs text-gray-500 mb-3 line-clamp-2">${t.summary}</p>
+      <div class="flex items-center gap-2 mb-3 flex-wrap">
+        ${t.channels.map(c => CHANNEL_ICONS[c]).join('')}
+      </div>
+      <div class="flex items-center justify-between text-xs text-gray-400 mb-4">
+        <span>by ${t.author}</span>
+        <span>使用 ${t.usedCount} 次</span>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="useTemplate('${t.id}')"
+          class="flex-1 bg-green-600 text-white py-1.5 rounded-lg text-xs hover:bg-green-700">使用模板</button>
+        <a href="/gui/admin/health-education/templates/${t.id}/edit"
+          class="px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50">编辑</a>
+        <button onclick="copyTemplate('${t.id}')"
+          class="px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50">复制</button>
+      </div>
+    </div>`).join('');
+}
+
+function useTemplate(id) {
+  window.location.href = '/gui/admin/health-education/new';
+}
+
+function copyTemplate(id) {
+  showToast('已复制为个人模板');
+}
+
+loadTemplates();
+</script>
+{% endblock %}

@@ -1,0 +1,198 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "assessments" %}
+{% block title %}新增体质评估 - 治未病平台{% endblock %}
+{% block page_title %}新增体质评估{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <!-- 步骤导航 -->
+  <div class="flex items-center gap-2 mb-6">
+    <div class="flex items-center gap-2 text-rose-600 font-semibold">
+      <span class="w-7 h-7 rounded-full bg-rose-600 text-white text-xs flex items-center justify-center">1</span>
+      <span class="text-sm">选择患者</span>
+    </div>
+    <div class="flex-1 h-px bg-gray-200"></div>
+    <div class="flex items-center gap-2 text-gray-400">
+      <span class="w-7 h-7 rounded-full border-2 border-gray-300 text-xs flex items-center justify-center">2</span>
+      <span class="text-sm">作答问卷</span>
+    </div>
+    <div class="flex-1 h-px bg-gray-200"></div>
+    <div class="flex items-center gap-2 text-gray-400">
+      <span class="w-7 h-7 rounded-full border-2 border-gray-300 text-xs flex items-center justify-center">3</span>
+      <span class="text-sm">查看报告</span>
+    </div>
+  </div>
+
+  <!-- 患者搜索 -->
+  <div class="bg-white rounded-xl shadow-sm p-6 mb-4">
+    <h3 class="font-semibold text-gray-700 mb-4">选择受测患者</h3>
+    <div class="flex gap-3 mb-4">
+      <input id="search-input" type="text" placeholder="点击或输入姓名/手机号搜索患者档案"
+        onfocus="searchPatient()" oninput="debounceSearch()"
+        autocomplete="off"
+        class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300">
+      <button onclick="searchPatient()"
+        class="bg-rose-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-rose-700">搜索</button>
+    </div>
+
+    <!-- 搜索结果 -->
+    <div id="search-results" class="hidden">
+      <p class="text-xs text-gray-400 mb-2">搜索结果（点击选择）：</p>
+      <div id="results-list" class="space-y-2 max-h-60 overflow-y-auto"></div>
+    </div>
+
+    <!-- 已选患者 -->
+    <div id="selected-patient" class="hidden bg-rose-50 border border-rose-200 rounded-lg p-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-rose-200 flex items-center justify-center">
+          <svg class="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+          </svg>
+        </div>
+        <div class="flex-1">
+          <p id="sel-name" class="font-semibold text-gray-800"></p>
+          <p id="sel-info" class="text-sm text-gray-500"></p>
+        </div>
+        <button onclick="clearSelection()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 评估配置 -->
+  <div class="bg-white rounded-xl shadow-sm p-6 mb-4">
+    <h3 class="font-semibold text-gray-700 mb-4">评估配置</h3>
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">评估类型</label>
+        <select id="assess-type"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300">
+          <option value="CONSTITUTION">中医九体质辨识</option>
+          <option value="HEALTH">综合健康评估</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-600 mb-1">评估方式</label>
+        <select id="assess-mode"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300">
+          <option value="SELF">自助作答</option>
+          <option value="ASSISTED">医生辅助</option>
+          <option value="PROXY">代填（家属代）</option>
+        </select>
+      </div>
+    </div>
+    <div class="mt-4">
+      <label class="block text-sm text-gray-600 mb-1">备注（可选）</label>
+      <textarea id="assess-notes" rows="2" placeholder="评估背景说明..."
+        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300"></textarea>
+    </div>
+  </div>
+
+  <!-- 操作按钮 -->
+  <div class="flex gap-3 justify-end">
+    <a href="/gui/admin/assessments"
+      class="px-5 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">取消</a>
+    <button onclick="startAssess()"
+      class="bg-rose-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-rose-700 font-medium">
+      创建评估并进入作答
+    </button>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let selectedArchiveId = null;
+let _allPatients = null;
+let _searchTimer = null;
+
+async function loadAllPatients() {
+  if (_allPatients !== null) return _allPatients;
+  try {
+    const res = await fetch('/tools/archive/archives?page_size=100');
+    const data = await res.json();
+    _allPatients = (data.success && data.data?.items) ? data.data.items : [];
+  } catch { _allPatients = []; }
+  return _allPatients;
+}
+
+function renderResults(items) {
+  const list = document.getElementById('results-list');
+  document.getElementById('search-results').classList.remove('hidden');
+  if (!items.length) {
+    list.innerHTML = '<p class="text-sm text-gray-400 py-2 text-center">未找到匹配档案</p>';
+    return;
+  }
+  list.innerHTML = items.slice(0, 30).map(p => `
+    <div class="flex items-center gap-3 p-3 border border-gray-100 rounded-lg cursor-pointer hover:border-rose-300 hover:bg-rose-50 transition"
+      onclick="selectPatient('${p.id}','${p.name}','${p.gender||''}','${p.phone||''}')">
+      <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-sm font-bold">${p.name[0]}</div>
+      <div class="flex-1">
+        <p class="text-sm font-medium text-gray-800">${p.name}</p>
+        <p class="text-xs text-gray-400">${p.gender==='male'?'男':'女'} · ${p.phone||'无手机号'}</p>
+      </div>
+      <span class="text-xs text-rose-500">选择 →</span>
+    </div>`).join('');
+}
+
+async function searchPatient() {
+  const q = document.getElementById('search-input').value.trim();
+  const patients = await loadAllPatients();
+  const filtered = q
+    ? patients.filter(p => p.name.includes(q) || (p.phone||'').includes(q) || (p.id_number||'').includes(q))
+    : patients;
+  renderResults(filtered);
+}
+
+function debounceSearch() {
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(searchPatient, 200);
+}
+
+function selectPatient(id, name, gender, phone) {
+  selectedArchiveId = id;
+  document.getElementById('search-results').classList.add('hidden');
+  document.getElementById('selected-patient').classList.remove('hidden');
+  document.getElementById('sel-name').textContent = name;
+  document.getElementById('sel-info').textContent = `${gender==='male'?'男':'女'} · ${phone||'无手机号'}`;
+}
+
+function clearSelection() {
+  selectedArchiveId = null;
+  document.getElementById('selected-patient').classList.add('hidden');
+  document.getElementById('search-input').value = '';
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#search-input') && !e.target.closest('#search-results')) {
+    document.getElementById('search-results').classList.add('hidden');
+  }
+});
+
+async function startAssess() {
+  if (!selectedArchiveId) {
+    showToast('请先选择患者档案');
+    return;
+  }
+  try {
+    const res = await fetch('/tools/constitution/start', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ archive_id: selectedArchiveId, assess_type: document.getElementById('assess-type').value })
+    });
+    const data = await res.json();
+    if (data.success && data.data?.assessment_id) {
+      window.location.href = `/gui/admin/assessments/${data.data.assessment_id}/answer`;
+    } else {
+      showToast(data.error?.message || '创建失败，请重试');
+    }
+  } catch(e) {
+    showToast('创建失败：' + e.message);
+  }
+}
+</script>
+{% endblock %}

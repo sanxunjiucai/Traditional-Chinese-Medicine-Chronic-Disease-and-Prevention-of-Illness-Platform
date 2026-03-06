@@ -1,0 +1,424 @@
+{% extends "_layouts/admin.html" %}
+
+{% block title %}量表预览 - PHQ-9 抑郁症筛查{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-6">
+
+  <!-- Breadcrumb -->
+  <nav class="flex items-center gap-2 text-sm text-gray-500 mb-6">
+    <a href="/gui/admin/scale-library" class="hover:text-indigo-600 transition-colors">量表库</a>
+    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+    </svg>
+    <span class="text-gray-700 font-medium">PHQ-9 抑郁症筛查</span>
+    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+    </svg>
+    <span class="text-gray-900 font-semibold">量表预览</span>
+    <span class="ml-auto">
+      <a href="/gui/admin/scale-library"
+         class="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-medium transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+        返回量表库
+      </a>
+    </span>
+  </nav>
+
+  <!-- Top Info Card -->
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <div class="flex-1">
+        <div class="flex items-center gap-3 mb-2">
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
+            心理健康
+          </span>
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+            v2.1
+          </span>
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
+            已发布
+          </span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 mb-1">PHQ-9 抑郁症筛查量表</h1>
+        <p class="text-gray-500 text-sm">Patient Health Questionnaire-9，患者健康问卷抑郁量表</p>
+      </div>
+      <div class="flex-shrink-0 bg-indigo-50 rounded-xl p-4 text-center min-w-[120px]">
+        <div class="text-3xl font-bold text-indigo-600">9</div>
+        <div class="text-xs text-indigo-500 mt-1">道题目</div>
+      </div>
+    </div>
+
+    <div class="mt-5 pt-5 border-t border-gray-100 grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div>
+        <div class="text-xs text-gray-400 mb-1">计分方式</div>
+        <div class="text-sm font-medium text-gray-700">各项得分相加</div>
+      </div>
+      <div>
+        <div class="text-xs text-gray-400 mb-1">总分范围</div>
+        <div class="text-sm font-medium text-gray-700">0 — 27 分</div>
+      </div>
+      <div>
+        <div class="text-xs text-gray-400 mb-1">适用人群</div>
+        <div class="text-sm font-medium text-gray-700">成人（18岁+）</div>
+      </div>
+      <div>
+        <div class="text-xs text-gray-400 mb-1">更新日期</div>
+        <div class="text-sm font-medium text-gray-700">2024-01-15</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab Nav -->
+  <div class="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 w-fit">
+    <button id="tab-questions"
+            onclick="switchTab('questions')"
+            class="tab-btn px-5 py-2 rounded-lg text-sm font-medium transition-all bg-white text-indigo-700 shadow-sm">
+      题目预览
+    </button>
+    <button id="tab-scoring"
+            onclick="switchTab('scoring')"
+            class="tab-btn px-5 py-2 rounded-lg text-sm font-medium transition-all text-gray-500 hover:text-gray-700">
+      计分规则
+    </button>
+  </div>
+
+  <!-- Panel: 题目预览 -->
+  <div id="panel-questions">
+    <div class="space-y-4">
+
+      <!-- Q1 -->
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <div class="flex items-start gap-3 mb-4">
+          <span class="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+          <p class="text-gray-800 font-medium leading-relaxed">在过去两周里，您有多少天被以下问题困扰：<br>
+            <span class="text-gray-900 font-semibold">做事时提不起劲或没有兴趣</span>
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-2 pl-10">
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">从不 <span class="font-bold text-gray-400 ml-1">0</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">几天 <span class="font-bold text-gray-400 ml-1">1</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">一半以上时间 <span class="font-bold text-gray-400 ml-1">2</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">几乎每天 <span class="font-bold text-gray-400 ml-1">3</span></span>
+        </div>
+      </div>
+
+      <!-- Q2 -->
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <div class="flex items-start gap-3 mb-4">
+          <span class="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">2</span>
+          <p class="text-gray-800 font-medium leading-relaxed">在过去两周里，您有多少天被以下问题困扰：<br>
+            <span class="text-gray-900 font-semibold">感到心情低落、沮丧或绝望</span>
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-2 pl-10">
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">从不 <span class="font-bold text-gray-400 ml-1">0</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">几天 <span class="font-bold text-gray-400 ml-1">1</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">一半以上时间 <span class="font-bold text-gray-400 ml-1">2</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">几乎每天 <span class="font-bold text-gray-400 ml-1">3</span></span>
+        </div>
+      </div>
+
+      <!-- Q3 -->
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <div class="flex items-start gap-3 mb-4">
+          <span class="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">3</span>
+          <p class="text-gray-800 font-medium leading-relaxed">在过去两周里，您有多少天被以下问题困扰：<br>
+            <span class="text-gray-900 font-semibold">入睡困难、睡不安稳或睡眠过多</span>
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-2 pl-10">
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">从不 <span class="font-bold text-gray-400 ml-1">0</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">几天 <span class="font-bold text-gray-400 ml-1">1</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">一半以上时间 <span class="font-bold text-gray-400 ml-1">2</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">几乎每天 <span class="font-bold text-gray-400 ml-1">3</span></span>
+        </div>
+      </div>
+
+      <!-- Q4 -->
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <div class="flex items-start gap-3 mb-4">
+          <span class="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">4</span>
+          <p class="text-gray-800 font-medium leading-relaxed">在过去两周里，您有多少天被以下问题困扰：<br>
+            <span class="text-gray-900 font-semibold">感觉疲倦或没有活力</span>
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-2 pl-10">
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">从不 <span class="font-bold text-gray-400 ml-1">0</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">几天 <span class="font-bold text-gray-400 ml-1">1</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">一半以上时间 <span class="font-bold text-gray-400 ml-1">2</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">几乎每天 <span class="font-bold text-gray-400 ml-1">3</span></span>
+        </div>
+      </div>
+
+      <!-- Q5 -->
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <div class="flex items-start gap-3 mb-4">
+          <span class="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">5</span>
+          <p class="text-gray-800 font-medium leading-relaxed">在过去两周里，您有多少天被以下问题困扰：<br>
+            <span class="text-gray-900 font-semibold">食欲不振或吃太多</span>
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-2 pl-10">
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">从不 <span class="font-bold text-gray-400 ml-1">0</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">几天 <span class="font-bold text-gray-400 ml-1">1</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">一半以上时间 <span class="font-bold text-gray-400 ml-1">2</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">几乎每天 <span class="font-bold text-gray-400 ml-1">3</span></span>
+        </div>
+      </div>
+
+      <!-- Q6 -->
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <div class="flex items-start gap-3 mb-4">
+          <span class="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">6</span>
+          <p class="text-gray-800 font-medium leading-relaxed">在过去两周里，您有多少天被以下问题困扰：<br>
+            <span class="text-gray-900 font-semibold">觉得自己很糟糕，或觉得自己很失败，或让自己或家人失望</span>
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-2 pl-10">
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">从不 <span class="font-bold text-gray-400 ml-1">0</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">几天 <span class="font-bold text-gray-400 ml-1">1</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">一半以上时间 <span class="font-bold text-gray-400 ml-1">2</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">几乎每天 <span class="font-bold text-gray-400 ml-1">3</span></span>
+        </div>
+      </div>
+
+      <!-- Q7 -->
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <div class="flex items-start gap-3 mb-4">
+          <span class="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">7</span>
+          <p class="text-gray-800 font-medium leading-relaxed">在过去两周里，您有多少天被以下问题困扰：<br>
+            <span class="text-gray-900 font-semibold">对事物专注有困难，例如阅读报纸或看电视时</span>
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-2 pl-10">
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">从不 <span class="font-bold text-gray-400 ml-1">0</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">几天 <span class="font-bold text-gray-400 ml-1">1</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">一半以上时间 <span class="font-bold text-gray-400 ml-1">2</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">几乎每天 <span class="font-bold text-gray-400 ml-1">3</span></span>
+        </div>
+      </div>
+
+      <!-- Q8 -->
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <div class="flex items-start gap-3 mb-4">
+          <span class="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">8</span>
+          <p class="text-gray-800 font-medium leading-relaxed">在过去两周里，您有多少天被以下问题困扰：<br>
+            <span class="text-gray-900 font-semibold">动作或说话速度缓慢到别人已经察觉，或正好相反，烦躁或坐立不安</span>
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-2 pl-10">
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">从不 <span class="font-bold text-gray-400 ml-1">0</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">几天 <span class="font-bold text-gray-400 ml-1">1</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">一半以上时间 <span class="font-bold text-gray-400 ml-1">2</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">几乎每天 <span class="font-bold text-gray-400 ml-1">3</span></span>
+        </div>
+      </div>
+
+      <!-- Q9 - Special (suicide ideation) -->
+      <div class="bg-white rounded-xl border border-red-200 shadow-sm p-5 relative overflow-hidden">
+        <div class="absolute top-0 right-0 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
+          危急值关注项
+        </div>
+        <div class="flex items-start gap-3 mb-4">
+          <span class="flex-shrink-0 w-7 h-7 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center">9</span>
+          <p class="text-gray-800 font-medium leading-relaxed">在过去两周里，您有多少天被以下问题困扰：<br>
+            <span class="text-gray-900 font-semibold">有不如死掉或用某种方式伤害自己的念头</span>
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-2 pl-10 mb-3">
+          <span class="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-sm border border-gray-200">从不 <span class="font-bold text-gray-400 ml-1">0</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 text-sm border border-amber-200">几天 <span class="font-bold text-amber-500 ml-1">1</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-orange-50 text-orange-700 text-sm border border-orange-200">一半以上时间 <span class="font-bold text-orange-500 ml-1">2</span></span>
+          <span class="px-3 py-1.5 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200">几乎每天 <span class="font-bold text-red-500 ml-1">3</span></span>
+        </div>
+        <div class="pl-10">
+          <div class="flex items-start gap-2 text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 border border-red-100">
+            <svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <span>此题任何非零答案均需立即进行临床评估，并启动危急值预警流程。</span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end questions space-y-4 -->
+  </div><!-- end panel-questions -->
+
+  <!-- Panel: 计分规则 -->
+  <div id="panel-scoring" class="hidden">
+
+    <!-- Score table -->
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 mb-5">
+      <h3 class="text-base font-semibold text-gray-800 mb-4 flex items-center gap-2">
+        <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+        总分判断标准
+      </h3>
+      <div class="overflow-hidden rounded-lg border border-gray-200">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">分数范围</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">抑郁程度</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">建议处理</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-100">
+            <tr class="hover:bg-gray-50">
+              <td class="px-4 py-3 text-sm font-semibold text-gray-700">0 — 4 分</td>
+              <td class="px-4 py-3">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">正常</span>
+              </td>
+              <td class="px-4 py-3 text-sm text-gray-500">常规随访，无需特殊干预</td>
+            </tr>
+            <tr class="hover:bg-gray-50">
+              <td class="px-4 py-3 text-sm font-semibold text-gray-700">5 — 9 分</td>
+              <td class="px-4 py-3">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">轻度抑郁</span>
+              </td>
+              <td class="px-4 py-3 text-sm text-gray-500">观察随访，定期复评，酌情给予健康教育</td>
+            </tr>
+            <tr class="hover:bg-gray-50">
+              <td class="px-4 py-3 text-sm font-semibold text-gray-700">10 — 14 分</td>
+              <td class="px-4 py-3">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">中度抑郁</span>
+              </td>
+              <td class="px-4 py-3 text-sm text-gray-500">建议转诊心理科，制定干预计划</td>
+            </tr>
+            <tr class="hover:bg-gray-50">
+              <td class="px-4 py-3 text-sm font-semibold text-gray-700">15 — 19 分</td>
+              <td class="px-4 py-3">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">中重度抑郁</span>
+              </td>
+              <td class="px-4 py-3 text-sm text-gray-500">积极干预，考虑药物治疗，加强随访</td>
+            </tr>
+            <tr class="hover:bg-gray-50">
+              <td class="px-4 py-3 text-sm font-semibold text-gray-700">20 — 27 分</td>
+              <td class="px-4 py-3">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">重度抑郁</span>
+              </td>
+              <td class="px-4 py-3 text-sm text-gray-500">紧急干预，立即评估安全风险，必要时住院</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Score Interpretation Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
+      <div class="rounded-xl border border-green-200 bg-green-50 p-4">
+        <div class="text-2xl font-bold text-green-600 mb-1">0 — 4</div>
+        <div class="text-sm font-semibold text-green-700 mb-2">正常范围</div>
+        <p class="text-xs text-green-600">无明显抑郁症状，心理状态良好，保持日常健康生活方式。</p>
+      </div>
+      <div class="rounded-xl border border-yellow-200 bg-yellow-50 p-4">
+        <div class="text-2xl font-bold text-yellow-600 mb-1">5 — 9</div>
+        <div class="text-sm font-semibold text-yellow-700 mb-2">轻度抑郁</div>
+        <p class="text-xs text-yellow-600">存在轻微抑郁情绪，建议定期随访，适当进行心理健康教育。</p>
+      </div>
+      <div class="rounded-xl border border-amber-200 bg-amber-50 p-4">
+        <div class="text-2xl font-bold text-amber-600 mb-1">10 — 14</div>
+        <div class="text-sm font-semibold text-amber-700 mb-2">中度抑郁</div>
+        <p class="text-xs text-amber-600">需要关注和干预，建议转介专业心理健康服务，制定个性化干预方案。</p>
+      </div>
+      <div class="rounded-xl border border-orange-200 bg-orange-50 p-4">
+        <div class="text-2xl font-bold text-orange-600 mb-1">15 — 19</div>
+        <div class="text-sm font-semibold text-orange-700 mb-2">中重度抑郁</div>
+        <p class="text-xs text-orange-600">症状较重，需积极治疗，可能需要药物治疗辅助心理干预。</p>
+      </div>
+      <div class="rounded-xl border border-red-200 bg-red-50 p-4">
+        <div class="text-2xl font-bold text-red-600 mb-1">20 — 27</div>
+        <div class="text-sm font-semibold text-red-700 mb-2">重度抑郁</div>
+        <p class="text-xs text-red-600">需紧急临床评估，立即启动危机干预程序，必要时安排住院治疗。</p>
+      </div>
+      <div class="rounded-xl border border-indigo-200 bg-indigo-50 p-4 flex flex-col justify-between">
+        <div class="text-sm font-semibold text-indigo-700 mb-2">答题选项计分</div>
+        <div class="space-y-1">
+          <div class="flex justify-between text-xs text-indigo-600"><span>从不</span><span class="font-bold">0 分</span></div>
+          <div class="flex justify-between text-xs text-indigo-600"><span>几天</span><span class="font-bold">1 分</span></div>
+          <div class="flex justify-between text-xs text-indigo-600"><span>一半以上时间</span><span class="font-bold">2 分</span></div>
+          <div class="flex justify-between text-xs text-indigo-600"><span>几乎每天</span><span class="font-bold">3 分</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Q9 Special Note -->
+    <div class="rounded-xl border border-red-300 bg-red-50 p-5">
+      <div class="flex items-start gap-3">
+        <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+        </div>
+        <div>
+          <h4 class="text-sm font-bold text-red-800 mb-1">第 9 题特别说明 — 自杀意念临床关注</h4>
+          <p class="text-sm text-red-700 leading-relaxed">
+            第 9 题（自杀或自伤意念）任何非零答案均属于<strong>临床危急信号</strong>，
+            不论总分高低，均须立即进行专业临床风险评估，并依据机构危急值处理规程启动预警响应。
+            不得仅凭 PHQ-9 总分判断患者安全状态。
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end panel-scoring -->
+
+  <!-- Bottom Action Bar -->
+  <div class="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-4">
+    <div class="flex items-center gap-2 text-sm text-gray-500">
+      <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      作答时间约 3-5 分钟，请根据过去两周真实情况作答
+    </div>
+    <div class="flex items-center gap-3">
+      <a id="link-history"
+         href="/gui/admin/scale-records?scale={{ scale_id }}"
+         class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600 text-sm font-medium transition-all">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        查看历史记录
+      </a>
+      <a id="link-answer"
+         href="/gui/admin/scale-answer/{{ scale_id }}"
+         class="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors shadow-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        开始作答
+      </a>
+    </div>
+  </div>
+
+</div><!-- end max-w-4xl -->
+
+<script>
+  const scaleId = '{{ scale_id }}';
+
+  // Update dynamic links
+  document.getElementById('link-answer').href = '/gui/admin/scale-answer/' + scaleId;
+  document.getElementById('link-history').href = '/gui/admin/scale-records?scale=' + scaleId;
+
+  function switchTab(tab) {
+    const tabs = ['questions', 'scoring'];
+    tabs.forEach(function(t) {
+      const btn = document.getElementById('tab-' + t);
+      const panel = document.getElementById('panel-' + t);
+      if (t === tab) {
+        btn.classList.add('bg-white', 'text-indigo-700', 'shadow-sm');
+        btn.classList.remove('text-gray-500');
+        panel.classList.remove('hidden');
+      } else {
+        btn.classList.remove('bg-white', 'text-indigo-700', 'shadow-sm');
+        btn.classList.add('text-gray-500');
+        panel.classList.add('hidden');
+      }
+    });
+  }
+</script>
+{% endblock %}

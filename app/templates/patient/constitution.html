@@ -4,63 +4,109 @@
 {% set active_tab = "constitution" %}
 
 {% block content %}
-<div class="px-4 pt-4 space-y-4" id="loading-state">
-  <div class="animate-pulse space-y-3">
-    <div class="h-40 bg-gray-100 rounded-2xl"></div>
-    <div class="h-20 bg-gray-100 rounded-2xl"></div>
-  </div>
+
+<!-- 加载状态 -->
+<div id="loading-state" style="padding:16px;display:flex;flex-direction:column;gap:12px;">
+  <div class="skeleton" style="height:160px;border-radius:20px;"></div>
+  <div class="skeleton" style="height:80px;border-radius:20px;width:85%;"></div>
 </div>
 
-<!-- 无评估：引导开始 -->
-<div id="no-assessment" class="px-4 pt-4 space-y-4 hidden">
-  <div class="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 text-white text-center">
-    <div class="text-5xl mb-3">🌿</div>
-    <h2 class="text-xl font-bold mb-2">了解您的体质</h2>
-    <p class="text-green-100 text-sm">中医九种体质辨识，精准匹配调护方案</p>
+<!-- 未评估：引导开始 -->
+<div id="no-assessment" style="display:none;padding:16px;display:none;flex-direction:column;gap:14px;">
+
+  <!-- 引导卡片 -->
+  <div style="
+    background: linear-gradient(140deg, #4E7A61 0%, #3D6A52 60%, #2E5843 100%);
+    border-radius: 24px;
+    padding: 28px 20px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  ">
+    <div aria-hidden="true" style="position:absolute;top:-24px;right:-24px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.06);"></div>
+    <!-- 草木 SVG 图标 -->
+    <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:rgba(255,255,255,0.15);border-radius:20px;margin-bottom:16px;">
+      <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M18 32 L18 14" stroke="rgba(255,255,255,0.9)" stroke-width="2" stroke-linecap="round"/>
+        <path d="M18 20 C18 20 10 18 9 10 C15 9 20 14 18 20Z" fill="rgba(255,255,255,0.25)" stroke="rgba(255,255,255,0.85)" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M18 26 C18 26 26 24 27 16 C21 15 16 20 18 26Z" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.75)" stroke-width="1.5" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <h2 style="color:#fff;font-size:20px;font-weight:700;margin:0 0 8px;letter-spacing:-0.01em;">了解您的体质</h2>
+    <p style="color:rgba(255,255,255,0.7);font-size:14px;margin:0;line-height:1.6;">中医九种体质辨识，精准匹配调护方案</p>
   </div>
-  <div class="bg-white rounded-2xl p-4 space-y-3">
-    <h3 class="font-semibold text-gray-800">九种体质包括</h3>
-    <div class="grid grid-cols-3 gap-2 text-center text-xs text-gray-600">
-      <div class="bg-green-50 rounded-xl py-2">平和质</div>
-      <div class="bg-blue-50 rounded-xl py-2">气虚质</div>
-      <div class="bg-orange-50 rounded-xl py-2">阳虚质</div>
-      <div class="bg-red-50 rounded-xl py-2">阴虚质</div>
-      <div class="bg-yellow-50 rounded-xl py-2">痰湿质</div>
-      <div class="bg-amber-50 rounded-xl py-2">湿热质</div>
-      <div class="bg-purple-50 rounded-xl py-2">血瘀质</div>
-      <div class="bg-indigo-50 rounded-xl py-2">气郁质</div>
-      <div class="bg-pink-50 rounded-xl py-2">特禀质</div>
+
+  <!-- 九种体质说明卡片 -->
+  <div style="background:#fff;border-radius:20px;padding:18px;box-shadow:0 1px 14px rgba(68,60,48,0.07);">
+    <h3 style="font-size:15px;font-weight:600;color:#28231E;margin:0 0 14px;">九种体质</h3>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+      <div style="background:#EBF2ED;border-radius:12px;padding:10px 6px;text-align:center;font-size:13px;font-weight:500;color:#4E7A61;">平和质</div>
+      <div style="background:#EBF2ED;border-radius:12px;padding:10px 6px;text-align:center;font-size:13px;font-weight:500;color:#4E7A61;">气虚质</div>
+      <div style="background:#F2EEF7;border-radius:12px;padding:10px 6px;text-align:center;font-size:13px;font-weight:500;color:#7A5EA0;">阳虚质</div>
+      <div style="background:#F7EEE4;border-radius:12px;padding:10px 6px;text-align:center;font-size:13px;font-weight:500;color:#B8885E;">阴虚质</div>
+      <div style="background:#F0EBE4;border-radius:12px;padding:10px 6px;text-align:center;font-size:13px;font-weight:500;color:#8C7A6A;">痰湿质</div>
+      <div style="background:#FEF5E4;border-radius:12px;padding:10px 6px;text-align:center;font-size:13px;font-weight:500;color:#C08030;">湿热质</div>
+      <div style="background:#FEF0F0;border-radius:12px;padding:10px 6px;text-align:center;font-size:13px;font-weight:500;color:#C04040;">血瘀质</div>
+      <div style="background:#EEF2F7;border-radius:12px;padding:10px 6px;text-align:center;font-size:13px;font-weight:500;color:#5070A8;">气郁质</div>
+      <div style="background:#F5F0F5;border-radius:12px;padding:10px 6px;text-align:center;font-size:13px;font-weight:500;color:#9060A0;">特禀质</div>
     </div>
   </div>
-  <a href="/h5/constitution/assess"
-    class="block w-full bg-green-600 text-white text-center font-medium py-3.5 rounded-xl text-sm">
+
+  <a href="/h5/constitution/assess" style="
+    display:block;background:#4E7A61;color:#fff;text-align:center;
+    font-size:15px;font-weight:500;padding:15px;border-radius:16px;
+    text-decoration:none;cursor:pointer;
+    box-shadow:0 4px 16px rgba(78,122,97,0.28);
+    transition:background 0.2s;
+  ">
     开始体质评估（约10分钟）
   </a>
 </div>
 
 <!-- 已有评估结果 -->
-<div id="has-assessment" class="px-4 pt-4 space-y-4 hidden">
-  <div id="result-card" class="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-5 text-white">
-    <p class="text-green-100 text-xs mb-1">我的主导体质</p>
-    <h2 class="text-2xl font-bold" id="main-type-name">-</h2>
-    <p class="text-sm text-green-100 mt-2" id="scored-at">-</p>
+<div id="has-assessment" style="display:none;padding:16px;flex-direction:column;gap:14px;">
+
+  <!-- 结果主卡 -->
+  <div id="result-card" style="
+    background: linear-gradient(140deg, #4E7A61 0%, #3D6A52 60%, #2E5843 100%);
+    border-radius: 24px;
+    padding: 22px 20px;
+    position: relative;
+    overflow: hidden;
+  ">
+    <div aria-hidden="true" style="position:absolute;top:-20px;right:-20px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.06);"></div>
+    <p style="color:rgba(255,255,255,0.65);font-size:12px;margin:0 0 6px;letter-spacing:0.04em;">我的主导体质</p>
+    <h2 style="color:#fff;font-size:28px;font-weight:700;margin:0;letter-spacing:-0.01em;" id="main-type-name">-</h2>
+    <p style="color:rgba(255,255,255,0.6);font-size:13px;margin:10px 0 0;" id="scored-at">-</p>
   </div>
 
-  <div class="bg-white rounded-2xl p-4">
-    <h3 class="font-semibold text-gray-800 mb-3">体质说明</h3>
-    <p id="main-type-desc" class="text-sm text-gray-600 leading-relaxed">-</p>
+  <!-- 说明卡 -->
+  <div style="background:#fff;border-radius:20px;padding:18px;box-shadow:0 1px 14px rgba(68,60,48,0.07);">
+    <h3 style="font-size:15px;font-weight:600;color:#28231E;margin:0 0 10px;">体质说明</h3>
+    <p id="main-type-desc" style="font-size:14px;color:#6A6258;line-height:1.7;margin:0;">-</p>
   </div>
 
-  <div id="secondary-types-section" class="bg-white rounded-2xl p-4 hidden">
-    <h3 class="font-semibold text-gray-800 mb-2">兼夹体质</h3>
-    <div id="secondary-types" class="flex flex-wrap gap-2"></div>
+  <!-- 兼夹体质 -->
+  <div id="secondary-types-section" style="display:none;background:#fff;border-radius:20px;padding:18px;box-shadow:0 1px 14px rgba(68,60,48,0.07);">
+    <h3 style="font-size:15px;font-weight:600;color:#28231E;margin:0 0 12px;">兼夹体质</h3>
+    <div id="secondary-types" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
   </div>
 
-  <div class="flex space-x-3">
-    <a href="/h5/recommendation" class="flex-1 bg-green-600 text-white text-center font-medium py-3 rounded-xl text-sm">查看调护建议</a>
-    <a href="/h5/constitution/assess" class="flex-1 border border-green-600 text-green-600 text-center font-medium py-3 rounded-xl text-sm">重新评估</a>
+  <!-- 操作按钮 -->
+  <div style="display:flex;gap:12px;">
+    <a href="/h5/recommendation" style="
+      flex:1;background:#4E7A61;color:#fff;text-align:center;
+      font-size:14px;font-weight:500;padding:14px;border-radius:14px;
+      text-decoration:none;cursor:pointer;
+    ">查看调护建议</a>
+    <a href="/h5/constitution/assess" style="
+      flex:1;border:1.5px solid #4E7A61;color:#4E7A61;text-align:center;
+      font-size:14px;font-weight:500;padding:14px;border-radius:14px;
+      text-decoration:none;cursor:pointer;background:transparent;
+    ">重新评估</a>
   </div>
 </div>
+
 {% endblock %}
 
 {% block extra_scripts %}
@@ -77,27 +123,31 @@ async function load() {
   document.getElementById('loading-state').style.display = 'none';
 
   if (!data.success || !data.data) {
-    document.getElementById('no-assessment').classList.remove('hidden');
+    const el = document.getElementById('no-assessment');
+    el.style.display = 'flex';
     return;
   }
 
   const a = data.data;
-  document.getElementById('has-assessment').classList.remove('hidden');
-  document.getElementById('main-type-name').textContent = TYPE_NAMES[a.main_type] || a.main_type;
-  document.getElementById('scored-at').textContent = '评估时间：' + new Date(a.scored_at).toLocaleDateString('zh-CN');
+  const el = document.getElementById('has-assessment');
+  el.style.display = 'flex';
 
-  // 从 result 中获取描述
+  document.getElementById('main-type-name').textContent = TYPE_NAMES[a.main_type] || a.main_type;
+  document.getElementById('scored-at').textContent =
+    '评估时间：' + new Date(a.scored_at).toLocaleDateString('zh-CN');
+
   const scoreData = a.result?.[a.main_type];
   if (scoreData) {
-    document.getElementById('main-type-desc').textContent = `转换分：${scoreData.converted_score}分（${scoreData.level === 'yes' ? '明显' : '倾向'}）`;
+    document.getElementById('main-type-desc').textContent =
+      `转换分：${scoreData.converted_score} 分（${scoreData.level === 'yes' ? '明显倾向' : '有所倾向'}）`;
   }
 
   if (a.secondary_types && a.secondary_types.length > 0) {
-    document.getElementById('secondary-types-section').classList.remove('hidden');
+    document.getElementById('secondary-types-section').style.display = 'block';
     const container = document.getElementById('secondary-types');
     a.secondary_types.forEach(bt => {
       const span = document.createElement('span');
-      span.className = 'bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs';
+      span.style.cssText = 'background:#F0EBE4;color:#6A6258;padding:6px 14px;border-radius:99px;font-size:13px;font-weight:500;';
       span.textContent = TYPE_NAMES[bt] || bt;
       container.appendChild(span);
     });

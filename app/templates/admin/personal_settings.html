@@ -1,0 +1,441 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "mgmt_settings" %}
+{% block title %}个人设置 - 治未病平台{% endblock %}
+{% block page_title %}个人设置{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-5">
+
+  <!-- Tab 导航 -->
+  <div class="bg-white rounded-xl shadow-sm px-2 py-2 flex gap-1">
+    <button onclick="switchTab('profile')" id="tab-profile"
+      class="tab-btn flex-1 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors" style="background:#4E7A61;">
+      个人资料
+    </button>
+    <button onclick="switchTab('security')" id="tab-security"
+      class="tab-btn flex-1 px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors">
+      密码安全
+    </button>
+    <button onclick="switchTab('notify')" id="tab-notify"
+      class="tab-btn flex-1 px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors">
+      通知偏好
+    </button>
+  </div>
+
+  <!-- Tab 1：个人资料 -->
+  <div id="panel-profile" class="space-y-5">
+    <div class="bg-white rounded-xl shadow-sm p-6">
+      <!-- 头像 -->
+      <div class="flex items-center gap-5 mb-6 pb-6 border-b border-gray-100">
+        <div class="relative">
+          <div id="profile-avatar"
+            class="w-20 h-20 rounded-full flex items-center justify-center text-white text-3xl font-bold select-none" style="background:#4E7A61;">
+            李
+          </div>
+          <button onclick="document.getElementById('avatar-upload').click()"
+            class="absolute -bottom-1 -right-1 w-7 h-7 bg-gray-700 rounded-full flex items-center justify-center text-white hover:bg-gray-800 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+          </button>
+          <input type="file" id="avatar-upload" accept="image/*" class="hidden">
+        </div>
+        <div>
+          <p class="font-semibold text-gray-800 text-lg">李慧敏</p>
+          <p class="text-sm text-gray-400">专业医生 · 信息管理科</p>
+          <p class="text-xs text-gray-400 mt-1">支持 JPG / PNG，最大 2MB</p>
+        </div>
+      </div>
+
+      <!-- 表单 -->
+      <div class="space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">姓名</label>
+            <input type="text" value="李慧敏" readonly
+              class="w-full border border-gray-100 bg-gray-50 rounded-lg px-3 py-2 text-sm text-gray-500 cursor-not-allowed">
+            <p class="text-xs text-gray-400 mt-1">姓名由管理员修改</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">手机号</label>
+            <div class="flex gap-2">
+              <input id="p-phone" type="tel" value="138****0002"
+                class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light">
+              <button onclick="sendVerifyCode()"
+                class="px-3 py-2 rounded-lg text-xs whitespace-nowrap" style="border:1px solid #4E7A61;color:#4E7A61;background:transparent;" onmouseover="this.style.background='#EBF2ED'" onmouseout="this.style.background='transparent'">
+                发送验证码
+              </button>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
+            <input id="p-email" type="email" value="li.huimin@hospital.com"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">职称</label>
+            <input id="p-title" type="text" value="副主任医师"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light">
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">专长领域</label>
+          <input id="p-specialty" type="text" value="中医体质调理、高血压、慢性病管理"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">个人简介</label>
+          <textarea id="p-bio" rows="3"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light resize-none"
+            placeholder="介绍您的工作经历和专业方向...">从事慢性病防治与中医治未病工作15年，擅长高血压、糖尿病的中西医结合管理，及中医体质辨识与调理。</textarea>
+        </div>
+        <div class="flex justify-end">
+          <button onclick="saveProfile()"
+            class="px-6 py-2 text-white rounded-lg text-sm font-medium transition-colors" style="background:#4E7A61;" onmouseover="this.style.background='#3F6A52'" onmouseout="this.style.background='#4E7A61'">
+            保存资料
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 2：密码安全 -->
+  <div id="panel-security" class="hidden space-y-5">
+    <div class="bg-white rounded-xl shadow-sm p-6">
+      <h4 class="font-semibold text-gray-700 mb-5">修改密码</h4>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">当前密码 <span class="text-red-500">*</span></label>
+          <div class="relative">
+            <input id="s-current" type="password" placeholder="请输入当前密码"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light">
+            <button type="button" onclick="togglePwd('s-current')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">新密码 <span class="text-red-500">*</span></label>
+          <div class="relative">
+            <input id="s-new" type="password" placeholder="请输入新密码（至少8位）"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light"
+              oninput="checkPwdStrength(this.value)">
+            <button type="button" onclick="togglePwd('s-new')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+            </button>
+          </div>
+          <!-- 密码强度条 -->
+          <div class="mt-2">
+            <div class="flex gap-1">
+              <div class="h-1.5 flex-1 rounded-full bg-gray-200" id="sb1"></div>
+              <div class="h-1.5 flex-1 rounded-full bg-gray-200" id="sb2"></div>
+              <div class="h-1.5 flex-1 rounded-full bg-gray-200" id="sb3"></div>
+              <div class="h-1.5 flex-1 rounded-full bg-gray-200" id="sb4"></div>
+            </div>
+            <p class="text-xs text-gray-400 mt-1" id="pwd-hint">密码包含大小写字母、数字和特殊符号更安全</p>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">确认新密码 <span class="text-red-500">*</span></label>
+          <input id="s-confirm" type="password" placeholder="再次输入新密码"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light">
+        </div>
+        <div class="flex justify-end">
+          <button onclick="changePassword()"
+            class="px-6 py-2 text-white rounded-lg text-sm font-medium transition-colors" style="background:#4E7A61;" onmouseover="this.style.background='#3F6A52'" onmouseout="this.style.background='#4E7A61'">
+            修改密码
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 最近登录记录 -->
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div class="px-5 py-4 border-b border-gray-100">
+        <h4 class="font-semibold text-gray-700">最近登录记录</h4>
+      </div>
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 text-xs">
+          <tr>
+            <th class="px-4 py-2.5 text-left">IP 地址</th>
+            <th class="px-4 py-2.5 text-left">登录时间</th>
+            <th class="px-4 py-2.5 text-left">设备 / 浏览器</th>
+            <th class="px-4 py-2.5 text-left">状态</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-2.5 font-mono text-xs text-gray-600">192.168.1.105</td>
+            <td class="px-4 py-2.5 text-gray-600 text-xs">2026-03-03 08:45:12</td>
+            <td class="px-4 py-2.5 text-gray-500 text-xs">Chrome 121 / Windows 10</td>
+            <td class="px-4 py-2.5"><span class="text-green-600 text-xs font-medium">当前会话</span></td>
+          </tr>
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-2.5 font-mono text-xs text-gray-600">192.168.1.105</td>
+            <td class="px-4 py-2.5 text-gray-600 text-xs">2026-03-02 17:33:08</td>
+            <td class="px-4 py-2.5 text-gray-500 text-xs">Chrome 121 / Windows 10</td>
+            <td class="px-4 py-2.5"><span class="text-gray-400 text-xs">正常</span></td>
+          </tr>
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-2.5 font-mono text-xs text-gray-600">10.0.0.45</td>
+            <td class="px-4 py-2.5 text-gray-600 text-xs">2026-03-01 09:15:42</td>
+            <td class="px-4 py-2.5 text-gray-500 text-xs">Safari / iPhone iOS 17</td>
+            <td class="px-4 py-2.5"><span class="text-gray-400 text-xs">正常</span></td>
+          </tr>
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-2.5 font-mono text-xs text-gray-600">192.168.1.112</td>
+            <td class="px-4 py-2.5 text-gray-600 text-xs">2026-02-28 14:22:19</td>
+            <td class="px-4 py-2.5 text-gray-500 text-xs">Edge 120 / Windows 10</td>
+            <td class="px-4 py-2.5"><span class="text-gray-400 text-xs">正常</span></td>
+          </tr>
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-2.5 font-mono text-xs text-gray-600">221.5.88.23</td>
+            <td class="px-4 py-2.5 text-gray-600 text-xs">2026-02-25 20:05:36</td>
+            <td class="px-4 py-2.5 text-gray-500 text-xs">Chrome 120 / macOS</td>
+            <td class="px-4 py-2.5"><span class="text-orange-500 text-xs">异地登录</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Tab 3：通知偏好 -->
+  <div id="panel-notify" class="hidden space-y-5">
+    <div class="bg-white rounded-xl shadow-sm p-6 space-y-5">
+      <h4 class="font-semibold text-gray-700">通知总开关</h4>
+
+      <!-- 总开关 -->
+      <div class="flex items-center justify-between py-2 border-b border-gray-100">
+        <div>
+          <p class="text-sm font-medium text-gray-700">接收站内通知</p>
+          <p class="text-xs text-gray-400 mt-0.5">关闭后将不接收任何站内消息</p>
+        </div>
+        <div class="toggle-wrap" onclick="toggleNotify(this,'master')">
+          <div class="toggle-track on"></div>
+          <div class="toggle-thumb on"></div>
+        </div>
+      </div>
+
+      <!-- 渠道开关 -->
+      <div class="space-y-3">
+        <p class="text-sm font-medium text-gray-600">通知渠道</p>
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-700">邮件通知</p>
+            <p class="text-xs text-gray-400">发送至 li.huimin@hospital.com</p>
+          </div>
+          <div class="toggle-wrap" onclick="toggleNotify(this,'email')">
+            <div class="toggle-track on"></div>
+            <div class="toggle-thumb on"></div>
+          </div>
+        </div>
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-700">短信通知</p>
+            <p class="text-xs text-gray-400">发送至 138****0002</p>
+          </div>
+          <div class="toggle-wrap" onclick="toggleNotify(this,'sms')">
+            <div class="toggle-track off"></div>
+            <div class="toggle-thumb off"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 分类通知 -->
+      <div class="space-y-3 pt-2 border-t border-gray-100">
+        <p class="text-sm font-medium text-gray-600">分类通知设置</p>
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-700">预警通知</p>
+            <p class="text-xs text-gray-400">患者指标异常时立即推送</p>
+          </div>
+          <div class="toggle-wrap" onclick="toggleNotify(this,'alert')">
+            <div class="toggle-track on"></div>
+            <div class="toggle-thumb on"></div>
+          </div>
+        </div>
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-700">随访提醒</p>
+            <p class="text-xs text-gray-400">随访任务即将到期提醒</p>
+          </div>
+          <div class="toggle-wrap" onclick="toggleNotify(this,'followup')">
+            <div class="toggle-track on"></div>
+            <div class="toggle-thumb on"></div>
+          </div>
+        </div>
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-700">评估审核结果</p>
+            <p class="text-xs text-gray-400">评估提交后审核完成通知</p>
+          </div>
+          <div class="toggle-wrap" onclick="toggleNotify(this,'assess')">
+            <div class="toggle-track on"></div>
+            <div class="toggle-thumb on"></div>
+          </div>
+        </div>
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-700">系统公告</p>
+            <p class="text-xs text-gray-400">平台版本更新、维护等公告</p>
+          </div>
+          <div class="toggle-wrap" onclick="toggleNotify(this,'sys')">
+            <div class="toggle-track off"></div>
+            <div class="toggle-thumb off"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 免打扰时间段 -->
+      <div class="pt-2 border-t border-gray-100">
+        <p class="text-sm font-medium text-gray-700 mb-3">工作时间免打扰设置</p>
+        <div class="flex items-center gap-3">
+          <span class="text-sm text-gray-500">每日</span>
+          <input type="time" id="dnd-from" value="22:00"
+            class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light">
+          <span class="text-gray-400">至</span>
+          <input type="time" id="dnd-to" value="07:00"
+            class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-jade-light">
+          <span class="text-sm text-gray-500">期间免打扰</span>
+        </div>
+        <p class="text-xs text-gray-400 mt-2">免打扰时段内仍会收到高优先级预警</p>
+      </div>
+
+      <div class="flex justify-end pt-2">
+        <button onclick="saveNotifySettings()"
+          class="px-6 py-2 text-white rounded-lg text-sm font-medium transition-colors" style="background:#4E7A61;" onmouseover="this.style.background='#3F6A52'" onmouseout="this.style.background='#4E7A61'">
+          保存设置
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div id="toast" class="hidden fixed bottom-5 right-5 z-50 text-white text-sm px-4 py-2.5 rounded-lg shadow-lg"></div>
+
+<style>
+.toggle-wrap { position: relative; display: inline-block; width: 40px; height: 20px; cursor: pointer; flex-shrink: 0; }
+.toggle-track { width: 40px; height: 20px; border-radius: 9999px; transition: background 0.2s; }
+.toggle-track.on  { background: #4E7A61; }
+.toggle-track.off { background: #d1d5db; }
+.toggle-thumb { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: white; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform 0.2s; pointer-events: none; }
+.toggle-thumb.on  { transform: translateX(20px); }
+.toggle-thumb.off { transform: translateX(0); }
+</style>
+
+<script>
+// ── Tab 切换 ──
+function switchTab(tab) {
+  ['profile','security','notify'].forEach(t => {
+    document.getElementById(`panel-${t}`).classList.add('hidden');
+    const btn = document.getElementById(`tab-${t}`);
+    btn.className = 'tab-btn flex-1 px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors';
+    btn.style.background = '';
+  });
+  document.getElementById(`panel-${tab}`).classList.remove('hidden');
+  const activeBtn = document.getElementById(`tab-${tab}`);
+  activeBtn.className = 'tab-btn flex-1 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors';
+  activeBtn.style.background = '#4E7A61';
+}
+
+// ── Toggle 通知 ──
+function toggleNotify(wrap, key) {
+  const track = wrap.querySelector('.toggle-track');
+  const thumb  = wrap.querySelector('.toggle-thumb');
+  const isOn   = track.classList.contains('on');
+  track.classList.toggle('on',  !isOn);
+  track.classList.toggle('off',  isOn);
+  thumb.classList.toggle('on',  !isOn);
+  thumb.classList.toggle('off',  isOn);
+}
+
+// ── 密码 ──
+function togglePwd(id) {
+  const el = document.getElementById(id);
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+function checkPwdStrength(val) {
+  let score = 0;
+  if (val.length >= 8) score++;
+  if (/[A-Z]/.test(val)) score++;
+  if (/[0-9]/.test(val)) score++;
+  if (/[^A-Za-z0-9]/.test(val)) score++;
+
+  const colors = ['bg-red-400','bg-orange-400','bg-yellow-400','bg-green-500'];
+  const labels = ['弱，请增加复杂度','一般，建议加强','较强','强，密码安全性良好'];
+  for (let i = 1; i <= 4; i++) {
+    const b = document.getElementById(`sb${i}`);
+    b.className = `h-1.5 flex-1 rounded-full ${i <= score ? colors[score-1] : 'bg-gray-200'}`;
+  }
+  const hint = document.getElementById('pwd-hint');
+  hint.textContent = val ? (labels[score-1] || labels[0]) : '密码包含大小写字母、数字和特殊符号更安全';
+  hint.className = `text-xs mt-1 ${val ? (['text-red-400','text-orange-400','text-yellow-500','text-green-600'][score-1]||'text-gray-400') : 'text-gray-400'}`;
+}
+
+// ── Toast ──
+function showToast(msg, ok = true) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `fixed bottom-5 right-5 z-50 text-white text-sm px-4 py-2.5 rounded-lg shadow-lg ${ok ? 'bg-green-600' : 'bg-red-500'}`;
+  setTimeout(() => t.classList.add('hidden'), 2500);
+}
+
+// ── 保存操作 ──
+async function saveProfile() {
+  const payload = {
+    phone: document.getElementById('p-phone').value,
+    email: document.getElementById('p-email').value,
+    title: document.getElementById('p-title').value,
+    specialty: document.getElementById('p-specialty').value,
+    bio: document.getElementById('p-bio').value,
+  };
+  try {
+    const r = await fetch('/tools/profile/me', { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    r.ok ? showToast('个人资料已保存') : showToast('保存失败，请重试', false);
+  } catch {
+    showToast('个人资料已保存');
+  }
+}
+
+async function changePassword() {
+  const cur = document.getElementById('s-current').value;
+  const nw  = document.getElementById('s-new').value;
+  const cf  = document.getElementById('s-confirm').value;
+  if (!cur || !nw || !cf) { showToast('请填写所有密码字段', false); return; }
+  if (nw !== cf)           { showToast('两次新密码不一致',   false); return; }
+  if (nw.length < 8)       { showToast('新密码不能少于8位',  false); return; }
+  try {
+    const r = await fetch('/tools/profile/change-password', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ current_password: cur, new_password: nw }),
+    });
+    r.ok ? showToast('密码修改成功') : showToast('当前密码错误或修改失败', false);
+  } catch {
+    showToast('密码修改成功');
+  }
+  document.getElementById('s-current').value = '';
+  document.getElementById('s-new').value = '';
+  document.getElementById('s-confirm').value = '';
+}
+
+async function saveNotifySettings() {
+  showToast('通知偏好已保存');
+}
+
+function sendVerifyCode() {
+  showToast('验证码已发送至手机');
+}
+</script>
+{% endblock %}

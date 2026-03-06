@@ -3,77 +3,94 @@
 {% block page_title %}随访打卡{% endblock %}
 
 {% block content %}
-<div class="px-4 pt-4 space-y-4">
+<div style="padding: 16px; display: flex; flex-direction: column; gap: 14px;">
 
-  <!-- 无计划：引导开始 -->
-  <div id="no-plan" class="hidden">
-    <div class="bg-white rounded-2xl p-6 text-center">
-      <div class="text-5xl mb-3">📋</div>
-      <h3 class="font-semibold text-gray-800 mb-2">还未开始随访计划</h3>
-      <p class="text-gray-500 text-sm mb-4">选择病种，开启30天健康管理随访</p>
-      <div class="space-y-2">
-        <button onclick="startPlan('HYPERTENSION')"
-          class="w-full bg-green-600 text-white font-medium py-3 rounded-xl text-sm">
-          开始高血压随访计划
-        </button>
-        <button onclick="startPlan('DIABETES_T2')"
-          class="w-full border border-green-600 text-green-600 font-medium py-3 rounded-xl text-sm">
-          开始糖尿病随访计划
-        </button>
+  <!-- 无计划：引导 -->
+  <div id="no-plan" style="display:none;">
+    <div style="background:#fff;border-radius:20px;padding:28px 20px;text-align:center;box-shadow:0 1px 14px rgba(68,60,48,0.07);">
+      <!-- 图标 -->
+      <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#EBF2ED;border-radius:20px;margin-bottom:16px;">
+        <svg width="32" height="32" fill="none" stroke="#4E7A61" viewBox="0 0 24 24" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 11l3 3L22 4"/>
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+      </div>
+      <h3 style="font-size:17px;font-weight:600;color:#28231E;margin:0 0 8px;">还未开始随访计划</h3>
+      <p style="font-size:14px;color:#9A9188;margin:0 0 24px;line-height:1.6;">选择病种，开启30天健康管理随访</p>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <button onclick="startPlan('HYPERTENSION')" style="
+          background:#4E7A61;color:#fff;font-size:15px;font-weight:500;
+          padding:14px;border-radius:14px;border:none;cursor:pointer;width:100%;
+          font-family:inherit;transition:background 0.2s;
+        ">开始高血压随访计划</button>
+        <button onclick="startPlan('DIABETES_T2')" style="
+          background:transparent;color:#4E7A61;font-size:15px;font-weight:500;
+          padding:14px;border-radius:14px;border:1.5px solid #4E7A61;cursor:pointer;width:100%;
+          font-family:inherit;transition:background 0.2s;
+        ">开始糖尿病随访计划</button>
       </div>
     </div>
   </div>
 
   <!-- 有计划 -->
-  <div id="has-plan" class="space-y-4 hidden">
+  <div id="has-plan" style="display:none;flex-direction:column;gap:14px;">
 
-    <!-- 计划概览 -->
-    <div id="plan-overview" class="bg-gradient-to-r from-green-600 to-emerald-500 rounded-2xl p-4 text-white">
-      <div class="flex justify-between items-start">
+    <!-- 计划概览卡 -->
+    <div id="plan-overview" style="
+      background: linear-gradient(140deg, #4E7A61 0%, #3D6A52 60%, #2E5843 100%);
+      border-radius: 24px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+    ">
+      <div aria-hidden="true" style="position:absolute;top:-20px;right:-20px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.06);"></div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
         <div>
-          <p class="text-green-100 text-xs">当前计划</p>
-          <h3 class="font-bold" id="plan-title">-</h3>
+          <p style="color:rgba(255,255,255,0.6);font-size:12px;margin:0 0 4px;">当前计划</p>
+          <h3 style="color:#fff;font-size:17px;font-weight:600;margin:0;" id="plan-title">-</h3>
         </div>
-        <div class="text-right">
-          <p class="text-green-100 text-xs">依从率</p>
-          <p class="text-2xl font-bold" id="adherence-rate">-</p>
+        <div style="text-align:right;">
+          <p style="color:rgba(255,255,255,0.6);font-size:12px;margin:0 0 4px;">依从率</p>
+          <p style="color:#fff;font-size:26px;font-weight:700;margin:0;" id="adherence-rate">-</p>
         </div>
       </div>
-      <div class="mt-3 flex justify-between text-xs text-green-100">
+      <div style="margin-top:14px;display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.55);">
         <span id="plan-dates">-</span>
         <span id="streak">-</span>
       </div>
     </div>
 
     <!-- 今日任务 -->
-    <div class="bg-white rounded-2xl p-4">
-      <h3 class="font-semibold text-gray-800 mb-3">今日任务</h3>
-      <div id="today-tasks" class="space-y-3"></div>
+    <div style="background:#fff;border-radius:20px;padding:18px;box-shadow:0 1px 14px rgba(68,60,48,0.07);">
+      <h3 style="font-size:15px;font-weight:600;color:#28231E;margin:0 0 14px;">今日任务</h3>
+      <div id="today-tasks" style="display:flex;flex-direction:column;gap:10px;"></div>
     </div>
 
-  </div>
-
-  <!-- 打卡表单 Modal -->
-  <div id="checkin-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-end">
-    <div class="bg-white rounded-t-2xl w-full p-5 space-y-4">
-      <h3 class="font-semibold text-gray-800" id="modal-title">打卡</h3>
-      <div id="modal-fields"></div>
-      <input id="checkin-note" type="text" placeholder="备注（可选）"
-        class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
-      <div class="flex space-x-3">
-        <button onclick="closeModal()" class="flex-1 border border-gray-200 text-gray-600 font-medium py-3 rounded-xl text-sm">取消</button>
-        <button onclick="confirmCheckin()" class="flex-1 bg-green-600 text-white font-medium py-3 rounded-xl text-sm">确认打卡</button>
-      </div>
-    </div>
   </div>
 
 </div>
+
+<!-- 打卡 Modal -->
+<div id="checkin-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:50;align-items:flex-end;">
+  <div style="background:#fff;border-radius:24px 24px 0 0;width:100%;padding:24px 20px 36px;" class="slide-up">
+    <div style="width:36px;height:4px;background:#E4DDD4;border-radius:2px;margin:0 auto 20px;"></div>
+    <h3 style="font-size:17px;font-weight:600;color:#28231E;margin:0 0 20px;" id="modal-title">打卡</h3>
+    <div id="modal-fields" style="margin-bottom:14px;"></div>
+    <input id="checkin-note" type="text" placeholder="备注（可选）" class="input-field" style="margin-bottom:14px;">
+    <div style="display:flex;gap:10px;">
+      <button onclick="closeModal()" class="btn-ghost" style="flex:1;">取消</button>
+      <button onclick="confirmCheckin()" class="btn-primary" style="flex:1;">确认打卡</button>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
 let activePlanId = null;
 let currentTaskId = null;
+let checkinMeta = {};
 const TYPE_NAMES = {HYPERTENSION: '高血压', DIABETES_T2: '2型糖尿病'};
 
 async function init() {
@@ -81,28 +98,27 @@ async function init() {
   const data = await resp.json();
   if (!data.success) return;
 
-  const plans = data.data;
-  const active = plans.find(p => p.status === 'ACTIVE');
-
+  const active = data.data.find(p => p.status === 'ACTIVE');
   if (!active) {
-    document.getElementById('no-plan').classList.remove('hidden');
+    document.getElementById('no-plan').style.display = 'block';
     return;
   }
+
   activePlanId = active.id;
-  document.getElementById('has-plan').classList.remove('hidden');
+  const hasPlan = document.getElementById('has-plan');
+  hasPlan.style.display = 'flex';
 
-  // 计划信息
-  document.getElementById('plan-title').textContent = (TYPE_NAMES[active.disease_type] || active.disease_type) + ' 30天随访';
-  document.getElementById('plan-dates').textContent = `${active.start_date} ~ ${active.end_date}`;
+  document.getElementById('plan-title').textContent =
+    (TYPE_NAMES[active.disease_type] || active.disease_type) + ' 30天随访';
+  document.getElementById('plan-dates').textContent =
+    `${active.start_date} ~ ${active.end_date}`;
 
-  // 依从率
   const adResp = await fetch(`/tools/followup/adherence?plan_id=${active.id}`);
   const adData = await adResp.json();
   if (adData.success) {
     document.getElementById('adherence-rate').textContent = adData.data.adherence_rate + '%';
   }
 
-  // 今日任务
   loadTodayTasks();
 }
 
@@ -113,27 +129,33 @@ async function loadTodayTasks() {
   container.innerHTML = '';
 
   if (!data.success || !data.data || data.data.length === 0) {
-    container.innerHTML = '<p class="text-center text-gray-400 text-sm py-4">今日暂无任务</p>';
+    container.innerHTML = '<p style="text-align:center;color:#9A9188;font-size:14px;padding:16px 0;margin:0;">今日暂无任务</p>';
     return;
   }
 
   data.data.forEach(task => {
     const isDone = task.checkin_status === 'DONE';
     const div = document.createElement('div');
-    div.className = `flex items-center justify-between p-3.5 rounded-xl ${isDone ? 'bg-green-50' : 'bg-gray-50'}`;
+    div.style.cssText = `
+      display:flex;align-items:center;justify-content:space-between;
+      padding:13px 14px;border-radius:14px;
+      background:${isDone ? '#EBF2ED' : '#FDFCF9'};
+      border:1px solid ${isDone ? '#C8DDD0' : '#E4DDD4'};
+    `;
     div.innerHTML = `
-      <div class="flex items-center space-x-3 flex-1">
-        <div class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0
-          ${isDone ? 'bg-green-500 text-white' : 'border-2 border-gray-300'}">
-          ${isDone ? '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
+      <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
+        <div style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;${isDone ? 'background:#4E7A61;' : 'border:1.5px solid #D0C9C0;'}">
+          ${isDone ? '<svg width="14" height="14" fill="none" stroke="#fff" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>' : ''}
         </div>
-        <div>
-          <p class="text-sm font-medium ${isDone ? 'text-gray-400 line-through' : 'text-gray-700'}">${task.name}</p>
-          ${task.required ? '<p class="text-xs text-red-400">必做</p>' : '<p class="text-xs text-gray-400">选做</p>'}
+        <div style="min-width:0;">
+          <p style="font-size:14px;font-weight:500;color:${isDone ? '#9A9188' : '#28231E'};margin:0;${isDone ? 'text-decoration:line-through;' : ''}overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${task.name}</p>
+          ${task.required ? '<p style="font-size:11px;color:#D95C4A;margin:2px 0 0;">必做</p>' : '<p style="font-size:11px;color:#9A9188;margin:2px 0 0;">选做</p>'}
         </div>
       </div>
       ${!isDone ? `<button onclick="openCheckin('${task.task_id}', '${task.name}', '${task.task_type}', ${JSON.stringify(task.meta || {}).replace(/"/g, '&quot;')})"
-        class="bg-green-600 text-white text-xs px-3 py-1.5 rounded-lg flex-shrink-0">打卡</button>` : ''}
+        style="background:#4E7A61;color:#fff;font-size:12px;font-weight:500;padding:8px 14px;border-radius:10px;border:none;cursor:pointer;font-family:inherit;flex-shrink:0;margin-left:8px;white-space:nowrap;">
+        打卡
+      </button>` : ''}
     `;
     container.appendChild(div);
   });
@@ -150,8 +172,6 @@ async function startPlan(diseaseType) {
   else alert('启动失败：' + data.error.message);
 }
 
-let checkinMeta = {};
-
 function openCheckin(taskId, taskName, taskType, meta) {
   currentTaskId = taskId;
   checkinMeta = meta || {};
@@ -163,26 +183,33 @@ function openCheckin(taskId, taskName, taskType, meta) {
     const indicatorType = meta.indicator_type;
     if (indicatorType === 'BLOOD_PRESSURE') {
       fieldsEl.innerHTML = `
-        <div class="flex space-x-3">
-          <div class="flex-1"><label class="text-xs text-gray-500">收缩压</label>
-            <input id="ci-systolic" type="number" placeholder="mmHg" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 mt-1 text-center text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-green-400"></div>
-          <div class="flex items-end pb-2.5 text-gray-400">/</div>
-          <div class="flex-1"><label class="text-xs text-gray-500">舒张压</label>
-            <input id="ci-diastolic" type="number" placeholder="mmHg" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 mt-1 text-center text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-green-400"></div>
+        <div style="display:flex;gap:10px;align-items:flex-end;">
+          <div style="flex:1;">
+            <label style="font-size:12px;color:#6A6258;display:block;margin-bottom:6px;">收缩压</label>
+            <input id="ci-systolic" type="number" placeholder="mmHg" class="input-field" style="text-align:center;font-size:18px;font-weight:600;">
+          </div>
+          <div style="padding-bottom:14px;color:#9A9188;font-size:20px;font-weight:300;">/</div>
+          <div style="flex:1;">
+            <label style="font-size:12px;color:#6A6258;display:block;margin-bottom:6px;">舒张压</label>
+            <input id="ci-diastolic" type="number" placeholder="mmHg" class="input-field" style="text-align:center;font-size:18px;font-weight:600;">
+          </div>
         </div>`;
     } else if (indicatorType === 'BLOOD_GLUCOSE') {
-      fieldsEl.innerHTML = `<div><label class="text-xs text-gray-500">血糖值 (mmol/L)</label>
-        <input id="ci-glucose" type="number" step="0.1" placeholder="mmol/L" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 mt-1 text-center text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-green-400"></div>`;
+      fieldsEl.innerHTML = `
+        <div>
+          <label style="font-size:12px;color:#6A6258;display:block;margin-bottom:6px;">血糖值（mmol/L）</label>
+          <input id="ci-glucose" type="number" step="0.1" placeholder="mmol/L" class="input-field" style="text-align:center;font-size:18px;font-weight:600;">
+        </div>`;
     }
   } else {
-    fieldsEl.innerHTML = `<p class="text-sm text-gray-500 text-center py-2">点击确认完成打卡</p>`;
+    fieldsEl.innerHTML = `<p style="text-align:center;font-size:14px;color:#9A9188;padding:8px 0;margin:0;">点击确认完成今日打卡</p>`;
   }
 
-  document.getElementById('checkin-modal').classList.remove('hidden');
+  document.getElementById('checkin-modal').style.display = 'flex';
 }
 
 function closeModal() {
-  document.getElementById('checkin-modal').classList.add('hidden');
+  document.getElementById('checkin-modal').style.display = 'none';
   currentTaskId = null;
 }
 
@@ -195,7 +222,6 @@ async function confirmCheckin() {
     const d = parseFloat(document.getElementById('ci-diastolic')?.value);
     if (!s || !d) { alert('请填写血压值'); return; }
     value = {systolic: s, diastolic: d};
-    // 同时录入指标
     await fetch('/tools/indicators', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -221,12 +247,8 @@ async function confirmCheckin() {
     body: JSON.stringify({task_id: currentTaskId, value, note: note || null}),
   });
   const data = await resp.json();
-  if (data.success) {
-    closeModal();
-    loadTodayTasks();
-  } else {
-    alert('打卡失败：' + data.error.message);
-  }
+  if (data.success) { closeModal(); loadTodayTasks(); }
+  else alert('打卡失败：' + data.error.message);
 }
 
 init();

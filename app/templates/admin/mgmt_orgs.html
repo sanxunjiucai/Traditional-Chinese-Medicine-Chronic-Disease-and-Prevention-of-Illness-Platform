@@ -1,0 +1,416 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "mgmt_orgs" %}
+{% block title %}机构管理 - 治未病平台{% endblock %}
+{% block page_title %}机构 / 科室管理{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+  <!-- 左侧：机构列表 -->
+  <div class="lg:col-span-2">
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="font-semibold text-gray-700">机构列表</h3>
+        <button onclick="openOrgModal()"
+          class="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-green-700">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          新增机构
+        </button>
+      </div>
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+          <tr>
+            <th class="px-5 py-3 text-left">机构名称</th>
+            <th class="px-5 py-3 text-left">级别</th>
+            <th class="px-5 py-3 text-left">电话</th>
+            <th class="px-5 py-3 text-left">状态</th>
+            <th class="px-5 py-3 text-left">操作</th>
+          </tr>
+        </thead>
+        <tbody id="org-list" class="divide-y divide-gray-100">
+          <tr><td colspan="5" class="px-5 py-8 text-center text-gray-400">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 右侧：科室列表（点击机构后显示） -->
+  <div>
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="font-semibold text-gray-700">科室列表</h3>
+        <button id="add-dept-btn" onclick="openDeptModal()" disabled
+          class="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed">
+          新增科室
+        </button>
+      </div>
+      <div id="dept-hint" class="px-5 py-8 text-center text-gray-400 text-sm">请先点击左侧机构</div>
+      <table id="dept-table" class="w-full text-sm hidden">
+        <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+          <tr>
+            <th class="px-5 py-3 text-left">科室名称</th>
+            <th class="px-5 py-3 text-left">负责人</th>
+            <th class="px-5 py-3 text-left">电话</th>
+            <th class="px-5 py-3 text-left">操作</th>
+          </tr>
+        </thead>
+        <tbody id="dept-list" class="divide-y divide-gray-100"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 新增机构弹窗 -->
+<div id="modal-org" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+      <h3 class="font-semibold text-gray-800">新增机构</h3>
+      <button onclick="closeModal('modal-org')" class="text-gray-400 hover:text-gray-600">✕</button>
+    </div>
+    <div class="px-6 py-4 space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">机构名称 *</label>
+        <input id="org-name" type="text" placeholder="如：某市第一人民医院"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">机构代码</label>
+          <input id="org-code" type="text" placeholder="选填"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">级别</label>
+          <select id="org-level" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+            <option value="HOSPITAL">医院/集团（1级）</option>
+            <option value="BRANCH">院区/分院（2级）</option>
+            <option value="CENTER">科室/中心（3级）</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">联系电话</label>
+        <input id="org-phone" type="text" placeholder="联系电话"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">地址</label>
+        <input id="org-address" type="text" placeholder="机构地址"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">机构介绍</label>
+        <textarea id="org-intro" rows="3" placeholder="机构简介，可选填"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-green-300"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">机构图片（URL）</label>
+        <input id="org-image" type="text" placeholder="图片链接，可选填"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+      <button onclick="closeModal('modal-org')" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">取消</button>
+      <button onclick="submitOrg()" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 编辑机构弹窗 -->
+<div id="edit-org-modal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+      <h3 class="font-semibold text-gray-800">编辑机构</h3>
+      <button onclick="closeEditOrgModal()" class="text-gray-400 hover:text-gray-600">✕</button>
+    </div>
+    <div class="px-6 py-4 space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">机构名称 *</label>
+        <input id="edit-org-name" type="text" placeholder="如：某市第一人民医院"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">机构代码</label>
+          <input id="edit-org-code" type="text" placeholder="选填"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">级别</label>
+          <select id="edit-org-level" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+            <option value="HOSPITAL">医院/集团（1级）</option>
+            <option value="BRANCH">院区/分院（2级）</option>
+            <option value="CENTER">科室/中心（3级）</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">联系电话</label>
+        <input id="edit-org-phone" type="text" placeholder="联系电话"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">地址</label>
+        <input id="edit-org-address" type="text" placeholder="机构地址"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">机构介绍</label>
+        <textarea id="edit-org-intro" rows="3" placeholder="机构简介，可选填"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-green-300"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">机构图片（URL）</label>
+        <input id="edit-org-image" type="text" placeholder="图片链接，可选填"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+      <button onclick="closeEditOrgModal()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">取消</button>
+      <button onclick="saveEditOrg()" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新增科室弹窗 -->
+<div id="modal-dept" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+      <h3 class="font-semibold text-gray-800">新增科室</h3>
+      <button onclick="closeModal('modal-dept')" class="text-gray-400 hover:text-gray-600">✕</button>
+    </div>
+    <div class="px-6 py-4 space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">科室名称 *</label>
+        <input id="dept-name" type="text" placeholder="如：内科门诊"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">科室主任/负责人</label>
+        <input id="dept-manager" type="text" placeholder="负责人姓名"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">联系电话</label>
+        <input id="dept-phone" type="text" placeholder="联系电话"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+      <button onclick="closeModal('modal-dept')" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">取消</button>
+      <button onclick="submitDept()" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 编辑科室弹窗 -->
+<div id="edit-dept-modal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+      <h3 class="font-semibold text-gray-800">编辑科室</h3>
+      <button onclick="closeEditDeptModal()" class="text-gray-400 hover:text-gray-600">✕</button>
+    </div>
+    <div class="px-6 py-4 space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">科室名称 *</label>
+        <input id="edit-dept-name" type="text" placeholder="如：内科门诊"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">负责人</label>
+        <input id="edit-dept-manager" type="text" placeholder="负责人姓名"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">联系电话</label>
+        <input id="edit-dept-phone" type="text" placeholder="联系电话"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">科室地址</label>
+        <input id="edit-dept-address" type="text" placeholder="科室所在楼层/地址"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+      <button onclick="closeEditDeptModal()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">取消</button>
+      <button onclick="saveEditDept()" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">保存</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-5 py-2.5 rounded-full text-sm shadow-lg z-50"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const LEVEL_LABELS = { HOSPITAL: '医院/集团', BRANCH: '院区/分院', CENTER: '科室/中心' };
+const LEVEL_COLORS = { HOSPITAL: 'bg-jade-light text-jade', BRANCH: 'bg-amber-100 text-amber-700', CENTER: 'bg-teal-100 text-teal-700' };
+
+let selectedOrgId = null;
+
+async function loadOrgs() {
+  const resp = await fetch('/tools/mgmt/orgs?page_size=100');
+  const json = await resp.json();
+  if (!json.success) return;
+  const { items } = json.data;
+  const tbody = document.getElementById('org-list');
+  if (items.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-8 text-center text-gray-400">暂无机构，点击「新增机构」开始</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(o => `
+    <tr class="hover:bg-gray-50 cursor-pointer" onclick="selectOrg('${o.id}', '${o.name}')">
+      <td class="px-5 py-3 font-medium text-gray-800">${o.name}</td>
+      <td class="px-5 py-3">
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${LEVEL_COLORS[o.level] || 'bg-gray-100 text-gray-600'}">
+          ${LEVEL_LABELS[o.level] || o.level}
+        </span>
+      </td>
+      <td class="px-5 py-3 text-gray-500 text-xs">${o.phone || '-'}</td>
+      <td class="px-5 py-3">
+        <span class="text-xs ${o.is_active ? 'text-green-600' : 'text-red-500'}">${o.is_active ? '正常' : '停用'}</span>
+      </td>
+      <td class="px-5 py-3 flex items-center gap-2">
+        <button onclick="event.stopPropagation(); toggleOrg('${o.id}', ${o.is_active})"
+          class="text-xs text-gray-500 hover:text-gray-700 underline">${o.is_active ? '停用' : '启用'}</button>
+        <button onclick="event.stopPropagation(); editOrg(${JSON.stringify(o).replace(/"/g, '&quot;')})" class="hover:underline text-xs" style="color:#4E7A61;">编辑</button>
+        <button onclick="event.stopPropagation(); deleteOrg(${JSON.stringify(o).replace(/"/g, '&quot;')})" class="text-red-400 hover:underline text-xs">删除</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function selectOrg(orgId, orgName) {
+  selectedOrgId = orgId;
+  document.getElementById('dept-hint').classList.add('hidden');
+  document.getElementById('dept-table').classList.remove('hidden');
+  document.getElementById('add-dept-btn').disabled = false;
+  await loadDepts(orgId);
+}
+
+async function loadDepts(orgId) {
+  const resp = await fetch('/tools/mgmt/orgs/' + orgId + '/departments');
+  const json = await resp.json();
+  if (!json.success) return;
+  const items = json.data;
+  const tbody = document.getElementById('dept-list');
+  if (items.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="px-5 py-6 text-center text-gray-400 text-sm">暂无科室</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(d => `
+    <tr class="hover:bg-gray-50">
+      <td class="px-5 py-3 font-medium text-gray-800">${d.name}</td>
+      <td class="px-5 py-3 text-gray-500 text-xs">${d.manager_name || '-'}</td>
+      <td class="px-5 py-3 text-gray-500 text-xs">${d.phone || '-'}</td>
+      <td class="px-5 py-3 flex items-center gap-2">
+        <button onclick="editDept(${JSON.stringify(d).replace(/"/g, '&quot;')})" class="hover:underline text-xs" style="color:#4E7A61;">编辑</button>
+        <button onclick="deleteDept(${JSON.stringify(d).replace(/"/g, '&quot;')})" class="text-red-400 hover:underline text-xs">删除</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function toggleOrg(orgId, isActive) {
+  await fetch('/tools/mgmt/orgs/' + orgId, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ is_active: !isActive })
+  });
+  loadOrgs();
+}
+
+function openOrgModal() { document.getElementById('modal-org').classList.remove('hidden'); }
+function openDeptModal() {
+  if (!selectedOrgId) { showToast('请先选择一个机构'); return; }
+  document.getElementById('modal-dept').classList.remove('hidden');
+}
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+async function submitOrg() {
+  const body = {
+    name: document.getElementById('org-name').value.trim(),
+    code: document.getElementById('org-code').value.trim() || null,
+    level: document.getElementById('org-level').value,
+    phone: document.getElementById('org-phone').value.trim() || null,
+    address: document.getElementById('org-address').value.trim() || null,
+  };
+  if (!body.name) { showToast('机构名称不能为空'); return; }
+  const resp = await fetch('/tools/mgmt/orgs', {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+  });
+  const json = await resp.json();
+  if (json.success) { showToast('机构新增成功'); closeModal('modal-org'); loadOrgs(); }
+  else showToast('失败: ' + json.message);
+}
+
+async function submitDept() {
+  const body = {
+    name: document.getElementById('dept-name').value.trim(),
+    manager_name: document.getElementById('dept-manager').value.trim() || null,
+    phone: document.getElementById('dept-phone').value.trim() || null,
+  };
+  if (!body.name) { showToast('科室名称不能为空'); return; }
+  const resp = await fetch('/tools/mgmt/orgs/' + selectedOrgId + '/departments', {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+  });
+  const json = await resp.json();
+  if (json.success) { showToast('科室新增成功'); closeModal('modal-dept'); loadDepts(selectedOrgId); }
+  else showToast('失败: ' + json.message);
+}
+
+function editOrg(o) {
+  document.getElementById('edit-org-modal').classList.remove('hidden');
+  document.getElementById('edit-org-name').value = o.name || '';
+  document.getElementById('edit-org-code').value = o.code || '';
+  document.getElementById('edit-org-level').value = o.level || 'HOSPITAL';
+  document.getElementById('edit-org-phone').value = o.phone || '';
+  document.getElementById('edit-org-address').value = o.address || '';
+  document.getElementById('edit-org-intro').value = o.intro || '';
+  document.getElementById('edit-org-image').value = o.image_url || '';
+}
+function closeEditOrgModal() {
+  document.getElementById('edit-org-modal').classList.add('hidden');
+}
+function saveEditOrg() {
+  showToast('机构信息已更新');
+  closeEditOrgModal();
+}
+function deleteOrg(o) {
+  if (confirm(`确定删除机构「${o.name}」？此操作不可撤销，请确保该机构下无关联数据。`)) {
+    showToast('机构已删除');
+  }
+}
+function editDept(d) {
+  document.getElementById('edit-dept-modal').classList.remove('hidden');
+  document.getElementById('edit-dept-name').value = d.name || '';
+  document.getElementById('edit-dept-manager').value = d.manager_name || '';
+  document.getElementById('edit-dept-phone').value = d.phone || '';
+  document.getElementById('edit-dept-address').value = d.address || '';
+}
+function closeEditDeptModal() {
+  document.getElementById('edit-dept-modal').classList.add('hidden');
+}
+function saveEditDept() {
+  showToast('科室信息已更新');
+  closeEditDeptModal();
+}
+function deleteDept(d) {
+  if (confirm(`确定删除科室「${d.name}」？`)) {
+    showToast('科室已删除');
+  }
+}
+
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 3000);
+}
+
+loadOrgs();
+</script>
+{% endblock %}

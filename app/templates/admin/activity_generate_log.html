@@ -1,0 +1,456 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "activity_archives" %}
+{% block title %}活动生成记录日志 - 治未病平台{% endblock %}
+{% block page_title %}活动生成记录日志{% endblock %}
+
+{% block content %}
+<!-- Tab 切换 -->
+<div class="flex gap-1 bg-white rounded-xl shadow-sm p-1 mb-4 w-fit">
+  <button id="tab-log" onclick="switchTab('log')"
+    class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors text-white" style="background:#4E7A61;">生成记录日志</button>
+  <button id="tab-timeline" onclick="switchTab('timeline')"
+    class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors text-gray-600 hover:bg-gray-100">活动轨迹时间轴</button>
+</div>
+
+<!-- ══ 生成记录日志面板 ══ -->
+<div id="panel-log">
+<!-- KPI 卡片 -->
+<div class="grid grid-cols-4 gap-4 mb-6">
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-gray-500 text-xs mb-1">本月生成次数</p>
+        <p id="kpi-count" class="text-3xl font-bold text-gray-800">-</p>
+      </div>
+      <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background:#EBF2ED;">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:#4E7A61;">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-gray-500 text-xs mb-1">总新增归档</p>
+        <p id="kpi-added" class="text-3xl font-bold text-green-600">-</p>
+      </div>
+      <div class="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
+        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-gray-500 text-xs mb-1">总移除归档</p>
+        <p id="kpi-removed" class="text-3xl font-bold text-orange-500">-</p>
+      </div>
+      <div class="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center">
+        <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-gray-500 text-xs mb-1">生成失败次数</p>
+        <p id="kpi-failed" class="text-3xl font-bold text-red-500">-</p>
+      </div>
+      <div class="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center">
+        <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 筛选栏 -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+  <div class="flex rounded-lg overflow-hidden border border-gray-200 text-sm">
+    <button id="range-week" onclick="setRange('week')"
+      class="px-3 py-2 text-white transition-colors" style="background:#4E7A61;">本周</button>
+    <button id="range-month" onclick="setRange('month')"
+      class="px-3 py-2 bg-white text-gray-600 hover:bg-gray-50 transition-colors border-l border-gray-200">本月</button>
+    <button id="range-custom" onclick="setRange('custom')"
+      class="px-3 py-2 bg-white text-gray-600 hover:bg-gray-50 transition-colors border-l border-gray-200">自定义</button>
+  </div>
+  <div id="custom-range" class="hidden flex gap-2 items-center text-sm">
+    <input type="date" id="date-start" class="border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300">
+    <span class="text-gray-400">至</span>
+    <input type="date" id="date-end" class="border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300">
+  </div>
+  <select id="rule-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300">
+    <option value="">全部规则</option>
+    <option value="1">血压不达标规则</option>
+    <option value="2">新入组患者规则</option>
+    <option value="3">血糖控制不佳规则</option>
+    <option value="4">长期未随访规则</option>
+    <option value="5">老年跌倒高危规则</option>
+  </select>
+  <select id="status-filter" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300">
+    <option value="">全部状态</option>
+    <option value="SUCCESS">成功</option>
+    <option value="PARTIAL">部分失败</option>
+    <option value="FAILED">失败</option>
+  </select>
+  <button onclick="loadLogs(1)" class="text-white px-4 py-2 rounded-lg text-sm" style="background:#4E7A61;" onmouseenter="this.style.background='#3d6150'" onmouseleave="this.style.background='#4E7A61'">搜索</button>
+  <a href="/gui/admin/activity-archives" class="ml-auto text-sm text-gray-500 flex items-center gap-1" onmouseenter="this.style.color='#4E7A61'" onmouseleave="this.style.color=''">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+    返回活动档案
+  </a>
+</div>
+
+<!-- 表格 -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-5 py-3 text-left">生成时间</th>
+        <th class="px-5 py-3 text-left">规则名称</th>
+        <th class="px-5 py-3 text-left">触发方式</th>
+        <th class="px-5 py-3 text-left">新增归档</th>
+        <th class="px-5 py-3 text-left">移除归档</th>
+        <th class="px-5 py-3 text-left">耗时</th>
+        <th class="px-5 py-3 text-left">状态</th>
+        <th class="px-5 py-3 text-left">详情</th>
+      </tr>
+    </thead>
+    <tbody id="log-tbody" class="divide-y divide-gray-100">
+      <tr><td colspan="8" class="text-center text-gray-400 py-10">加载中...</td></tr>
+    </tbody>
+  </table>
+  <div id="pagination" class="px-5 py-3 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500"></div>
+</div>
+</div><!-- end #panel-log -->
+
+<!-- ══ 活动轨迹时间轴面板 ══ -->
+<div id="panel-timeline" class="hidden">
+  <!-- 患者检索 -->
+  <div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
+    <input id="tl-patient" type="text" placeholder="输入患者姓名或档案号"
+      class="border border-gray-200 rounded-lg px-3 py-2 text-sm w-52 focus:outline-none focus:ring-2 focus:ring-jade-300">
+    <select id="tl-rule" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300">
+      <option value="">全部规则</option>
+      <option value="血压不达标规则">血压不达标规则</option>
+      <option value="新入组患者规则">新入组患者规则</option>
+      <option value="血糖控制不佳规则">血糖控制不佳规则</option>
+      <option value="长期未随访规则">长期未随访规则</option>
+      <option value="老年跌倒高危规则">老年跌倒高危规则</option>
+    </select>
+    <button onclick="loadTimeline()" class="text-white px-4 py-2 rounded-lg text-sm" style="background:#4E7A61;" onmouseenter="this.style.background='#3d6150'" onmouseleave="this.style.background='#4E7A61'">查询</button>
+    <p class="text-xs text-gray-400 ml-2">支持查看单个患者的活动档案进出轨迹及时间轴记录</p>
+  </div>
+
+  <!-- 时间轴区域 -->
+  <div id="tl-container" class="bg-white rounded-xl shadow-sm p-6">
+    <div id="tl-body" class="text-center text-gray-400 py-16">请输入患者姓名或档案号后查询</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const DEMO_KPI = { count: 62, added: 187, removed: 43, failed: 3 };
+
+const DEMO_LOGS = [
+  { id: 1,  time: '2026-03-03 06:00:05', rule: '血压不达标规则',    trigger: 'AUTO', added: 3, removed: 1, duration: '2.1s', status: 'SUCCESS', error: null },
+  { id: 2,  time: '2026-03-03 06:00:12', rule: '新入组患者规则',    trigger: 'AUTO', added: 1, removed: 0, duration: '1.3s', status: 'SUCCESS', error: null },
+  { id: 3,  time: '2026-03-02 14:30:00', rule: '血压不达标规则',    trigger: 'MANUAL', added: 5, removed: 2, duration: '3.2s', status: 'SUCCESS', error: null },
+  { id: 4,  time: '2026-03-02 06:00:08', rule: '血糖控制不佳规则',  trigger: 'AUTO', added: 2, removed: 0, duration: '1.8s', status: 'SUCCESS', error: null },
+  { id: 5,  time: '2026-03-02 06:00:15', rule: '长期未随访规则',    trigger: 'AUTO', added: 4, removed: 3, duration: '2.5s', status: 'SUCCESS', error: null },
+  { id: 6,  time: '2026-03-01 06:00:10', rule: '老年跌倒高危规则',  trigger: 'AUTO', added: 1, removed: 0, duration: '4.1s', status: 'PARTIAL', error: '部分患者数据同步超时，已跳过 2 条记录' },
+  { id: 7,  time: '2026-03-01 06:00:06', rule: '血压不达标规则',    trigger: 'AUTO', added: 4, removed: 1, duration: '2.3s', status: 'SUCCESS', error: null },
+  { id: 8,  time: '2026-02-28 06:00:09', rule: '血糖控制不佳规则',  trigger: 'AUTO', added: 0, removed: 2, duration: '1.6s', status: 'SUCCESS', error: null },
+  { id: 9,  time: '2026-02-28 06:00:04', rule: '新入组患者规则',    trigger: 'AUTO', added: 2, removed: 0, duration: '0.9s', status: 'SUCCESS', error: null },
+  { id: 10, time: '2026-02-27 06:00:11', rule: '长期未随访规则',    trigger: 'AUTO', added: 5, removed: 1, duration: '2.8s', status: 'FAILED',  error: '数据库连接超时，请联系管理员检查数据库状态' },
+  { id: 11, time: '2026-02-26 06:00:07', rule: '血压不达标规则',    trigger: 'AUTO', added: 2, removed: 3, duration: '1.9s', status: 'SUCCESS', error: null },
+  { id: 12, time: '2026-02-25 06:00:08', rule: '老年跌倒高危规则',  trigger: 'AUTO', added: 1, removed: 0, duration: '3.7s', status: 'SUCCESS', error: null },
+  { id: 13, time: '2026-02-24 06:00:05', rule: '血糖控制不佳规则',  trigger: 'AUTO', added: 3, removed: 1, duration: '2.0s', status: 'SUCCESS', error: null },
+  { id: 14, time: '2026-02-23 10:15:00', rule: '新入组患者规则',    trigger: 'MANUAL', added: 0, removed: 0, duration: '0.8s', status: 'PARTIAL', error: '规则条件未匹配到任何患者，生成结果为空' },
+  { id: 15, time: '2026-02-22 06:00:09', rule: '血压不达标规则',    trigger: 'AUTO', added: 6, removed: 2, duration: '2.4s', status: 'SUCCESS', error: null },
+];
+
+const STATUS_CONFIG = {
+  SUCCESS: { label: '成功',    cls: 'bg-green-100 text-green-700' },
+  PARTIAL: { label: '部分失败', cls: 'bg-yellow-100 text-yellow-700' },
+  FAILED:  { label: '失败',    cls: 'bg-red-100 text-red-700' },
+};
+
+let currentRange = 'week';
+const pageSize = 10;
+let expandedRows = new Set();
+
+function setRange(range) {
+  currentRange = range;
+  ['week','month','custom'].forEach(r => {
+    const btn = document.getElementById('range-' + r);
+    if (r === range) {
+      btn.className = 'px-3 py-2 text-white transition-colors';
+      btn.style.background = '#4E7A61';
+    } else {
+      btn.className = 'px-3 py-2 bg-white text-gray-600 hover:bg-gray-50 transition-colors border-l border-gray-200';
+      btn.style.background = '';
+    }
+  });
+  document.getElementById('custom-range').className = range === 'custom' ? 'flex gap-2 items-center text-sm' : 'hidden flex gap-2 items-center text-sm';
+}
+
+async function loadKPI() {
+  try {
+    const r = await fetch('/tools/activity-archives/generate-log/kpi');
+    const d = await r.json();
+    if (!d.success) throw new Error();
+    document.getElementById('kpi-count').textContent = d.count;
+    document.getElementById('kpi-added').textContent = d.added;
+    document.getElementById('kpi-removed').textContent = d.removed;
+    document.getElementById('kpi-failed').textContent = d.failed;
+  } catch {
+    document.getElementById('kpi-count').textContent = DEMO_KPI.count;
+    document.getElementById('kpi-added').textContent = DEMO_KPI.added;
+    document.getElementById('kpi-removed').textContent = DEMO_KPI.removed;
+    document.getElementById('kpi-failed').textContent = DEMO_KPI.failed;
+  }
+}
+
+async function loadLogs(page = 1) {
+  const rule = document.getElementById('rule-filter').value;
+  const status = document.getElementById('status-filter').value;
+  try {
+    const params = new URLSearchParams({ page, page_size: pageSize, rule, status, range: currentRange });
+    const r = await fetch('/tools/activity-archives/generate-log?' + params);
+    const d = await r.json();
+    if (!d.success) throw new Error();
+    renderTable(d.items);
+    renderPagination(d.total, page);
+  } catch {
+    let filtered = DEMO_LOGS.filter(l =>
+      (!rule || l.rule.includes(document.getElementById('rule-filter').options[document.getElementById('rule-filter').selectedIndex]?.text || '')) &&
+      (!status || l.status === status)
+    );
+    const start = (page - 1) * pageSize;
+    renderTable(filtered.slice(start, start + pageSize));
+    renderPagination(filtered.length, page);
+  }
+}
+
+function toggleExpand(id) {
+  if (expandedRows.has(id)) {
+    expandedRows.delete(id);
+  } else {
+    expandedRows.add(id);
+  }
+  loadLogs(1);
+}
+
+function renderTable(rows) {
+  const tbody = document.getElementById('log-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-gray-400 py-10">暂无记录</td></tr>';
+    return;
+  }
+  const html = [];
+  rows.forEach(l => {
+    const sc = STATUS_CONFIG[l.status] || { label: l.status, cls: 'bg-gray-100 text-gray-600' };
+    const isExpanded = expandedRows.has(l.id);
+    const hasError = l.error && l.error.length > 0;
+    html.push(`
+      <tr class="hover:bg-gray-50 transition-colors ${l.status === 'FAILED' ? 'bg-red-50/30' : ''}">
+        <td class="px-5 py-3 text-gray-500 text-xs whitespace-nowrap">${l.time}</td>
+        <td class="px-5 py-3 font-medium text-gray-800">${l.rule}</td>
+        <td class="px-5 py-3">
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs ${l.trigger === 'AUTO' ? '' : 'bg-purple-100 text-purple-700'}" style="${l.trigger === 'AUTO' ? 'background:#EBF2ED;color:#4E7A61;' : ''}">
+            ${l.trigger === 'AUTO' ? '自动' : '手动'}
+          </span>
+        </td>
+        <td class="px-5 py-3">
+          <span class="text-green-600 font-medium">+${l.added}</span>
+        </td>
+        <td class="px-5 py-3">
+          <span class="${l.removed > 0 ? 'text-gray-500' : 'text-gray-300'}">-${l.removed}</span>
+        </td>
+        <td class="px-5 py-3 text-gray-500 text-xs">${l.duration}</td>
+        <td class="px-5 py-3">
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${sc.cls}">${sc.label}</span>
+        </td>
+        <td class="px-5 py-3">
+          ${hasError ? `
+            <button onclick="toggleExpand(${l.id})" class="text-xs ${isExpanded ? 'text-gray-400' : 'text-orange-500'} hover:underline flex items-center gap-1">
+              ${isExpanded ? '收起' : '查看错误'}
+              <svg class="w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </button>
+          ` : '<span class="text-xs text-gray-300">-</span>'}
+        </td>
+      </tr>
+    `);
+    if (hasError && isExpanded) {
+      html.push(`
+        <tr class="bg-red-50 border-t border-red-100">
+          <td colspan="8" class="px-5 py-3">
+            <div class="flex items-start gap-2">
+              <svg class="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+              </svg>
+              <p class="text-sm text-red-700">${l.error}</p>
+            </div>
+          </td>
+        </tr>
+      `);
+    }
+  });
+  tbody.innerHTML = html.join('');
+}
+
+function renderPagination(total, page) {
+  const totalPages = Math.ceil(total / pageSize);
+  document.getElementById('pagination').innerHTML = `
+    <span>共 ${total} 条记录</span>
+    <div class="flex items-center gap-1">
+      <button onclick="loadLogs(${page-1})" ${page<=1?'disabled':''} class="px-2 py-1 rounded border border-gray-200 text-xs hover:bg-gray-50 disabled:opacity-40">上一页</button>
+      <span class="px-3 text-xs">${page} / ${totalPages||1}</span>
+      <button onclick="loadLogs(${page+1})" ${page>=totalPages?'disabled':''} class="px-2 py-1 rounded border border-gray-200 text-xs hover:bg-gray-50 disabled:opacity-40">下一页</button>
+    </div>
+  `;
+}
+
+setRange('week');
+loadKPI();
+loadLogs(1);
+
+// ══ 活动轨迹时间轴 ══
+const DEMO_TIMELINE = {
+  'A10023': { name: '李建国', archive: 'A10023', events: [
+    { date: '2026-03-03 06:00', type: 'ADD',    rule: '血压不达标规则',   trigger: 'AUTO',   reason: '近30天收缩压≥160mmHg 累计3次' },
+    { date: '2026-01-15 08:00', type: 'REMOVE', rule: '血压不达标规则',   trigger: 'AUTO',   reason: '血压已连续2周达标，自动移出' },
+    { date: '2025-11-20 06:05', type: 'ADD',    rule: '长期未随访规则',   trigger: 'AUTO',   reason: '距上次随访超过 90 天' },
+    { date: '2025-10-01 14:30', type: 'ADD',    rule: '血压不达标规则',   trigger: 'MANUAL', reason: '医生手动加入，血压控制不佳' },
+    { date: '2025-09-05 06:00', type: 'REMOVE', rule: '血压不达标规则',   trigger: 'AUTO',   reason: '血压持续达标，已满足退出条件' },
+    { date: '2025-07-12 06:00', type: 'ADD',    rule: '血压不达标规则',   trigger: 'AUTO',   reason: '首次触发，收缩压超标' },
+  ]},
+  '李建国': { name: '李建国', archive: 'A10023', events: [
+    { date: '2026-03-03 06:00', type: 'ADD',    rule: '血压不达标规则',   trigger: 'AUTO',   reason: '近30天收缩压≥160mmHg 累计3次' },
+    { date: '2026-01-15 08:00', type: 'REMOVE', rule: '血压不达标规则',   trigger: 'AUTO',   reason: '血压已连续2周达标，自动移出' },
+    { date: '2025-11-20 06:05', type: 'ADD',    rule: '长期未随访规则',   trigger: 'AUTO',   reason: '距上次随访超过 90 天' },
+    { date: '2025-10-01 14:30', type: 'ADD',    rule: '血压不达标规则',   trigger: 'MANUAL', reason: '医生手动加入，血压控制不佳' },
+    { date: '2025-09-05 06:00', type: 'REMOVE', rule: '血压不达标规则',   trigger: 'AUTO',   reason: '血压持续达标，已满足退出条件' },
+    { date: '2025-07-12 06:00', type: 'ADD',    rule: '血压不达标规则',   trigger: 'AUTO',   reason: '首次触发，收缩压超标' },
+  ]},
+  'A10045': { name: '张淑芬', archive: 'A10045', events: [
+    { date: '2026-02-10 06:00', type: 'ADD',    rule: '血糖控制不佳规则', trigger: 'AUTO',   reason: '空腹血糖 > 9.0 mmol/L' },
+    { date: '2025-12-15 06:00', type: 'REMOVE', rule: '新入组患者规则',   trigger: 'AUTO',   reason: '入组满 30 天，自动移出新入组活动档案' },
+    { date: '2025-11-15 09:00', type: 'ADD',    rule: '新入组患者规则',   trigger: 'AUTO',   reason: '患者首次建档，自动加入新入组活动档案' },
+  ]},
+  '张淑芬': { name: '张淑芬', archive: 'A10045', events: [
+    { date: '2026-02-10 06:00', type: 'ADD',    rule: '血糖控制不佳规则', trigger: 'AUTO',   reason: '空腹血糖 > 9.0 mmol/L' },
+    { date: '2025-12-15 06:00', type: 'REMOVE', rule: '新入组患者规则',   trigger: 'AUTO',   reason: '入组满 30 天，自动移出新入组活动档案' },
+    { date: '2025-11-15 09:00', type: 'ADD',    rule: '新入组患者规则',   trigger: 'AUTO',   reason: '患者首次建档，自动加入新入组活动档案' },
+  ]},
+};
+
+function switchTab(tab) {
+  document.getElementById('panel-log').classList.toggle('hidden', tab !== 'log');
+  document.getElementById('panel-timeline').classList.toggle('hidden', tab !== 'timeline');
+  ['log','timeline'].forEach(t => {
+    const btn = document.getElementById('tab-' + t);
+    if (t === tab) {
+      btn.className = 'tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors text-white';
+      btn.style.background = '#4E7A61';
+    } else {
+      btn.className = 'tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors text-gray-600 hover:bg-gray-100';
+      btn.style.background = '';
+    }
+  });
+}
+
+function loadTimeline() {
+  const q = document.getElementById('tl-patient').value.trim();
+  const ruleFilter = document.getElementById('tl-rule').value;
+  const container = document.getElementById('tl-body');
+  if (!q) { container.innerHTML = '<p class="text-center text-gray-400 py-16">请输入患者姓名或档案号后查询</p>'; return; }
+
+  let data = DEMO_TIMELINE[q];
+  if (!data) {
+    container.innerHTML = '<p class="text-center text-gray-400 py-16">未找到该患者的活动轨迹记录</p>';
+    return;
+  }
+  let events = ruleFilter ? data.events.filter(e => e.rule === ruleFilter) : data.events;
+
+  // 统计当前活跃规则
+  const activeRules = [...new Set(data.events
+    .filter((e,i,arr) => {
+      const sameRule = arr.filter(x => x.rule === e.rule);
+      const last = sameRule.reduce((a,b) => a.date > b.date ? a : b);
+      return last.type === 'ADD' && e === last;
+    })
+    .map(e => e.rule))];
+
+  container.innerHTML = `
+    <div class="flex items-start gap-4 mb-6">
+      <div>
+        <p class="font-bold text-gray-800 text-lg">${data.name}</p>
+        <p class="text-sm text-gray-500">档案号：${data.archive}</p>
+      </div>
+      <div class="ml-auto text-right">
+        <p class="text-xs text-gray-400 mb-1">当前活跃活动档案</p>
+        <div class="flex gap-1 flex-wrap justify-end">
+          ${activeRules.length
+            ? activeRules.map(r => `<span class="px-2 py-0.5 rounded-full text-xs" style="background:#EBF2ED;color:#4E7A61;">${r}</span>`).join('')
+            : '<span class="text-gray-400 text-xs">无</span>'}
+        </div>
+      </div>
+    </div>
+    <div class="relative">
+      <!-- 时间轴竖线 -->
+      <div class="absolute left-[120px] top-0 bottom-0 w-px bg-gray-200"></div>
+      <div class="space-y-0">
+        ${events.map((e, idx) => {
+          const isAdd = e.type === 'ADD';
+          const dot = isAdd
+            ? 'bg-green-500 border-green-200'
+            : 'bg-gray-400 border-gray-200';
+          const badge = isAdd
+            ? 'bg-green-100 text-green-700'
+            : 'bg-gray-100 text-gray-500';
+          const label = isAdd ? '加入' : '移出';
+          const triggerBadgeStyle = e.trigger === 'AUTO'
+            ? 'background:#EBF2ED;color:#4E7A61;'
+            : 'background:#f3f0fa;color:#7c3aed;';
+          const triggerBadge = '';
+          return `
+            <div class="flex gap-0 items-start group">
+              <!-- 日期列 -->
+              <div class="w-[110px] flex-shrink-0 text-right pr-4 pt-1">
+                <p class="text-xs text-gray-500 leading-tight">${e.date.split(' ')[0]}</p>
+                <p class="text-xs text-gray-400">${e.date.split(' ')[1]}</p>
+              </div>
+              <!-- 节点 -->
+              <div class="flex flex-col items-center flex-shrink-0" style="width:20px">
+                <div class="w-3.5 h-3.5 rounded-full border-2 ${dot} flex-shrink-0 mt-1 z-10 bg-white ${isAdd ? 'ring-4 ring-green-100' : ''}"></div>
+                ${idx < events.length - 1 ? `<div class="w-px flex-1 bg-gray-200 min-h-[40px]"></div>` : ''}
+              </div>
+              <!-- 内容 -->
+              <div class="ml-4 pb-6 flex-1">
+                <div class="flex flex-wrap items-center gap-2 mb-1">
+                  <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${badge}">${label}</span>
+                  <span class="font-medium text-gray-800 text-sm">${e.rule}</span>
+                  <span class="px-1.5 py-0.5 rounded text-xs" style="${triggerBadgeStyle}">${e.trigger === 'AUTO' ? '自动触发' : '手动触发'}</span>
+                </div>
+                <p class="text-xs text-gray-500">${e.reason}</p>
+              </div>
+            </div>`;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+</script>
+{% endblock %}

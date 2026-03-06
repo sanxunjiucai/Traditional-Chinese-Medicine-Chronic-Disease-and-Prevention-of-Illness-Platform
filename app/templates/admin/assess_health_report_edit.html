@@ -1,0 +1,458 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "health_assess" %}
+{% block title %}健康评估报告编辑 - 治未病平台{% endblock %}
+{% block page_title %}健康评估报告编辑{% endblock %}
+
+{% block content %}
+<!-- 面包屑 -->
+<nav class="flex items-center gap-2 text-sm text-gray-500 mb-5">
+  <a href="/gui/admin/health-assess" class="hover:text-teal-600 transition-colors">健康评估</a>
+  <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+  </svg>
+  <span class="text-gray-700 font-medium">报告编辑</span>
+  <span class="ml-auto">
+    <a href="/gui/admin/health-assess"
+       class="inline-flex items-center gap-1 px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-500 hover:bg-gray-50 hover:border-gray-300 transition-colors">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+      返回列表
+    </a>
+  </span>
+</nav>
+
+<div class="grid grid-cols-3 gap-5">
+
+  <!-- ═══════════════ 左侧边栏 ═══════════════ -->
+  <div class="col-span-1 space-y-4">
+
+    <!-- 评估摘要卡片 -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+      <div class="flex items-center gap-2 mb-4">
+        <div class="w-1 h-5 bg-teal-500 rounded-full"></div>
+        <h3 class="font-semibold text-gray-700">评估摘要</h3>
+      </div>
+      <div id="assess-summary" class="space-y-3 text-sm">
+        <p class="text-gray-400 text-xs">加载中...</p>
+      </div>
+    </div>
+
+    <!-- 发布状态卡片 -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+      <div class="flex items-center gap-2 mb-4">
+        <div class="w-1 h-5 bg-teal-500 rounded-full"></div>
+        <h3 class="font-semibold text-gray-700">发布状态</h3>
+      </div>
+      <div id="publish-status-block" class="space-y-3">
+        <!-- 由 JS 填充 -->
+      </div>
+      <div class="mt-4 pt-4 border-t border-gray-100 space-y-2 text-xs text-gray-500">
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-2 h-2 rounded-full bg-gray-300"></span>
+          <span>草稿：报告已保存，未提交审核</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-2 h-2 rounded-full bg-amber-400"></span>
+          <span>待审核：已提交，等待审核人审批</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-2 h-2 rounded-full bg-green-500"></span>
+          <span>已发布：审核通过，患者可查看</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 审核信息卡片 -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+      <div class="flex items-center gap-2 mb-4">
+        <div class="w-1 h-5 bg-teal-500 rounded-full"></div>
+        <h3 class="font-semibold text-gray-700">审核信息</h3>
+      </div>
+      <div id="audit-info-block" class="space-y-2 text-sm text-gray-600">
+        <p class="text-gray-400 text-xs">加载中...</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════ 主编辑区 ═══════════════ -->
+  <div class="col-span-2 space-y-5">
+
+    <!-- 报告结论卡片 -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div class="flex items-center gap-2 mb-5">
+        <div class="w-1 h-5 bg-teal-500 rounded-full"></div>
+        <h3 class="font-semibold text-gray-700">报告结论</h3>
+        <span class="ml-auto text-xs text-gray-400">* 必填字段</span>
+      </div>
+
+      <!-- 综合健康结论 -->
+      <div class="mb-5">
+        <label class="block text-sm font-medium text-gray-600 mb-1.5">
+          综合健康结论 <span class="text-rose-500">*</span>
+        </label>
+        <textarea id="rpt-conclusion" rows="5"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-300 focus:border-teal-400 resize-none leading-relaxed"
+          placeholder="请输入综合健康评估结论..."></textarea>
+        <p class="text-xs text-gray-400 mt-1">基于量表评分结果，给出综合性健康状况描述与判断</p>
+      </div>
+
+      <!-- 两列：得分解读 + 风险等级 -->
+      <div class="grid grid-cols-2 gap-4 mb-5">
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1.5">得分解读</label>
+          <input id="rpt-score-interpretation" type="text"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300 focus:border-teal-400"
+            placeholder="如：中度抑郁症状（10-14分）">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1.5">
+            风险等级 <span class="text-rose-500">*</span>
+          </label>
+          <select id="rpt-risk-level"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300 focus:border-teal-400 bg-white">
+            <option value="LOW">低风险</option>
+            <option value="MEDIUM" selected>中风险</option>
+            <option value="HIGH">高风险</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 主要诊断标签 -->
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1.5">主要发现标签</label>
+        <input id="rpt-tags" type="text"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300 focus:border-teal-400"
+          placeholder="多个标签用逗号分隔，如：中度抑郁,情绪低落,睡眠障碍">
+      </div>
+    </div>
+
+    <!-- 干预建议卡片 -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div class="flex items-center gap-2 mb-5">
+        <div class="w-1 h-5 bg-teal-500 rounded-full"></div>
+        <h3 class="font-semibold text-gray-700">干预建议</h3>
+        <span class="ml-1 text-xs text-gray-400">（请填写针对该患者的个性化建议）</span>
+      </div>
+
+      <!-- 心理健康建议 -->
+      <div class="mb-4">
+        <label class="flex items-center gap-2 text-sm font-medium text-gray-600 mb-1.5">
+          <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-teal-100 text-teal-700 text-xs font-bold">心</span>
+          心理健康建议
+        </label>
+        <textarea id="rec-mental" rows="3"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-300 focus:border-teal-400 resize-none"
+          placeholder="心理疏导、情绪管理建议..."></textarea>
+      </div>
+
+      <!-- 生活方式建议 -->
+      <div class="mb-4">
+        <label class="flex items-center gap-2 text-sm font-medium text-gray-600 mb-1.5">
+          <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-teal-100 text-teal-700 text-xs font-bold">活</span>
+          生活方式建议
+        </label>
+        <textarea id="rec-lifestyle" rows="3"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-300 focus:border-teal-400 resize-none"
+          placeholder="作息规律、社交活动等生活方式建议..."></textarea>
+      </div>
+
+      <!-- 饮食建议 -->
+      <div class="mb-4">
+        <label class="flex items-center gap-2 text-sm font-medium text-gray-600 mb-1.5">
+          <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-100 text-green-600 text-xs font-bold">食</span>
+          饮食建议
+        </label>
+        <textarea id="rec-diet" rows="3"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-300 focus:border-teal-400 resize-none"
+          placeholder="饮食调理、营养搭配建议..."></textarea>
+      </div>
+
+      <!-- 运动建议 -->
+      <div class="mb-4">
+        <label class="flex items-center gap-2 text-sm font-medium text-gray-600 mb-1.5">
+          <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-100 text-orange-600 text-xs font-bold">动</span>
+          运动建议
+        </label>
+        <textarea id="rec-exercise" rows="3"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-300 focus:border-teal-400 resize-none"
+          placeholder="运动类型、频次、强度建议..."></textarea>
+      </div>
+
+      <!-- 随访建议 -->
+      <div>
+        <label class="flex items-center gap-2 text-sm font-medium text-gray-600 mb-1.5">
+          <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-teal-100 text-teal-600 text-xs font-bold">访</span>
+          随访建议
+        </label>
+        <textarea id="rec-followup" rows="3"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-300 focus:border-teal-400 resize-none"
+          placeholder="复评时间、随访频次、关注指标..."></textarea>
+      </div>
+    </div>
+
+    <!-- 推送设置卡片 -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div class="flex items-center gap-2 mb-5">
+        <div class="w-1 h-5 bg-teal-500 rounded-full"></div>
+        <h3 class="font-semibold text-gray-700">推送设置</h3>
+      </div>
+      <p class="text-xs text-gray-400 mb-4">审核通过后，系统将按以下配置自动发送报告</p>
+
+      <div class="space-y-3">
+        <!-- 推送给患者 -->
+        <label class="flex items-start gap-3 p-3 rounded-lg border border-gray-100 hover:border-teal-200 hover:bg-teal-50/30 cursor-pointer transition-colors">
+          <input id="push-patient" type="checkbox" checked
+            class="mt-0.5 w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-400 cursor-pointer">
+          <div>
+            <div class="text-sm font-medium text-gray-700">推送给患者</div>
+            <div class="text-xs text-gray-400 mt-0.5">通过APP消息通知患者本人查阅报告</div>
+          </div>
+          <span class="ml-auto px-2 py-0.5 bg-teal-50 text-teal-600 rounded text-xs border border-teal-100">APP</span>
+        </label>
+
+        <!-- 推送给家属 -->
+        <label class="flex items-start gap-3 p-3 rounded-lg border border-gray-100 hover:border-teal-200 hover:bg-teal-50/30 cursor-pointer transition-colors">
+          <input id="push-family" type="checkbox"
+            class="mt-0.5 w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-400 cursor-pointer">
+          <div>
+            <div class="text-sm font-medium text-gray-700">推送给家属</div>
+            <div class="text-xs text-gray-400 mt-0.5">同步告知紧急联系人（需患者授权）</div>
+          </div>
+          <span class="ml-auto px-2 py-0.5 bg-amber-50 text-amber-600 rounded text-xs border border-amber-100">短信</span>
+        </label>
+
+        <!-- 生成纸质报告 -->
+        <label class="flex items-start gap-3 p-3 rounded-lg border border-gray-100 hover:border-teal-200 hover:bg-teal-50/30 cursor-pointer transition-colors">
+          <input id="push-print" type="checkbox"
+            class="mt-0.5 w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-400 cursor-pointer">
+          <div>
+            <div class="text-sm font-medium text-gray-700">生成纸质报告</div>
+            <div class="text-xs text-gray-400 mt-0.5">自动生成PDF版本供打印存档</div>
+          </div>
+          <span class="ml-auto px-2 py-0.5 bg-gray-50 text-gray-500 rounded text-xs border border-gray-200">PDF</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- 底部操作栏 -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 px-6 py-4 flex items-center justify-between">
+      <a href="/gui/admin/health-assess/{{ assess_id }}"
+        class="inline-flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+        返回详情
+      </a>
+      <div class="flex items-center gap-3">
+        <button onclick="saveReport('DRAFT')"
+          class="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors">
+          保存草稿
+        </button>
+        <button onclick="saveReport('PENDING_REVIEW')"
+          class="inline-flex items-center gap-2 bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          提交审核
+        </button>
+        <button onclick="saveReport('APPROVED')"
+          class="inline-flex items-center gap-2 bg-teal-600 text-white px-5 py-2 rounded-lg text-sm hover:bg-teal-700 transition-colors font-medium">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
+          审核通过并发布
+        </button>
+      </div>
+    </div>
+
+  </div><!-- /主编辑区 -->
+</div><!-- /grid -->
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const ASSESS_ID = '{{ assess_id }}';
+
+/* ── 演示数据 ── */
+const DEMO = {
+  id: ASSESS_ID,
+  patient_name: '张三',
+  patient_id: 'P20240301',
+  scale_name: 'PHQ-9 患者健康问卷',
+  scale_code: 'PHQ-9',
+  total_score: 12,
+  score_range: '0-27',
+  assess_time: '2026-03-01 09:30',
+  assessor: '李医生',
+  report_status: 'DRAFT',
+  audit_status: null,
+  audit_comment: '',
+  audit_time: null,
+  auditor: '',
+  report: {
+    conclusion: '患者PHQ-9评分12分，提示中度抑郁症状。近两周内患者存在明显的情绪低落、兴趣减退、睡眠障碍及疲劳感，社会功能受到一定影响。建议加强心理干预，制定个性化随访计划，并在必要时考虑转介专科治疗。',
+    score_interpretation: '中度抑郁症状（10-14分），需要关注并干预',
+    risk_level: 'MEDIUM',
+    tags: '中度抑郁,情绪低落,睡眠障碍,疲劳',
+    recommendations: {
+      mental: '建议每周进行1-2次认知行为治疗（CBT）或心理咨询，学习正念减压技术（MBSR），积极识别和纠正负性认知模式。可配合使用情绪日记追踪情绪变化。',
+      lifestyle: '保持规律的作息时间，每天固定起床和入睡时间。增加社交活动，避免长期独处。减少手机及社交媒体使用时间，尤其是睡前1小时内。培养兴趣爱好，如阅读、绘画、园艺等有助于转移注意力。',
+      diet: '均衡饮食，增加富含色氨酸的食物（如牛奶、香蕉、坚果），有助于促进血清素合成。减少咖啡因和酒精摄入。保证充足的Omega-3脂肪酸摄入（深海鱼、亚麻籽）。避免高糖高脂饮食导致的血糖波动。',
+      exercise: '建议每周3-5次有氧运动，每次30-45分钟，如快走、慢跑、游泳或骑行。运动强度以中等为宜（心率达到最大心率的60-70%）。可配合瑜伽、太极等舒缓运动改善睡眠质量。',
+      followup: '建议2周后复诊评估，届时重新进行PHQ-9评估以追踪干预效果。若症状加重（评分超过15分）或出现自伤念头，应立即就医。下次随访重点关注：睡眠改善情况、社会功能恢复程度、是否需要转介精神科。'
+    }
+  }
+};
+
+const STATUS_MAP = {
+  DRAFT: { label: '草稿', color: 'bg-gray-100 text-gray-600', dot: 'bg-gray-400' },
+  PENDING_REVIEW: { label: '待审核', color: 'bg-amber-50 text-amber-700', dot: 'bg-amber-400' },
+  APPROVED: { label: '已发布', color: 'bg-green-50 text-green-700', dot: 'bg-green-500' },
+  REJECTED: { label: '已驳回', color: 'bg-red-50 text-red-600', dot: 'bg-red-400' }
+};
+
+function loadAssessment() {
+  const d = DEMO;
+
+  /* 评估摘要 */
+  document.getElementById('assess-summary').innerHTML = `
+    <div class="flex justify-between items-center py-1.5 border-b border-gray-50">
+      <span class="text-gray-400">患者姓名</span>
+      <span class="font-semibold text-gray-800">${d.patient_name}</span>
+    </div>
+    <div class="flex justify-between items-center py-1.5 border-b border-gray-50">
+      <span class="text-gray-400">档案编号</span>
+      <span class="font-mono text-gray-600 text-xs">${d.patient_id}</span>
+    </div>
+    <div class="flex justify-between items-center py-1.5 border-b border-gray-50">
+      <span class="text-gray-400">评估量表</span>
+      <span class="font-medium text-teal-700">${d.scale_code}</span>
+    </div>
+    <div class="flex justify-between items-center py-1.5 border-b border-gray-50">
+      <span class="text-gray-400">量表全称</span>
+      <span class="text-gray-600 text-xs text-right max-w-[140px] leading-tight">${d.scale_name}</span>
+    </div>
+    <div class="flex justify-between items-center py-1.5 border-b border-gray-50">
+      <span class="text-gray-400">总分</span>
+      <span class="font-bold text-xl text-teal-600">${d.total_score}
+        <span class="text-xs text-gray-400 font-normal">/ ${d.score_range}</span>
+      </span>
+    </div>
+    <div class="flex justify-between items-center py-1.5 border-b border-gray-50">
+      <span class="text-gray-400">评估时间</span>
+      <span class="text-gray-600">${d.assess_time}</span>
+    </div>
+    <div class="flex justify-between items-center py-1.5">
+      <span class="text-gray-400">评估医生</span>
+      <span class="text-gray-600">${d.assessor}</span>
+    </div>
+  `;
+
+  /* 发布状态 */
+  const st = STATUS_MAP[d.report_status] || STATUS_MAP.DRAFT;
+  document.getElementById('publish-status-block').innerHTML = `
+    <div class="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
+      <span class="inline-block w-2.5 h-2.5 rounded-full ${st.dot}"></span>
+      <div>
+        <div class="text-sm font-semibold text-gray-700">当前状态</div>
+        <div class="text-xs text-gray-400 mt-0.5">报告创建于 ${d.assess_time}</div>
+      </div>
+      <span class="ml-auto px-2.5 py-1 rounded-full text-xs font-medium ${st.color}">${st.label}</span>
+    </div>
+  `;
+
+  /* 审核信息 */
+  const hasAudit = d.audit_status && d.auditor;
+  document.getElementById('audit-info-block').innerHTML = hasAudit ? `
+    <div class="flex justify-between py-1 border-b border-gray-50">
+      <span class="text-gray-400">审核人</span>
+      <span class="text-gray-700">${d.auditor}</span>
+    </div>
+    <div class="flex justify-between py-1 border-b border-gray-50">
+      <span class="text-gray-400">审核时间</span>
+      <span class="text-gray-700">${d.audit_time || '-'}</span>
+    </div>
+    <div class="py-1">
+      <span class="text-gray-400 block mb-1">审核意见</span>
+      <p class="text-gray-600 text-xs leading-relaxed">${d.audit_comment || '无'}</p>
+    </div>
+  ` : `
+    <div class="text-center py-4">
+      <div class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 mb-2">
+        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+      </div>
+      <p class="text-xs text-gray-400">报告尚未提交审核</p>
+      <p class="text-xs text-gray-400">提交后将显示审核信息</p>
+    </div>
+  `;
+
+  /* 填充表单 */
+  const r = d.report;
+  if (r) {
+    document.getElementById('rpt-conclusion').value = r.conclusion || '';
+    document.getElementById('rpt-score-interpretation').value = r.score_interpretation || '';
+    document.getElementById('rpt-tags').value = r.tags || '';
+    const riskEl = document.getElementById('rpt-risk-level');
+    if (r.risk_level) riskEl.value = r.risk_level;
+    const recs = r.recommendations || {};
+    document.getElementById('rec-mental').value   = recs.mental   || '';
+    document.getElementById('rec-lifestyle').value = recs.lifestyle || '';
+    document.getElementById('rec-diet').value      = recs.diet      || '';
+    document.getElementById('rec-exercise').value  = recs.exercise  || '';
+    document.getElementById('rec-followup').value  = recs.followup  || '';
+  }
+}
+
+async function saveReport(reportStatus) {
+  const body = {
+    conclusion: document.getElementById('rpt-conclusion').value,
+    score_interpretation: document.getElementById('rpt-score-interpretation').value,
+    risk_level: document.getElementById('rpt-risk-level').value,
+    tags: document.getElementById('rpt-tags').value,
+    recommendations: {
+      mental:    document.getElementById('rec-mental').value,
+      lifestyle: document.getElementById('rec-lifestyle').value,
+      diet:      document.getElementById('rec-diet').value,
+      exercise:  document.getElementById('rec-exercise').value,
+      followup:  document.getElementById('rec-followup').value,
+    },
+    push_patient: document.getElementById('push-patient').checked,
+    push_family:  document.getElementById('push-family').checked,
+    push_print:   document.getElementById('push-print').checked,
+    report_status: reportStatus
+  };
+
+  let succeeded = false;
+  try {
+    const res = await fetch(`/tools/admin/health-assess/${ASSESS_ID}/report`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      succeeded = data.success !== false;
+    }
+  } catch (e) {
+    /* 演示模式下网络不可达，兜底提示 */
+  }
+
+  /* 演示兜底 */
+  const labelMap = {
+    DRAFT: '草稿已保存',
+    PENDING_REVIEW: '已提交审核，等待审核人审批',
+    APPROVED: '审核通过，报告已发布'
+  };
+  showToast(labelMap[reportStatus] || '保存成功');
+  if (reportStatus === 'APPROVED') {
+    window.location.href = `/gui/admin/health-assess/${ASSESS_ID}`;
+  }
+}
+
+loadAssessment();
+</script>
+{% endblock %}

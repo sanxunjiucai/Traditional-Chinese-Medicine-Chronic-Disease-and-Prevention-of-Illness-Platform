@@ -14,7 +14,7 @@
     <p class="text-gray-500 text-sm">患者总数</p>
     <p id="kpi-total" class="text-3xl font-bold text-gray-800 mt-1">-</p>
   </div>
-  <div class="bg-white rounded-xl shadow-sm p-5 border-l-4 border-blue-500">
+  <div class="bg-white rounded-xl shadow-sm p-5 border-l-4" style="border-left-color:#4E7A61">
     <p class="text-gray-500 text-sm">在管患者</p>
     <p id="kpi-active" class="text-3xl font-bold text-gray-800 mt-1">-</p>
   </div>
@@ -57,10 +57,18 @@ const BODY_TYPE_LABELS = {
   YIN_DEFICIENCY: '阴虚质', PHLEGM_DAMPNESS: '痰湿质', DAMP_HEAT: '湿热质',
   BLOOD_STASIS: '血瘀质', QI_STAGNATION: '气郁质', SPECIAL_DIATHESIS: '特禀质',
 };
-const BODY_TYPE_COLORS = [
-  '#16a34a','#2563eb','#7c3aed','#db2777','#ea580c',
-  '#0891b2','#65a30d','#9333ea','#dc2626'
-];
+// 每种体质固定颜色，与 workbench / stats_constitution 保持一致
+const BODY_TYPE_COLORS = {
+  BALANCED:         '#4E7A61',
+  QI_DEFICIENCY:    '#B8885E',
+  YANG_DEFICIENCY:  '#7B98BE',
+  YIN_DEFICIENCY:   '#9B6080',
+  PHLEGM_DAMPNESS:  '#8B9E70',
+  DAMP_HEAT:        '#C87A5A',
+  BLOOD_STASIS:     '#8B6068',
+  QI_STAGNATION:    '#7090A8',
+  SPECIAL_DIATHESIS:'#9A8060',
+};
 
 let bodyChart = null;
 
@@ -90,14 +98,21 @@ async function loadStats() {
         labels: keys.map(k => BODY_TYPE_LABELS[k] || k),
         datasets: [{
           data: keys.map(k => dist[k]),
-          backgroundColor: BODY_TYPE_COLORS.slice(0, keys.length),
-          borderWidth: 2,
-          borderColor: '#fff',
+          backgroundColor: keys.map(k => BODY_TYPE_COLORS[k] || '#9A9188'),
+          borderWidth: 3,
+          borderColor: '#FDFCF9',
+          hoverBorderColor: '#fff',
         }]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'right', labels: { font: { size: 12 } } } }
+        cutout: '62%',
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: { font: { size: 12 }, color: '#6A6258', padding: 12, boxWidth: 12 }
+          }
+        }
       }
     });
   }
@@ -107,9 +122,9 @@ async function loadStats() {
   const total = d.open_alerts || 0;
   const high = d.high_severity_alerts || 0;
   const levels = [
-    { label: '高危', count: high, color: 'bg-red-500' },
-    { label: '中危', count: Math.max(0, Math.round((total - high) * 0.5)), color: 'bg-yellow-400' },
-    { label: '低危', count: Math.max(0, total - high - Math.round((total - high) * 0.5)), color: 'bg-blue-400' },
+    { label: '高危', count: high, bg: '#ef4444' },
+    { label: '中危', count: Math.max(0, Math.round((total - high) * 0.5)), bg: '#f59e0b' },
+    { label: '低危', count: Math.max(0, total - high - Math.round((total - high) * 0.5)), bg: '#4E7A61' },
   ];
   if (total === 0) {
     alertDist.innerHTML = '<div class="text-center text-gray-400 text-sm py-8">暂无开放预警</div>';
@@ -120,8 +135,8 @@ async function loadStats() {
           <span class="text-gray-600">${l.label}</span>
           <span class="font-medium text-gray-800">${l.count} 条</span>
         </div>
-        <div class="w-full bg-gray-100 rounded-full h-3">
-          <div class="${l.color} h-3 rounded-full transition-all" style="width:${total > 0 ? (l.count/total*100).toFixed(0) : 0}%"></div>
+        <div class="w-full rounded-full h-3" style="background:#EDE8E2">
+          <div class="h-3 rounded-full transition-all" style="background:${l.bg};width:${total > 0 ? (l.count/total*100).toFixed(0) : 0}%"></div>
         </div>
       </div>
     `).join('');

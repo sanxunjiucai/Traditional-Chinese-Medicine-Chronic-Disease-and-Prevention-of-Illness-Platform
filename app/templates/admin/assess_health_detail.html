@@ -1,0 +1,242 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "assessments" %}
+{% block title %}健康评估详情 - 治未病平台{% endblock %}
+{% block page_title %}健康评估详情{% endblock %}
+
+{% block content %}
+<!-- 面包屑 -->
+<nav class="flex items-center justify-between mb-4">
+  <div class="flex items-center gap-1.5 text-sm">
+    <a href="/gui/admin/health-assess" class="text-gray-500 hover:text-teal-600">健康评估</a>
+    <svg class="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+    </svg>
+    <span class="text-gray-700 font-medium" id="breadcrumb-name">评估详情</span>
+  </div>
+  <a href="/gui/admin/health-assess" class="flex items-center gap-1 text-sm text-gray-500 hover:text-teal-600">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+    返回列表
+  </a>
+</nav>
+
+<!-- 加载中 -->
+<div id="loading" class="text-center py-12 text-gray-400">
+  <div class="animate-spin w-8 h-8 border-4 border-teal-200 border-t-teal-500 rounded-full mx-auto mb-3"></div>
+  加载中...
+</div>
+
+<div id="main-content" class="hidden">
+  <!-- 顶部信息卡 -->
+  <div class="bg-white rounded-xl shadow-sm p-6 mb-4">
+    <div class="flex items-start justify-between">
+      <div>
+        <div class="flex items-center gap-3 mb-1">
+          <span id="h-status-badge" class="px-2.5 py-1 rounded-full text-xs font-semibold">-</span>
+          <span class="text-xs text-gray-400">评估ID: <span class="font-mono">{{ assess_id }}</span></span>
+        </div>
+        <h2 class="text-xl font-bold text-gray-800" id="h-patient">-</h2>
+        <p class="text-sm text-gray-400 mt-0.5">
+          量表：<span id="h-scale" class="text-gray-600">-</span>
+          <span class="mx-2">·</span>评估时间：<span id="h-time">-</span>
+          <span class="mx-2">·</span>责任医生：<span id="h-doctor" class="text-gray-600">-</span>
+        </p>
+      </div>
+      <div class="flex gap-2" id="action-btns">
+        <a href="/gui/admin/health-assess"
+          class="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">返回列表</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-3 gap-4">
+    <!-- 左栏：评分卡 + 患者信息 -->
+    <div class="space-y-4">
+      <!-- 总分 -->
+      <div class="bg-white rounded-xl shadow-sm p-5 text-center">
+        <p class="text-xs text-gray-400 mb-1">总得分</p>
+        <p id="d-score" class="text-5xl font-bold text-teal-600 my-2">-</p>
+        <p class="text-xs text-gray-400" id="d-score-range">-</p>
+      </div>
+      <!-- 分层 & 风险 -->
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-teal-50 rounded-xl p-4 text-center">
+          <p class="text-xs text-gray-400 mb-1">分层</p>
+          <p id="d-level" class="text-xl font-bold text-teal-700">-</p>
+        </div>
+        <div class="bg-amber-50 rounded-xl p-4 text-center">
+          <p class="text-xs text-gray-400 mb-1">风险</p>
+          <p id="d-risk" class="text-xl font-bold text-amber-600">-</p>
+        </div>
+      </div>
+      <!-- 患者信息 -->
+      <div class="bg-white rounded-xl shadow-sm p-5">
+        <h4 class="font-semibold text-gray-700 mb-3 text-sm">患者信息</h4>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between">
+            <span class="text-gray-400">姓名</span>
+            <span id="p-name" class="text-gray-700">-</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-400">档案号</span>
+            <span id="p-archive" class="text-gray-700 font-mono text-xs">-</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-400">年龄</span>
+            <span id="p-age" class="text-gray-700">-</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-400">体质</span>
+            <span id="p-constitution" class="text-rose-600 font-medium">-</span>
+          </div>
+        </div>
+        <a id="p-archive-link" href="#"
+          class="block mt-3 text-center py-1.5 bg-gray-50 rounded-lg text-xs text-gray-500 hover:bg-teal-50 hover:text-teal-600">
+          查看完整档案 →
+        </a>
+      </div>
+    </div>
+
+    <!-- 右栏：结论 + 建议 + 各项得分 -->
+    <div class="col-span-2 space-y-4">
+      <!-- 评估结论 -->
+      <div class="bg-white rounded-xl shadow-sm p-6">
+        <h3 class="font-semibold text-gray-700 mb-3">评估结论</h3>
+        <div class="bg-teal-50 rounded-xl p-4">
+          <p id="d-conclusion" class="text-sm text-gray-700 leading-relaxed">-</p>
+        </div>
+      </div>
+
+      <!-- 干预建议 -->
+      <div class="bg-white rounded-xl shadow-sm p-6">
+        <h3 class="font-semibold text-gray-700 mb-3">干预建议</h3>
+        <div id="d-suggestions" class="space-y-2 text-sm text-gray-600"></div>
+      </div>
+
+      <!-- 各项得分 -->
+      <div class="bg-white rounded-xl shadow-sm p-6">
+        <h3 class="font-semibold text-gray-700 mb-4">量表各项得分</h3>
+        <table class="w-full text-sm">
+          <thead class="text-xs text-gray-400 border-b border-gray-100">
+            <tr>
+              <th class="pb-2 text-left">条目</th>
+              <th class="pb-2 text-left">得分</th>
+              <th class="pb-2 text-left">说明</th>
+            </tr>
+          </thead>
+          <tbody id="d-items" class="divide-y divide-gray-50 text-gray-600"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const assessId = '{{ assess_id }}';
+const STATUS_LABELS = {
+  ANSWERING: ['作答中', 'bg-teal-100 text-teal-700'],
+  SUBMITTED: ['已提交', 'bg-amber-100 text-amber-700'],
+  SCORED:    ['已评分', 'bg-teal-100 text-teal-700'],
+  REPORTED:  ['已出报告', 'bg-green-100 text-green-700'],
+};
+
+const DEMO = {
+  user_name: '李建国',
+  user_phone: '138****0023',
+  archive_id: 'A10023',
+  age: 62,
+  constitution: '气虚质',
+  scale_name: 'PHQ-9 抑郁症筛查量表',
+  status: 'REPORTED',
+  doctor: '王医生',
+  created_at: '2026-02-15T10:00:00',
+  scored_at: '2026-02-15T14:30:00',
+  score: 12,
+  score_range: '满分27分',
+  level: '中度',
+  risk: '需关注',
+  conclusion: '评估结果提示中度抑郁症状（PHQ-9总分12分），建议进一步进行心理科专科评估，给予心理支持和必要的药物治疗，并加强随访管理。',
+  suggestions: [
+    '建议转介心理科专科门诊，进行全面的心理状态评估',
+    '建立随访计划，建议2周后复评PHQ-9量表',
+    '开展心理健康宣教，指导患者正念减压、情绪调节技巧',
+    '嘱患者注意睡眠规律，避免过度劳累和情绪激动',
+    '必要时考虑药物干预（需由精神科医师评估决定）',
+  ],
+  items: [
+    {name: '兴趣丧失',      score: 2, note: '较经常（近2周）'},
+    {name: '情绪低落',      score: 2, note: '较经常'},
+    {name: '睡眠障碍',      score: 1, note: '有几天'},
+    {name: '疲乏无力',      score: 2, note: '较经常'},
+    {name: '食欲改变',      score: 1, note: '有几天'},
+    {name: '自我评价低',    score: 1, note: '有几天'},
+    {name: '注意力集中困难', score: 1, note: '有几天'},
+    {name: '动作迟缓或激越', score: 1, note: '有几天'},
+    {name: '消极意念',      score: 1, note: '有几天（需关注）'},
+  ]
+};
+
+function renderPage(d) {
+  document.getElementById('breadcrumb-name').textContent = d.user_name + ' · 评估详情';
+  const [statusLabel, statusClass] = STATUS_LABELS[d.status] || [d.status, 'bg-gray-100 text-gray-600'];
+  const badge = document.getElementById('h-status-badge');
+  badge.textContent = statusLabel;
+  badge.className = `px-2.5 py-1 rounded-full text-xs font-semibold ${statusClass}`;
+  document.getElementById('h-patient').textContent = d.user_name;
+  document.getElementById('h-scale').textContent = d.scale_name;
+  document.getElementById('h-time').textContent = (d.created_at || '').slice(0, 16).replace('T', ' ');
+  document.getElementById('h-doctor').textContent = d.doctor || '-';
+  document.getElementById('d-score').textContent = d.score ?? '-';
+  document.getElementById('d-score-range').textContent = d.score_range || '';
+  document.getElementById('d-level').textContent = d.level || '-';
+  document.getElementById('d-risk').textContent = d.risk || '-';
+  document.getElementById('p-name').textContent = d.user_name;
+  document.getElementById('p-archive').textContent = d.archive_id || '-';
+  document.getElementById('p-age').textContent = d.age ? d.age + '岁' : '-';
+  document.getElementById('p-constitution').textContent = d.constitution || '-';
+  document.getElementById('p-archive-link').href = '/gui/admin/archives/' + (d.archive_id || '');
+  document.getElementById('d-conclusion').textContent = d.conclusion || '暂无结论';
+  document.getElementById('d-suggestions').innerHTML = (d.suggestions || [])
+    .map(s => `<div class="flex gap-2"><span class="text-teal-500 mt-0.5">•</span><span>${s}</span></div>`)
+    .join('');
+  document.getElementById('d-items').innerHTML = (d.items || [])
+    .map(item => `
+      <tr>
+        <td class="py-2">${item.name}</td>
+        <td class="py-2 font-semibold text-teal-600">${item.score}分</td>
+        <td class="py-2 text-gray-400 text-xs">${item.note}</td>
+      </tr>`)
+    .join('');
+
+  // 根据状态动态渲染操作按钮
+  const btnContainer = document.getElementById('action-btns');
+  const backBtn = `<a href="/gui/admin/health-assess" class="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">返回列表</a>`;
+  let primaryBtn = '';
+  if (d.status === 'SUBMITTED') {
+    primaryBtn = `<button onclick="showToast('提交评分')" class="px-5 py-2 bg-teal-600 text-white rounded-lg text-sm hover:bg-teal-700 font-medium">提交评分</button>`;
+  } else if (d.status === 'SCORED') {
+    primaryBtn = `<a href="/gui/admin/health-assess/${assessId}/report-edit" class="px-5 py-2 bg-teal-600 text-white rounded-lg text-sm hover:bg-teal-700 font-medium">编辑报告</a>`;
+  } else if (d.status === 'REPORTED') {
+    primaryBtn = `<a href="/gui/admin/health-assess/${assessId}/report-detail" class="px-5 py-2 bg-teal-600 text-white rounded-lg text-sm hover:bg-teal-700 font-medium">查看报告</a>`;
+  }
+  btnContainer.innerHTML = primaryBtn + backBtn;
+}
+
+async function loadDetail() {
+  let d = null;
+  try {
+    const r = await fetch(`/tools/admin/health-assess/${assessId}`);
+    const j = await r.json();
+    if (j.success && j.data) d = j.data;
+  } catch (e) {}
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('main-content').classList.remove('hidden');
+  renderPage(d || DEMO);
+}
+
+loadDetail();
+</script>
+{% endblock %}

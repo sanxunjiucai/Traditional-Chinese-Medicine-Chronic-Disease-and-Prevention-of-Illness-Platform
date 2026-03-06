@@ -16,7 +16,7 @@ from datetime import date, datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import AsyncSessionLocal, Base, engine
@@ -38,10 +38,38 @@ from app.models.enums import (
     TaskType,
     UserRole,
 )
+from app.models.archive import PatientArchive, FamilyArchive, ArchiveFamilyMember
+from app.models.clinical import ClinicalDocument
+from app.models.scale import Scale, ScaleRecord
+from app.models.enums import ArchiveType, IdType
 from app.models.followup import CheckIn, FollowupPlan, FollowupTask
 from app.models.health import ChronicDiseaseRecord, HealthIndicator, HealthProfile
 from app.models.user import User
 from app.services.auth_service import hash_password
+
+# ── 档案生成辅助 ──
+_PHONE_PREFIXES = ["138", "139", "150", "151", "152", "158", "159", "186", "187", "188", "177", "176"]
+_DISTRICTS = ["朝阳区", "海淀区", "西城区", "东城区", "丰台区", "昌平区", "顺义区", "通州区"]
+_CITIES = [
+    ("北京市", "北京市"), ("上海市", "上海市"), ("广东省", "广州市"),
+    ("浙江省", "杭州市"), ("湖北省", "武汉市"), ("四川省", "成都市"),
+]
+_OCCUPATIONS = ["退休工人", "工程师", "教师", "农民", "工人", "自由职业", "企业职员", "公务员", "退休教师", "退休干部"]
+
+
+def _gen_phone(seed_str: str) -> str:
+    h = abs(hash(seed_str))
+    prefix = _PHONE_PREFIXES[h % len(_PHONE_PREFIXES)]
+    return prefix + str(h % 100_000_000).zfill(8)
+
+
+def _gen_id_number(birth_year: int, birth_month: int, birth_day: int, gender: str, seed: int) -> str:
+    regions = ["110101", "310101", "440101", "330101", "420101", "510101"]
+    region = regions[seed % len(regions)]
+    bdate = f"{birth_year:04d}{birth_month:02d}{birth_day:02d}"
+    base_seq = 100 + (seed % 899)
+    seq = base_seq | 1 if gender == "male" else (base_seq // 2) * 2
+    return f"{region}{bdate}{seq:03d}X"
 
 # ── 随机种子，保证每次生成相同数据 ──
 random.seed(42)
@@ -1235,6 +1263,421 @@ async def seed_alert_events(db: AsyncSession, user: User, p: dict, rules: list[A
 
 
 # ════════════════════════════════════════════════════════
+# 6. 居民档案（PatientArchive）+ 家庭档案
+# ════════════════════════════════════════════════════════
+
+async def seed_patient_archive(db: AsyncSession, user: User, p: dict) -> "PatientArchive | None":
+    """为每位患者创建一份居民档案（幂等，按 user_id 去重）。"""
+    result = await db.execute(
+        select(PatientArchive).where(PatientArchive.user_id == user.id)
+    )
+    if result.scalar_one_or_none() is not None:
+        return None
+
+    birth_year = p["birth_year"]
+    age = 2026 - birth_year
+    h = abs(hash(p["phone"]))
+    birth_month = (h % 11) + 1
+    birth_day = (h % 27) + 1
+
+    # 档案类型判定
+    bp_high = p.get("bp_base", (0, 0))[0] >= 165
+    glu_high = p.get("glucose_base", 0) >= 14.0
+    if age >= 65:
+        atype = ArchiveType.ELDERLY
+    elif bp_high or glu_high or (age >= 60 and p["stress"] == "high"):
+        atype = ArchiveType.KEY_FOCUS
+    elif p["gender"] == "female":
+        atype = ArchiveType.FEMALE
+    else:
+        atype = ArchiveType.NORMAL
+
+    province, city = _CITIES[h % len(_CITIES)]
+    district = _DISTRICTS[h % len(_DISTRICTS)]
+
+    archive = PatientArchive(
+        user_id=user.id,
+        name=p["name"],
+        gender=p["gender"],
+        birth_date=date(birth_year, birth_month, birth_day),
+        ethnicity="汉族",
+        occupation=_OCCUPATIONS[h % len(_OCCUPATIONS)],
+        id_type=IdType.ID_CARD,
+        id_number=_gen_id_number(birth_year, birth_month, birth_day, p["gender"], h),
+        phone=_gen_phone(p["phone"]),
+        province=province,
+        city=city,
+        district=district,
+        address=f"{district}幸福路{(h % 200) + 1}号",
+        emergency_contact_name=f"{p['name'][0]}某某",
+        emergency_contact_phone=_gen_phone(p["phone"] + "_ec"),
+        emergency_contact_relation="子女",
+        archive_type=atype,
+        tags=[d.value for d in p["diseases"]],
+        past_history=[d.value for d in p["diseases"]],
+        is_deleted=False,
+    )
+    db.add(archive)
+    await db.flush()
+    return archive
+
+
+async def seed_family_archives(db: AsyncSession, archive_ids: list) -> None:
+    """创建5个示例家庭档案（幂等，按 family_name 去重）。"""
+    families = [
+        {"name": "张家（朝阳）", "address": "北京市朝阳区幸福路1号", "member_count": 3},
+        {"name": "李家（海淀）", "address": "北京市海淀区知春路25号", "member_count": 4},
+        {"name": "王家（西城）", "address": "北京市西城区长安街10号", "member_count": 2},
+        {"name": "赵家（东城）", "address": "北京市东城区建国门内大街5号", "member_count": 3},
+        {"name": "陈家（丰台）", "address": "北京市丰台区丰台路88号", "member_count": 2},
+    ]
+    created_families = []
+    for i, fam in enumerate(families):
+        result = await db.execute(
+            select(FamilyArchive).where(FamilyArchive.family_name == fam["name"])
+        )
+        if result.scalar_one_or_none() is not None:
+            continue
+        fa = FamilyArchive(
+            family_name=fam["name"],
+            address=fam["address"],
+            member_count=fam["member_count"],
+        )
+        db.add(fa)
+        await db.flush()
+        created_families.append(fa)
+        # 关联部分档案成员
+        relations = ["户主", "配偶", "子女", "父母"]
+        for j, aid in enumerate(archive_ids[i * 2: i * 2 + fam["member_count"]]):
+            member = ArchiveFamilyMember(
+                family_id=fa.id,
+                archive_id=aid,
+                relation=relations[j % len(relations)],
+            )
+            db.add(member)
+    await db.flush()
+    if created_families:
+        print(f"  ✓ 家庭档案：{len(created_families)} 个新增")
+
+
+# ════════════════════════════════════════════════════════
+# 7. 临床文档（HIS/LIS 模拟数据，链接到 archive_id）
+# ════════════════════════════════════════════════════════
+
+_DEPTS = ["中医科", "内分泌科", "心内科", "全科诊室", "老年科"]
+_DOCTORS_NAMES = ["张医生", "李医生", "王医生", "赵医生"]
+
+
+_EXAM_PARTS = ["胸部", "腹部", "头颅", "颈椎", "腰椎", "膝关节"]
+_IMAGE_FINDINGS = [
+    "双肺纹理清晰，未见明显渗出及实变影，心影大小正常。",
+    "肝脏大小形态正常，实质回声均匀，胆囊壁光滑，胆管未见扩张。",
+    "颈椎生理曲度变直，C3-C5椎间隙略窄，未见明显骨质破坏。",
+    "腰椎退行性改变，L4-L5椎间盘膨出，椎管未见明显狭窄。",
+    "双膝关节间隙稍窄，软骨下骨质硬化，边缘骨赘形成。",
+]
+
+_PRESCRIPTIONS = [
+    [{"name": "苯磺酸氨氯地平片", "dose": "5mg", "freq": "每日一次", "days": 30},
+     {"name": "厄贝沙坦片", "dose": "150mg", "freq": "每日一次", "days": 30}],
+    [{"name": "复方丹参片", "dose": "3片", "freq": "每日三次", "days": 14},
+     {"name": "血塞通软胶囊", "dose": "2粒", "freq": "每日两次", "days": 14}],
+    [{"name": "二甲双胍缓释片", "dose": "500mg", "freq": "每日两次", "days": 30},
+     {"name": "阿卡波糖片", "dose": "50mg", "freq": "每餐随第一口饭嚼服", "days": 30}],
+    [{"name": "阿托伐他汀钙片", "dose": "20mg", "freq": "每晚一次", "days": 30},
+     {"name": "阿司匹林肠溶片", "dose": "100mg", "freq": "每日一次", "days": 30}],
+    [{"name": "六味地黄丸", "dose": "8粒", "freq": "每日两次", "days": 14},
+     {"name": "金匮肾气丸", "dose": "20粒", "freq": "每日两次", "days": 14}],
+]
+
+
+def _make_lab_content(p: dict, idx: int) -> dict:
+    diseases = p.get("diseases", [])
+    has_dm = any("糖尿病" in str(d) for d in diseases)
+    has_htn = any("高血压" in str(d) for d in diseases)
+    items = [
+        {"item_code": "FBG", "item_name": "空腹血糖",
+         "value": f"{random.uniform(6.5, 10.2):.1f}" if has_dm else f"{random.uniform(4.5, 6.1):.1f}",
+         "unit": "mmol/L", "ref_range": "3.9-6.1",
+         "abnormal_flag": "H" if has_dm else "N"},
+        {"item_code": "HbA1c", "item_name": "糖化血红蛋白",
+         "value": f"{random.uniform(7.0, 10.5):.1f}" if has_dm else f"{random.uniform(4.5, 6.0):.1f}",
+         "unit": "%", "ref_range": "4.0-6.5",
+         "abnormal_flag": "H" if has_dm else "N"},
+        {"item_code": "SBP", "item_name": "收缩压",
+         "value": str(random.randint(145, 175) if has_htn else random.randint(110, 130)),
+         "unit": "mmHg", "ref_range": "90-140",
+         "abnormal_flag": "H" if has_htn else "N"},
+        {"item_code": "TC", "item_name": "总胆固醇",
+         "value": f"{random.uniform(4.5, 7.2):.2f}", "unit": "mmol/L", "ref_range": "2.8-5.17",
+         "abnormal_flag": "H" if random.random() > 0.55 else "N"},
+        {"item_code": "TG", "item_name": "甘油三酯",
+         "value": f"{random.uniform(1.0, 3.2):.2f}", "unit": "mmol/L", "ref_range": "0.45-1.70",
+         "abnormal_flag": "H" if random.random() > 0.5 else "N"},
+        {"item_code": "Cr", "item_name": "血肌酐",
+         "value": f"{random.uniform(65, 120):.1f}", "unit": "μmol/L", "ref_range": "44-106",
+         "abnormal_flag": "H" if random.random() > 0.75 else "N"},
+        {"item_code": "UA", "item_name": "尿酸",
+         "value": f"{random.uniform(280, 520):.1f}", "unit": "μmol/L", "ref_range": "155-428",
+         "abnormal_flag": "H" if random.random() > 0.6 else "N"},
+    ]
+    return {"items": items, "report_conclusion": "部分指标偏高，建议复查并调整治疗方案"}
+
+
+async def _count_by_type(db: AsyncSession, archive_id, doc_type: str) -> int:
+    from sqlalchemy import func as sqlfunc
+    return await db.scalar(
+        select(sqlfunc.count()).select_from(ClinicalDocument).where(
+            ClinicalDocument.archive_id == archive_id,
+            ClinicalDocument.doc_type == doc_type,
+        )
+    ) or 0
+
+
+async def seed_clinical_documents(db: AsyncSession, archive: PatientArchive, p: dict) -> None:
+    """为每位患者创建近60天的四类临床文档（按 doc_type 幂等，可增量补充）。"""
+    h = abs(hash(p["phone"]))
+    dept = _DEPTS[h % len(_DEPTS)]
+    doctor = _DOCTORS_NAMES[h % len(_DOCTORS_NAMES)]
+    diagnosis = "、".join(str(d.value) for d in p.get("diseases", [])) or "慢性病复诊"
+
+    # ── 就诊记录（6条）──────────────────────────────
+    if await _count_by_type(db, archive.id, "ENCOUNTER") == 0:
+        for i in range(6):
+            doc_date = NOW - timedelta(days=random.randint(3, 58))
+            db.add(ClinicalDocument(
+                archive_id=archive.id, patient_name=p["name"],
+                doc_type="ENCOUNTER", source_system="HIS",
+                dept=dept, doctor=doctor, doc_date=doc_date,
+                external_ref_no=f"HIS-{uuid.uuid4().hex[:8].upper()}",
+                encounter_ref=f"V{uuid.uuid4().hex[:6].upper()}",
+                content={
+                    "encounter_type": ["门诊", "门诊", "门诊", "急诊"][i % 4],
+                    "chief_complaint": ["例行复诊", "头晕乏力", "血压波动", "慢病随访管理"][i % 4],
+                    "diagnosis": diagnosis,
+                    "physical_exam": f"血压{random.randint(130,160)}/{random.randint(75,100)}mmHg，心率{random.randint(65,85)}次/分",
+                    "plan": "继续当前治疗方案，调整用药，定期复查",
+                },
+                sync_mode="AUTO",
+            ))
+
+    # ── 检验报告（4条）──────────────────────────────
+    if await _count_by_type(db, archive.id, "LAB_REPORT") == 0:
+        for i in range(4):
+            doc_date = NOW - timedelta(days=random.randint(5, 55))
+            db.add(ClinicalDocument(
+                archive_id=archive.id, patient_name=p["name"],
+                doc_type="LAB_REPORT", source_system="LIS",
+                dept=dept, doctor=doctor,
+                doc_date=doc_date - timedelta(hours=2),
+                external_ref_no=f"LIS-{uuid.uuid4().hex[:8].upper()}",
+                content=_make_lab_content(p, i),
+                sync_mode="AUTO",
+            ))
+
+    # ── 处方（3条）────────────────────────────────────
+    if await _count_by_type(db, archive.id, "PRESCRIPTION") == 0:
+        rx_pool = _PRESCRIPTIONS
+        for i in range(3):
+            doc_date = NOW - timedelta(days=random.randint(5, 50))
+            drugs = rx_pool[(h + i) % len(rx_pool)]
+            db.add(ClinicalDocument(
+                archive_id=archive.id, patient_name=p["name"],
+                doc_type="PRESCRIPTION", source_system="HIS",
+                dept=dept, doctor=doctor, doc_date=doc_date,
+                external_ref_no=f"RX-{uuid.uuid4().hex[:8].upper()}",
+                content={
+                    "drugs": drugs,
+                    "diagnosis": diagnosis,
+                    "note": "按医嘱服药，定期复查，如有不适及时就诊",
+                },
+                sync_mode="AUTO",
+            ))
+
+    # ── 影像报告（2条）──────────────────────────────
+    if await _count_by_type(db, archive.id, "IMAGE_REPORT") == 0:
+        for i in range(2):
+            doc_date = NOW - timedelta(days=random.randint(10, 60))
+            part = _EXAM_PARTS[(h + i) % len(_EXAM_PARTS)]
+            finding = _IMAGE_FINDINGS[(h + i) % len(_IMAGE_FINDINGS)]
+            db.add(ClinicalDocument(
+                archive_id=archive.id, patient_name=p["name"],
+                doc_type="IMAGE_REPORT", source_system="PACS",
+                dept=dept, doctor=doctor, doc_date=doc_date,
+                external_ref_no=f"PACS-{uuid.uuid4().hex[:8].upper()}",
+                content={
+                    "exam_part": part,
+                    "exam_method": ["X光", "CT", "超声", "MRI"][i % 4],
+                    "findings": finding,
+                    "impression": "建议结合临床综合判断，定期复查",
+                    "image_url": None,
+                },
+                sync_mode="AUTO",
+            ))
+
+    await db.flush()
+
+
+# ════════════════════════════════════════════════════════
+# 7. 量表库 & 健康评估记录
+# ════════════════════════════════════════════════════════
+
+_BUILTIN_SCALES = [
+    {
+        "code": "PHQ9",
+        "name": "患者健康问卷-9（PHQ-9）抑郁症筛查量表",
+        "scale_type": "MENTAL_HEALTH",
+        "description": "患者健康问卷-9，用于筛查和评估抑郁症状的严重程度，总分0-27分",
+        "total_score": 27,
+        "scoring_rule": '{"method":"sum"}',
+        "level_rules": '[{"min":0,"max":4,"level":"NONE","label":"无抑郁"},{"min":5,"max":9,"level":"MILD","label":"轻度抑郁"},{"min":10,"max":14,"level":"MODERATE","label":"中度抑郁"},{"min":15,"max":27,"level":"SEVERE","label":"重度抑郁"}]',
+        "estimated_minutes": 5,
+        "is_builtin": True,
+    },
+    {
+        "code": "GAD7",
+        "name": "广泛性焦虑障碍量表（GAD-7）",
+        "scale_type": "MENTAL_HEALTH",
+        "description": "广泛性焦虑障碍量表，用于筛查和评估焦虑症状，总分0-21分",
+        "total_score": 21,
+        "scoring_rule": '{"method":"sum"}',
+        "level_rules": '[{"min":0,"max":4,"level":"NONE","label":"无焦虑"},{"min":5,"max":9,"level":"MILD","label":"轻度焦虑"},{"min":10,"max":14,"level":"MODERATE","label":"中度焦虑"},{"min":15,"max":21,"level":"SEVERE","label":"重度焦虑"}]',
+        "estimated_minutes": 5,
+        "is_builtin": True,
+    },
+    {
+        "code": "MMSE",
+        "name": "简易精神状态检查量表（MMSE）",
+        "scale_type": "COGNITIVE",
+        "description": "评估记忆力、定向力、语言能力等认知功能，总分0-30分，用于筛查认知障碍",
+        "total_score": 30,
+        "scoring_rule": '{"method":"sum"}',
+        "level_rules": '[{"min":27,"max":30,"level":"NORMAL","label":"认知功能正常"},{"min":21,"max":26,"level":"MILD","label":"轻度认知障碍"},{"min":10,"max":20,"level":"MODERATE","label":"中度认知障碍"},{"min":0,"max":9,"level":"SEVERE","label":"重度认知障碍"}]',
+        "estimated_minutes": 10,
+        "is_builtin": True,
+    },
+    {
+        "code": "ADL",
+        "name": "日常生活能力量表（ADL）",
+        "scale_type": "FUNCTION",
+        "description": "评估老年人日常生活自理能力，包括躯体自理和工具性日常生活活动能力",
+        "total_score": 100,
+        "scoring_rule": '{"method":"sum"}',
+        "level_rules": '[{"min":80,"max":100,"level":"NORMAL","label":"生活自理"},{"min":60,"max":79,"level":"MILD","label":"轻度依赖"},{"min":40,"max":59,"level":"MODERATE","label":"中度依赖"},{"min":0,"max":39,"level":"SEVERE","label":"重度依赖"}]',
+        "estimated_minutes": 8,
+        "is_builtin": True,
+    },
+]
+
+_SCALE_RECORD_DATA = [
+    {
+        "patient_name": "张伟",
+        "scale_code": "PHQ9",
+        "total_score": 12.0,
+        "level": "中度抑郁",
+        "conclusion": "评估结果提示中度抑郁症状（PHQ-9总分12分），建议进一步进行心理科专科评估，给予心理支持和必要的药物治疗，并加强随访管理。",
+        "answers": '{"q1":2,"q2":2,"q3":1,"q4":2,"q5":1,"q6":1,"q7":1,"q8":1,"q9":1}',
+        "completed_days_ago": 15,
+    },
+    {
+        "patient_name": "李芳",
+        "scale_code": "GAD7",
+        "total_score": 8.0,
+        "level": "轻度焦虑",
+        "conclusion": "评估结果提示轻度焦虑症状（GAD-7总分8分），建议心理疏导和放松训练，定期复评。",
+        "answers": '{"q1":1,"q2":2,"q3":1,"q4":1,"q5":1,"q6":1,"q7":1}',
+        "completed_days_ago": 20,
+    },
+    {
+        "patient_name": "王国华",
+        "scale_code": "MMSE",
+        "total_score": 28.0,
+        "level": "认知功能正常",
+        "conclusion": "认知功能评估正常（MMSE总分28分），建议定期复查维持监测，注意健康生活方式。",
+        "answers": None,
+        "completed_days_ago": 12,
+    },
+    {
+        "patient_name": "陈秀英",
+        "scale_code": "ADL",
+        "total_score": None,
+        "level": None,
+        "conclusion": None,
+        "answers": None,
+        "completed_days_ago": None,  # DRAFT
+    },
+    {
+        "patient_name": "赵俊民",
+        "scale_code": "PHQ9",
+        "total_score": 6.0,
+        "level": "轻度抑郁",
+        "conclusion": "评估结果提示轻度抑郁症状（PHQ-9总分6分），建议心理健康宣教和情绪调节指导。",
+        "answers": '{"q1":1,"q2":1,"q3":1,"q4":1,"q5":1,"q6":1,"q7":0,"q8":0,"q9":0}',
+        "completed_days_ago": 8,
+    },
+]
+
+
+async def seed_scales_and_records(db: AsyncSession):
+    """创建内置量表和健康评估记录（幂等）。"""
+    from sqlalchemy import and_
+    import json
+
+    # 1. 创建内置量表（若不存在）
+    scales_by_code: dict = {}
+    for s_data in _BUILTIN_SCALES:
+        r = await db.execute(select(Scale).where(Scale.code == s_data["code"]))
+        scale = r.scalar_one_or_none()
+        if scale is None:
+            scale = Scale(**s_data, is_active=True, version=1)
+            db.add(scale)
+            await db.flush()
+            print(f"    + 量表: {s_data['name']}")
+        scales_by_code[s_data["code"]] = scale
+
+    # 2. 创建评估记录
+    for rec in _SCALE_RECORD_DATA:
+        pa_r = await db.execute(
+            select(PatientArchive).where(PatientArchive.name == rec["patient_name"])
+        )
+        pa = pa_r.scalar_one_or_none()
+        if pa is None:
+            continue
+        scale = scales_by_code.get(rec["scale_code"])
+        if scale is None:
+            continue
+
+        existing = await db.execute(
+            select(ScaleRecord).where(
+                and_(
+                    ScaleRecord.scale_id == scale.id,
+                    ScaleRecord.patient_archive_id == str(pa.id),
+                )
+            )
+        )
+        if existing.scalar_one_or_none() is not None:
+            continue
+
+        completed_at = None
+        if rec["completed_days_ago"] is not None:
+            completed_at = NOW - timedelta(days=rec["completed_days_ago"])
+
+        record = ScaleRecord(
+            scale_id=scale.id,
+            patient_archive_id=str(pa.id),
+            answers=rec["answers"],
+            total_score=rec["total_score"],
+            level=rec["level"],
+            conclusion=rec["conclusion"],
+            completed_at=completed_at,
+        )
+        db.add(record)
+        print(f"    + 量表记录: {rec['patient_name']} / {rec['scale_code']}")
+
+    await db.flush()
+
+
+# ════════════════════════════════════════════════════════
 # 主执行函数
 # ════════════════════════════════════════════════════════
 
@@ -1262,6 +1705,7 @@ async def run_rich_seed():
 
             print(f"  ✓ 加载体质问卷 {len(questions)} 道，预警规则 {len(rules)} 条")
 
+            archive_ids = []
             for i, p in enumerate(PATIENTS, 1):
                 print(f"  [{i:02d}/{len(PATIENTS)}] 处理患者: {p['name']}")
                 user = await get_or_create_user(db, p["phone"], p["name"])
@@ -1271,11 +1715,35 @@ async def run_rich_seed():
                 await seed_constitution_assessment(db, user, p["body_type"], questions)
                 await seed_followup(db, user, p)
                 await seed_alert_events(db, user, p, rules)
+                arc = await seed_patient_archive(db, user, p)
+                # 如果 arc 已存在（幂等跳过），仍需查出来用于后续
+                if arc is None:
+                    arc_r = await db.execute(
+                        select(PatientArchive).where(PatientArchive.user_id == user.id)
+                    )
+                    arc = arc_r.scalar_one_or_none()
+                if arc:
+                    archive_ids.append(arc.id)
+                    await seed_clinical_documents(db, arc, p)
                 await db.flush()
 
+            # 家庭档案
+            if archive_ids:
+                await seed_family_archives(db, archive_ids)
+
+            # 量表库 & 健康评估记录
+            print("  ➤ 量表库与健康评估记录...")
+            await seed_scales_and_records(db)
+
             await db.commit()
-            print(f"\n✅ 丰富演示数据 Seed 完成！共创建 {len(PATIENTS)} 位患者")
-            print("   每位患者包含：健康档案、慢病记录、60天指标历史、体质评估、随访计划、预警事件")
+            arc_count = await db.scalar(
+                select(func.count()).select_from(PatientArchive)
+            )
+            scale_count = await db.scalar(select(func.count()).select_from(Scale))
+            rec_count = await db.scalar(select(func.count()).select_from(ScaleRecord))
+            print(f"\n✅ 丰富演示数据 Seed 完成！共 {len(PATIENTS)} 位患者，{arc_count} 份居民档案")
+            print(f"   量表库：{scale_count} 个量表，{rec_count} 条健康评估记录")
+            print("   每位患者包含：健康档案、慢病记录、60天指标历史、体质评估、随访计划、预警事件、居民档案")
 
         except Exception as e:
             await db.rollback()

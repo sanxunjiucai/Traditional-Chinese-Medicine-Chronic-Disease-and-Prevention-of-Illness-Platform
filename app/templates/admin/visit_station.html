@@ -1,0 +1,1111 @@
+{% extends "_layouts/admin.html" %}
+{% set active_nav = "visit_station" %}
+{% block title %}综合就诊台 - 治未病平台{% endblock %}
+{% block page_title %}综合就诊台 · 诊中实时决策{% endblock %}
+
+{% block content %}
+<!-- 自动风险横幅 -->
+<div id="auto-risk-banner" class="hidden fixed top-20 left-1/2 -translate-x-1/2 z-50 w-[620px] max-w-[90vw] rounded-xl border-l-4 p-4 shadow-2xl flex items-start gap-3">
+  <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+  </svg>
+  <div class="flex-1 min-w-0">
+    <p id="banner-title" class="font-semibold text-sm mb-0.5"></p>
+    <p id="banner-factors" class="text-xs opacity-80 leading-relaxed"></p>
+    <div class="mt-2 flex items-center gap-3">
+      <button onclick="focusRiskPanel()"
+        class="text-xs px-2.5 py-1 rounded-md bg-white bg-opacity-50 hover:bg-opacity-80 font-medium border border-current">查看详情 →</button>
+      <span id="banner-countdown" class="text-xs opacity-50"></span>
+    </div>
+  </div>
+  <button onclick="dismissAutoRiskBanner()" class="flex-shrink-0 opacity-50 hover:opacity-100">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+    </svg>
+  </button>
+</div>
+
+<div class="grid grid-cols-12 gap-4">
+
+  <!-- ══ 左栏：患者绑定 + 档案资料 ══ -->
+  <div class="col-span-3 space-y-3">
+
+    <!-- A. 患者搜索 / bind -->
+    <div class="bg-white rounded-xl shadow-sm p-4">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">选择患者</p>
+      <div class="flex gap-2">
+        <input id="patient-search" type="text" placeholder="点击展开 / 姓名·手机·证件号"
+          onfocus="preloadAndShowPatients()" oninput="debouncePatients()" autocomplete="off"
+          class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-jade-300">
+        <button onclick="searchPatients()"
+          class="text-white px-3 py-2 rounded-lg text-sm flex-shrink-0" style="background:#4E7A61">搜索</button>
+      </div>
+      <div id="search-results" class="mt-2 space-y-1 max-h-40 overflow-y-auto"></div>
+    </div>
+
+    <!-- B. 患者档案卡（profile + 风险标签）-->
+    <div id="patient-card" class="hidden space-y-3">
+
+      <!-- 基本信息 -->
+      <div class="bg-white rounded-xl shadow-sm p-4">
+        <div class="flex items-center gap-3 mb-3">
+          <div id="pc-avatar" class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0"
+            style="background:#EBF2ED;color:#4E7A61;"></div>
+          <div class="min-w-0">
+            <p id="pc-name" class="font-semibold text-gray-800 truncate"></p>
+            <p id="pc-sub" class="text-xs text-gray-500"></p>
+          </div>
+        </div>
+        <dl class="space-y-1 text-xs">
+          <div class="flex"><dt class="w-14 text-gray-400 flex-shrink-0">手机</dt><dd id="pc-phone" class="text-gray-700"></dd></div>
+          <div class="flex"><dt class="w-14 text-gray-400 flex-shrink-0">证件号</dt><dd id="pc-id" class="text-gray-700 font-mono text-xs truncate"></dd></div>
+          <div class="flex"><dt class="w-14 text-gray-400 flex-shrink-0">体质</dt><dd id="pc-constitution" class="text-gray-700"></dd></div>
+          <div class="flex"><dt class="w-14 text-gray-400 flex-shrink-0">慢病</dt><dd id="pc-diseases" class="text-gray-700"></dd></div>
+          <div class="flex"><dt class="w-14 text-gray-400 flex-shrink-0">地址</dt><dd id="pc-address" class="text-gray-700 truncate"></dd></div>
+        </dl>
+        <!-- 健康概况 -->
+        <div id="pc-health" class="hidden mt-3 pt-3 border-t border-gray-100 flex gap-4 text-xs text-gray-500">
+          <span>BMI <strong id="pc-bmi" class="text-gray-700"></strong></span>
+          <span>吸烟 <strong id="pc-smoke" class="text-gray-700"></strong></span>
+          <span>运动 <strong id="pc-exercise" class="text-gray-700"></strong></span>
+        </div>
+      </div>
+
+      <!-- 风险标签 -->
+      <div id="risk-tags-card" class="bg-white rounded-xl shadow-sm p-4">
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">风险标签</p>
+          <span id="risk-level-chip" class="text-xs px-2 py-0.5 rounded-full font-medium"></span>
+        </div>
+        <div id="risk-tags-list" class="space-y-1.5 text-xs text-gray-500">
+          <p class="text-gray-300">加载中...</p>
+        </div>
+      </div>
+
+      <!-- 健康指标 mini 摘要 -->
+      <div id="metrics-card" class="bg-white rounded-xl shadow-sm p-4 hidden">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">近期指标（90天）</p>
+        <div id="metrics-summary" class="space-y-1.5 text-xs"></div>
+      </div>
+
+    </div>
+
+    <!-- 空状态 -->
+    <div id="no-patient" class="bg-gray-50 rounded-xl p-6 text-center text-gray-400 text-sm">
+      <svg class="w-10 h-10 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+      </svg>
+      <p>请先搜索并选择患者</p>
+    </div>
+  </div>
+
+  <!-- ══ 中栏：AI 风险分析 ══ -->
+  <div class="col-span-4 space-y-3">
+
+    <div class="bg-white rounded-xl shadow-sm p-4">
+      <div class="flex items-center justify-between mb-3">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">AI 风险分析</p>
+        <button id="btn-analyze" onclick="triggerAnalysis()" disabled
+          class="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+          style="background:#5070A8">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.346a.5.5 0 01-.73-.649 3 3 0 10-4.25 0 .5.5 0 01-.731.649l-.346-.346z"/>
+          </svg>
+          <span id="btn-analyze-text">开始分析</span>
+        </button>
+      </div>
+
+      <div id="risk-idle" class="py-8 text-center text-gray-400 text-sm">
+        <svg class="w-12 h-12 mx-auto mb-2 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.346a.5.5 0 01-.73-.649 3 3 0 10-4.25 0 .5.5 0 01-.731.649l-.346-.346z"/>
+        </svg>
+        <p>选择患者后点击「开始分析」</p>
+      </div>
+
+      <div id="risk-loading" class="hidden py-8 text-center">
+        <div class="inline-block animate-spin w-8 h-8 border-4 rounded-full mb-3"
+          style="border-color:#EBF2ED;border-top-color:#4E7A61;"></div>
+        <p class="text-sm text-gray-500">AI 正在分析患者数据...</p>
+      </div>
+
+      <div id="risk-result" class="hidden space-y-3">
+        <div id="risk-level-badge" class="flex items-center gap-2 px-3 py-2 rounded-lg">
+          <span class="text-sm font-semibold" id="risk-level-text"></span>
+        </div>
+        <p id="risk-summary" class="text-xs text-gray-600 leading-relaxed bg-gray-50 rounded-lg p-3"></p>
+        <div>
+          <p class="text-xs font-medium text-gray-500 mb-1.5">主要风险因素</p>
+          <ul id="risk-factors" class="space-y-1"></ul>
+        </div>
+        <div class="text-xs text-gray-400 space-y-0.5 border-t border-gray-100 pt-2">
+          <p id="risk-constitution"></p>
+          <p id="risk-diseases"></p>
+          <p id="risk-engine" class="text-gray-300"></p>
+        </div>
+        <div id="risk-alerts-created" class="hidden">
+          <div class="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
+            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <span id="risk-alerts-msg"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 临床数据 Tab（检验/就诊/处方/影像）-->
+    <div id="clinic-panel" class="bg-white rounded-xl shadow-sm overflow-hidden hidden">
+      <div class="flex overflow-x-auto border-b border-gray-100 text-xs">
+        <button onclick="showTab('lab')" data-tab="lab"
+          class="tab-btn px-3 py-2 font-medium whitespace-nowrap border-b-2" style="border-color:#4E7A61;color:#4E7A61;">检验报告</button>
+        <button onclick="showTab('encounters')" data-tab="encounters"
+          class="tab-btn px-3 py-2 font-medium text-gray-500 whitespace-nowrap border-b-2 border-transparent">就诊记录</button>
+        <button onclick="showTab('prescription')" data-tab="prescription"
+          class="tab-btn px-3 py-2 font-medium text-gray-500 whitespace-nowrap border-b-2 border-transparent">处方</button>
+        <button onclick="showTab('image')" data-tab="image"
+          class="tab-btn px-3 py-2 font-medium text-gray-500 whitespace-nowrap border-b-2 border-transparent">影像</button>
+      </div>
+      <div id="doc-list" class="p-3 max-h-52 overflow-y-auto space-y-2 text-xs"></div>
+    </div>
+  </div>
+
+  <!-- ══ 右栏：方案管理 ══ -->
+  <div class="col-span-5 space-y-3">
+
+    <!-- 方案操作栏 -->
+    <div class="bg-white rounded-xl shadow-sm p-4">
+      <div class="flex items-center justify-between mb-3">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">调理方案</p>
+        <div class="flex gap-1.5 flex-wrap">
+          <!-- C9: 新建草稿 -->
+          <button id="btn-new-draft" onclick="openDraftModal()" disabled
+            class="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+            ＋ 新建草稿
+          </button>
+          <!-- C8: AI 生成 -->
+          <button id="btn-gen-plan" onclick="generateAIPlan()" disabled
+            class="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-emerald-600 text-emerald-700 hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            AI 生成
+          </button>
+          <!-- C12: 发布 -->
+          <button id="btn-publish" onclick="publishCurrentDraft()" disabled
+            class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+            </svg>
+            发布下达
+          </button>
+        </div>
+      </div>
+
+      <!-- 方案标题 -->
+      <input id="plan-title" type="text" value="个性化中医调理方案"
+        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-emerald-300">
+
+      <!-- 空状态 -->
+      <div id="plan-idle" class="flex items-center justify-center text-gray-300 text-center py-10">
+        <div>
+          <svg class="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          <p class="text-sm">先完成风险分析，再 AI 生成方案<br>或手动新建草稿</p>
+        </div>
+      </div>
+
+      <!-- AI 生成加载 -->
+      <div id="plan-loading" class="hidden flex items-center justify-center py-10">
+        <div class="text-center">
+          <div class="inline-block animate-spin w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full mb-3"></div>
+          <p class="text-sm text-gray-500">AI 正在生成调理方案...</p>
+        </div>
+      </div>
+
+      <!-- 方案编辑区 -->
+      <textarea id="plan-content"
+        class="hidden w-full border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-emerald-300"
+        style="min-height:320px;"
+        placeholder="方案内容（可直接编辑）..."></textarea>
+
+      <!-- 方案状态行 -->
+      <div id="plan-status-bar" class="hidden mt-2 flex items-center justify-between text-xs text-gray-400">
+        <span id="plan-status-text"></span>
+        <div class="flex gap-2">
+          <button onclick="saveDraft()" class="hover:text-gray-600 underline">保存草稿</button>
+          <button onclick="openDiffModal()" class="hover:text-gray-600 underline">对比版本</button>
+          <button onclick="openSummaryModal()" class="hover:text-gray-600 underline">渲染摘要</button>
+        </div>
+      </div>
+
+      <!-- 下达成功 -->
+      <div id="issue-success" class="hidden mt-3 flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span id="issue-success-msg"></span>
+      </div>
+    </div>
+
+    <!-- C7: 历史版本列表 -->
+    <div id="plan-versions-card" class="bg-white rounded-xl shadow-sm p-4 hidden">
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">方案版本历史</p>
+        <button onclick="loadPlanVersions()" class="text-xs text-gray-400 hover:text-gray-600">刷新</button>
+      </div>
+      <div id="plan-versions-list" class="space-y-1.5 max-h-44 overflow-y-auto"></div>
+    </div>
+
+    <!-- E: 随访快捷创建 -->
+    <div id="followup-card" class="bg-white rounded-xl shadow-sm p-4 hidden">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">创建随访计划</p>
+      <div class="grid grid-cols-2 gap-2 text-xs mb-3">
+        <div>
+          <label class="text-gray-500 mb-1 block">随访间隔（天）</label>
+          <input id="fu-cadence" type="number" value="7" min="1" max="90"
+            class="w-full border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-jade-300">
+        </div>
+        <div>
+          <label class="text-gray-500 mb-1 block">持续周数</label>
+          <input id="fu-weeks" type="number" value="4" min="1" max="52"
+            class="w-full border border-gray-200 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-jade-300">
+        </div>
+      </div>
+      <button onclick="createFollowupPlan()"
+        class="w-full py-1.5 rounded-lg text-white text-xs font-medium" style="background:#4E7A61">
+        创建随访计划
+      </button>
+      <div id="fu-result" class="hidden mt-2 text-xs text-emerald-700 bg-emerald-50 rounded px-3 py-2"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 新建草稿弹窗 ══ -->
+<div id="draft-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+  <div class="absolute inset-0 bg-black bg-opacity-30" onclick="closeDraftModal()"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl w-[480px] max-w-[90vw] p-6">
+    <h3 class="font-semibold text-gray-800 mb-4">新建方案草稿</h3>
+
+    <div class="space-y-3 text-sm">
+      <div>
+        <label class="text-xs text-gray-500 mb-1 block">方案来源</label>
+        <div class="flex gap-2">
+          <button onclick="setDraftSource('manual')" data-src="manual"
+            class="src-btn flex-1 py-2 rounded-lg border border-emerald-600 text-emerald-700 text-xs font-medium">手动撰写</button>
+          <button onclick="setDraftSource('template')" data-src="template"
+            class="src-btn flex-1 py-2 rounded-lg border border-gray-200 text-gray-600 text-xs">从模板</button>
+          <button onclick="setDraftSource('copy')" data-src="copy"
+            class="src-btn flex-1 py-2 rounded-lg border border-gray-200 text-gray-600 text-xs">复制版本</button>
+        </div>
+      </div>
+
+      <div>
+        <label class="text-xs text-gray-500 mb-1 block">方案标题</label>
+        <input id="draft-title" type="text" value="个性化中医调理方案"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
+      </div>
+
+      <!-- D: 模板列表（source=template 时显示）-->
+      <div id="template-picker" class="hidden">
+        <label class="text-xs text-gray-500 mb-1 block">选择模板</label>
+        <div id="template-list" class="border border-gray-200 rounded-lg max-h-36 overflow-y-auto divide-y divide-gray-100">
+          <div class="text-xs text-gray-400 text-center py-4">加载中...</div>
+        </div>
+      </div>
+
+      <!-- 复制版本选择 -->
+      <div id="copy-picker" class="hidden">
+        <label class="text-xs text-gray-500 mb-1 block">选择要复制的方案</label>
+        <div id="copy-version-list" class="border border-gray-200 rounded-lg max-h-36 overflow-y-auto divide-y divide-gray-100">
+          <div class="text-xs text-gray-400 text-center py-4">加载中...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-2 mt-5">
+      <button onclick="closeDraftModal()"
+        class="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">取消</button>
+      <button onclick="confirmCreateDraft()"
+        class="px-4 py-2 rounded-lg text-white text-sm font-medium" style="background:#4E7A61">创建草稿</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 版本对比弹窗（C11: diff）══ -->
+<div id="diff-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+  <div class="absolute inset-0 bg-black bg-opacity-30" onclick="document.getElementById('diff-modal').classList.add('hidden')"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl w-[660px] max-w-[90vw] p-6">
+    <h3 class="font-semibold text-gray-800 mb-4">方案版本对比</h3>
+    <div class="grid grid-cols-2 gap-3 mb-4 text-sm">
+      <div>
+        <label class="text-xs text-gray-500 mb-1 block">旧版本</label>
+        <select id="diff-old" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none"></select>
+      </div>
+      <div>
+        <label class="text-xs text-gray-500 mb-1 block">新版本</label>
+        <select id="diff-new" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none"></select>
+      </div>
+    </div>
+    <button onclick="runDiff()" class="mb-3 px-4 py-1.5 rounded-lg text-white text-xs font-medium" style="background:#5070A8">开始对比</button>
+    <div id="diff-result" class="bg-gray-50 rounded-lg p-3 max-h-64 overflow-y-auto font-mono text-xs whitespace-pre-wrap text-gray-600 hidden"></div>
+    <div id="diff-stats" class="hidden mt-2 flex gap-4 text-xs">
+      <span class="text-emerald-600">＋<span id="diff-add">0</span> 行新增</span>
+      <span class="text-red-500">－<span id="diff-del">0</span> 行删除</span>
+    </div>
+    <div class="flex justify-end mt-4">
+      <button onclick="document.getElementById('diff-modal').classList.add('hidden')"
+        class="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 摘要渲染弹窗（C13: render_summary）══ -->
+<div id="summary-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+  <div class="absolute inset-0 bg-black bg-opacity-30" onclick="document.getElementById('summary-modal').classList.add('hidden')"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl w-[560px] max-w-[90vw] p-6">
+    <h3 class="font-semibold text-gray-800 mb-4">方案摘要渲染</h3>
+    <div class="flex gap-2 mb-4">
+      <button onclick="loadSummary('his_text')"
+        class="px-3 py-1.5 rounded-lg border text-xs font-medium" id="sum-btn-his"
+        style="background:#5070A8;color:white;border-color:#5070A8">HIS 病历文本</button>
+      <button onclick="loadSummary('patient_text')"
+        class="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 text-xs font-medium" id="sum-btn-patient">患者友好版</button>
+    </div>
+    <textarea id="summary-text" rows="10"
+      class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono resize-none focus:outline-none"
+      readonly placeholder="点击上方按钮加载摘要..."></textarea>
+    <div class="flex justify-between items-center mt-3">
+      <span id="summary-len" class="text-xs text-gray-400"></span>
+      <button onclick="document.getElementById('summary-modal').classList.add('hidden')"
+        class="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600">关闭</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ── 常量 ──────────────────────────────────────────────────────────────────────
+const DOC_TYPE_LABELS = {
+  ENCOUNTER:'就诊', OP_EMR:'门诊病历', IP_EMR:'住院病历',
+  PRESCRIPTION:'处方', TREATMENT:'治疗', LAB_REPORT:'检验', IMAGE_REPORT:'影像', DEVICE_REPORT:'设备'
+};
+const TAB_TO_TYPE = {
+  encounters:'ENCOUNTER', lab:'LAB_REPORT', image:'IMAGE_REPORT',
+  prescription:'PRESCRIPTION', treatment:'TREATMENT'
+};
+const ARCHIVE_TYPE_LABELS = {
+  NORMAL:'普通居民', CHILD:'儿童', FEMALE:'女性', ELDERLY:'老年人', KEY_FOCUS:'重点关注'
+};
+const RISK_LEVEL_STYLES = {
+  HIGH:   { badge:'bg-red-100 text-red-700',    chip:'bg-red-100 text-red-700',    label:'⚠️ 高风险' },
+  MEDIUM: { badge:'bg-amber-100 text-amber-700', chip:'bg-amber-100 text-amber-700',label:'⚡ 中风险' },
+  LOW:    { badge:'bg-green-100 text-green-700', chip:'bg-green-100 text-green-700',label:'✅ 低风险' },
+};
+const SMOKE_CN = { never:'不吸烟', former:'已戒烟', current:'吸烟' };
+const EXERCISE_CN = { never:'不运动', occasional:'偶尔', regular:'规律' };
+
+// ── 状态 ─────────────────────────────────────────────────────────────────────
+let selectedPatient = null;     // {patient_id, name, ...}
+let currentRiskResult = null;
+let currentPlanId = null;       // 正在编辑的草稿 plan_id
+let currentPlanStatus = null;
+let planVersions = [];
+let draftSource = 'manual';
+let selectedTemplateId = null;
+let selectedCopyPlanId = null;
+let currentTab = 'lab';
+
+// ── A. 患者搜索（plugin/bind）────────────────────────────────────────────────
+let _allPatients = null, _pTimer = null;
+
+async function loadAllPatients() {
+  if (_allPatients !== null) return _allPatients;
+  try {
+    const r = await fetch('/tools/plugin/patient/search?query=&page_size=100');
+    const j = await r.json();
+    _allPatients = j.success ? (j.data?.items || []) : [];
+  } catch { _allPatients = []; }
+  return _allPatients;
+}
+
+function renderSearchResults(items) {
+  const el = document.getElementById('search-results');
+  if (!items.length) {
+    el.innerHTML = '<p class="text-xs text-gray-400 text-center py-2">未找到档案</p>';
+    return;
+  }
+  el.innerHTML = items.slice(0, 30).map(a => `
+    <button onclick='selectPatient(${JSON.stringify(a).replace(/'/g,"&apos;")})'
+      class="w-full text-left px-3 py-2 rounded-lg text-sm border border-gray-100 flex items-center gap-2 hover:bg-gray-50">
+      <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+        style="background:#EBF2ED;color:#4E7A61;">${a.name[0]}</span>
+      <span class="font-medium text-gray-800">${a.name}</span>
+      <span class="text-gray-400 text-xs">${a.phone || ''}</span>
+    </button>`).join('');
+}
+
+async function preloadAndShowPatients() {
+  const patients = await loadAllPatients();
+  const q = document.getElementById('patient-search').value.trim();
+  const filtered = q
+    ? patients.filter(p => p.name.includes(q) || (p.phone||'').includes(q))
+    : patients;
+  renderSearchResults(filtered);
+}
+function debouncePatients() { clearTimeout(_pTimer); _pTimer = setTimeout(preloadAndShowPatients, 200); }
+async function searchPatients() { await preloadAndShowPatients(); }
+
+async function selectPatient(a) {
+  selectedPatient = a;
+  document.getElementById('search-results').innerHTML = '';
+  document.getElementById('patient-search').value = a.name;
+
+  document.getElementById('patient-card').classList.remove('hidden');
+  document.getElementById('no-patient').classList.add('hidden');
+  document.getElementById('clinic-panel').classList.remove('hidden');
+  document.getElementById('plan-versions-card').classList.remove('hidden');
+  document.getElementById('followup-card').classList.remove('hidden');
+  document.getElementById('btn-analyze').disabled = false;
+  document.getElementById('btn-new-draft').disabled = false;
+
+  // 基本信息
+  document.getElementById('pc-avatar').textContent = a.name[0];
+  document.getElementById('pc-name').textContent = a.name;
+  document.getElementById('pc-sub').textContent =
+    (a.gender === 'male' ? '男' : a.gender === 'female' ? '女' : '') +
+    (a.age ? `，${a.age}岁` : '') +
+    (a.archive_type ? `，${ARCHIVE_TYPE_LABELS[a.archive_type] || a.archive_type}` : '');
+  document.getElementById('pc-phone').textContent = a.phone || '-';
+
+  resetRiskPanel();
+  resetPlanPanel();
+
+  // B. 加载完整档案 profile
+  loadProfile(a.patient_id);
+  // B. 加载风险标签
+  loadRiskTags(a.patient_id);
+  // B. 加载近期指标
+  loadMetrics(a.patient_id);
+  // 临床数据
+  showTab('lab');
+  // C7. 历史版本
+  loadPlanVersions();
+  // 延迟触发后台自动扫描
+  setTimeout(autoTriggerRiskScan, 2000);
+}
+
+// ── B. 患者档案资料（plugin/patient/profile）────────────────────────────────
+async function loadProfile(patientId) {
+  try {
+    const r = await fetch(`/tools/plugin/patient/${patientId}/profile`);
+    const j = await r.json();
+    if (!j.success) return;
+    const p = j.data;
+
+    document.getElementById('pc-id').textContent = p.id_number || '-';
+    document.getElementById('pc-constitution').textContent =
+      p.constitution ? p.constitution.main_type_cn : '未评估';
+    document.getElementById('pc-diseases').textContent =
+      p.chronic_diseases.length ? p.chronic_diseases.map(d => d.disease_cn).join('、') : '无记录';
+    document.getElementById('pc-address').textContent = p.address || '-';
+
+    if (p.health_profile) {
+      const hp = p.health_profile;
+      document.getElementById('pc-bmi').textContent = hp.bmi || '-';
+      document.getElementById('pc-smoke').textContent = SMOKE_CN[hp.smoking] || '-';
+      document.getElementById('pc-exercise').textContent = EXERCISE_CN[hp.exercise_frequency] || '-';
+      document.getElementById('pc-health').classList.remove('hidden');
+    }
+    if (p.past_history?.length) {
+      document.getElementById('pc-sub').textContent += `  既往: ${p.past_history.slice(0,2).join('、')}`;
+    }
+  } catch (_) {}
+}
+
+// ── B. 风险标签（plugin/patient/risk-tags）──────────────────────────────────
+async function loadRiskTags(patientId) {
+  const card = document.getElementById('risk-tags-card');
+  const list = document.getElementById('risk-tags-list');
+  const chip = document.getElementById('risk-level-chip');
+  list.innerHTML = '<p class="text-gray-300 text-xs">加载中...</p>';
+  try {
+    const r = await fetch(`/tools/plugin/patient/${patientId}/risk-tags`);
+    const j = await r.json();
+    if (!j.success) { list.innerHTML = '<p class="text-xs text-gray-300">暂无数据</p>'; return; }
+    const d = j.data;
+
+    // 风险等级徽章
+    const lvlStyle = RISK_LEVEL_STYLES[d.inferred_risk_level] || RISK_LEVEL_STYLES.LOW;
+    chip.className = `text-xs px-2 py-0.5 rounded-full font-medium ${lvlStyle.chip}`;
+    chip.textContent = lvlStyle.label;
+
+    const rows = [];
+    d.disease_tags.forEach(t => rows.push(`
+      <div class="flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0"></span>
+        <span class="text-gray-600">${t}</span>
+      </div>`));
+    d.alert_tags.slice(0,3).forEach(t => {
+      const cls = t.severity === 'HIGH' ? 'text-red-600' : 'text-amber-600';
+      rows.push(`
+        <div class="flex items-start gap-1.5">
+          <svg class="w-3.5 h-3.5 ${cls} flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+          <span class="${cls} truncate">${t.message}</span>
+        </div>`);
+    });
+    d.manual_tags.forEach(t => rows.push(`
+      <div class="flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-gray-300 flex-shrink-0"></span>
+        <span class="text-gray-500">${t}</span>
+      </div>`));
+
+    list.innerHTML = rows.length ? rows.join('') : '<p class="text-xs text-gray-300">暂无风险标签</p>';
+  } catch (_) { list.innerHTML = '<p class="text-xs text-gray-300">加载失败</p>'; }
+}
+
+// ── B. 健康指标摘要（plugin/patient/metrics）────────────────────────────────
+async function loadMetrics(patientId) {
+  const card = document.getElementById('metrics-card');
+  const summary = document.getElementById('metrics-summary');
+  try {
+    const r = await fetch(`/tools/plugin/patient/${patientId}/metrics?range=90`);
+    const j = await r.json();
+    if (!j.success || !Object.keys(j.data.summary || {}).length) return;
+    const s = j.data.summary;
+    const rows = Object.values(s).map(m => {
+      const abnColor = (m.abnormal_count > 0) ? 'text-red-600' : 'text-gray-600';
+      return `<div class="flex justify-between">
+        <span class="text-gray-500">${m.cn}</span>
+        <span class="${abnColor} font-medium">${m.latest}</span>
+        ${m.abnormal_count ? `<span class="text-red-400 text-xs">异常${m.abnormal_count}次</span>` : '<span class="text-emerald-500 text-xs">正常</span>'}
+      </div>`;
+    });
+    summary.innerHTML = rows.join('');
+    card.classList.remove('hidden');
+  } catch (_) {}
+}
+
+// ── 临床数据 Tab ──────────────────────────────────────────────────────────────
+async function showTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    if (b.dataset.tab === tab) {
+      b.style.borderColor = '#4E7A61'; b.style.color = '#4E7A61';
+      b.classList.remove('text-gray-500', 'border-transparent');
+    } else {
+      b.style.borderColor = ''; b.style.color = '';
+      b.classList.add('text-gray-500', 'border-transparent');
+    }
+  });
+  const docType = TAB_TO_TYPE[tab];
+  const params = new URLSearchParams({ doc_type: docType, page_size: 10 });
+  if (selectedPatient?.patient_id) params.set('archive_id', selectedPatient.patient_id);
+
+  const r = await fetch('/tools/clinical/documents?' + params);
+  const j = await r.json();
+  const list = document.getElementById('doc-list');
+  if (!j.success || !j.data.items.length) {
+    list.innerHTML = `<div class="text-center text-gray-400 py-6 text-xs">暂无数据</div>`;
+    return;
+  }
+  list.innerHTML = j.data.items.map(d => {
+    const content = d.content || {};
+    let detail = '';
+    if (d.doc_type === 'LAB_REPORT' && content.items) {
+      const abnormal = content.items.filter(i => i.flag && !['N',''].includes(i.flag));
+      if (abnormal.length) detail = `<div class="mt-1 flex flex-wrap gap-1">${
+        abnormal.map(i => `<span class="px-1.5 py-0.5 text-xs rounded"
+          style="${['H','HH'].includes(i.flag)?'background:#fee2e2;color:#b91c1c':'background:#EBF2ED;color:#4E7A61'}">
+          ${i.name} ${i.value}${i.unit||''} ${i.flag}</span>`).join('')}</div>`;
+    }
+    return `<div class="border border-gray-100 rounded-lg p-2 hover:bg-gray-50">
+      <div class="flex items-center justify-between">
+        <span class="text-xs px-1.5 py-0.5 rounded font-medium flex-shrink-0"
+          style="background:#EBF2ED;color:#4E7A61;">${DOC_TYPE_LABELS[d.doc_type]||d.doc_type}</span>
+        <span class="text-xs text-gray-400 flex-shrink-0 ml-1">${(d.doc_date||'').substring(0,10)}</span>
+      </div>${detail}</div>`;
+  }).join('');
+}
+
+// ── AI 风险分析 ───────────────────────────────────────────────────────────────
+function resetRiskPanel() {
+  dismissAutoRiskBanner();
+  currentRiskResult = null;
+  document.getElementById('risk-idle').classList.remove('hidden');
+  document.getElementById('risk-loading').classList.add('hidden');
+  document.getElementById('risk-result').classList.add('hidden');
+  document.getElementById('risk-alerts-created').classList.add('hidden');
+  document.getElementById('btn-gen-plan').disabled = true;
+}
+
+async function triggerAnalysis() {
+  if (!selectedPatient) return;
+  document.getElementById('risk-idle').classList.add('hidden');
+  document.getElementById('risk-loading').classList.remove('hidden');
+  document.getElementById('risk-result').classList.add('hidden');
+  document.getElementById('btn-analyze').disabled = true;
+  document.getElementById('btn-analyze-text').textContent = '分析中...';
+
+  try {
+    const r = await fetch(`/tools/risk/analyze/${selectedPatient.patient_id}`, { method:'POST' });
+    const j = await r.json();
+    document.getElementById('risk-loading').classList.add('hidden');
+    document.getElementById('btn-analyze').disabled = false;
+    document.getElementById('btn-analyze-text').textContent = '重新分析';
+
+    if (!j.success) { document.getElementById('risk-idle').classList.remove('hidden'); showToast('分析失败：' + (j.error?.message||'')); return; }
+
+    currentRiskResult = j.data.analysis;
+    renderRiskResult(j.data.analysis, j.data.new_alerts||[]);
+    document.getElementById('btn-gen-plan').disabled = false;
+  } catch {
+    document.getElementById('risk-loading').classList.add('hidden');
+    document.getElementById('risk-idle').classList.remove('hidden');
+    document.getElementById('btn-analyze').disabled = false;
+    document.getElementById('btn-analyze-text').textContent = '开始分析';
+    showToast('网络错误，请重试');
+  }
+}
+
+function renderRiskResult(analysis, newAlerts) {
+  const level = analysis.risk_level || 'MEDIUM';
+  const style = RISK_LEVEL_STYLES[level] || RISK_LEVEL_STYLES.MEDIUM;
+  const badge = document.getElementById('risk-level-badge');
+  badge.className = `flex items-center gap-2 px-3 py-2 rounded-lg ${style.badge}`;
+  document.getElementById('risk-level-text').textContent = style.label;
+  document.getElementById('risk-summary').textContent = analysis.raw_summary || '';
+  const factors = analysis.risk_factors || [];
+  document.getElementById('risk-factors').innerHTML = factors.map(f =>
+    `<li class="flex items-start gap-1.5 text-xs text-gray-600">
+      <span class="text-red-400 flex-shrink-0">•</span><span>${f}</span></li>`
+  ).join('') || '<li class="text-xs text-gray-400">无明显风险因素</li>';
+  document.getElementById('risk-constitution').textContent = analysis.constitution||'';
+  document.getElementById('risk-diseases').textContent = analysis.diseases||'';
+  document.getElementById('risk-engine').textContent = analysis.engine==='ai' ? '🤖 AI引擎' : '📋 规则引擎';
+  if (newAlerts.length > 0) {
+    document.getElementById('risk-alerts-created').classList.remove('hidden');
+    document.getElementById('risk-alerts-msg').textContent = `自动创建 ${newAlerts.length} 条预警事件`;
+  }
+  document.getElementById('risk-result').classList.remove('hidden');
+}
+
+// ── C. 方案管理 ───────────────────────────────────────────────────────────────
+function resetPlanPanel() {
+  currentPlanId = null; currentPlanStatus = null;
+  document.getElementById('plan-idle').classList.remove('hidden');
+  document.getElementById('plan-loading').classList.add('hidden');
+  document.getElementById('plan-content').classList.add('hidden');
+  document.getElementById('plan-content').value = '';
+  document.getElementById('plan-status-bar').classList.add('hidden');
+  document.getElementById('issue-success').classList.add('hidden');
+  document.getElementById('btn-publish').disabled = true;
+  document.getElementById('btn-gen-plan').disabled = true;
+}
+
+// C9: AI 生成方案（自动创建草稿）
+async function generateAIPlan() {
+  if (!selectedPatient) return;
+  document.getElementById('plan-idle').classList.add('hidden');
+  document.getElementById('plan-loading').classList.remove('hidden');
+  document.getElementById('plan-content').classList.add('hidden');
+  document.getElementById('btn-gen-plan').disabled = true;
+  document.getElementById('issue-success').classList.add('hidden');
+
+  try {
+    // 1. AI 生成方案文本
+    const r = await fetch('/tools/risk/plan/generate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ archive_id: selectedPatient.patient_id }),
+    });
+    const j = await r.json();
+    document.getElementById('plan-loading').classList.add('hidden');
+    document.getElementById('btn-gen-plan').disabled = false;
+
+    if (!j.success) {
+      document.getElementById('plan-idle').classList.remove('hidden');
+      showToast('生成失败：' + (j.error?.message||'')); return;
+    }
+    const planText = j.data.plan_markdown;
+
+    // 2. 自动创建草稿记录（plugin/plan/draft）
+    const dr = await fetch('/tools/plugin/plan/draft', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        patient_id: selectedPatient.patient_id,
+        source: 'ai',
+        title: document.getElementById('plan-title').value || '个性化中医调理方案',
+        content: planText,
+      }),
+    });
+    const dj = await dr.json();
+    if (dj.success) {
+      currentPlanId = dj.data.plan_id;
+      currentPlanStatus = 'DRAFT';
+    }
+
+    showPlanContent(planText, 'DRAFT');
+    loadPlanVersions();
+  } catch {
+    document.getElementById('plan-loading').classList.add('hidden');
+    document.getElementById('plan-idle').classList.remove('hidden');
+    document.getElementById('btn-gen-plan').disabled = false;
+    showToast('网络错误，请重试');
+  }
+}
+
+function showPlanContent(content, status) {
+  document.getElementById('plan-idle').classList.add('hidden');
+  document.getElementById('plan-loading').classList.add('hidden');
+  const ta = document.getElementById('plan-content');
+  ta.value = content;
+  ta.classList.remove('hidden');
+  document.getElementById('plan-status-bar').classList.remove('hidden');
+  const STATUS_CN = { DRAFT:'草稿', PUBLISHED:'已发布', ARCHIVED:'已归档' };
+  document.getElementById('plan-status-text').textContent = `当前状态：${STATUS_CN[status]||status}`;
+  document.getElementById('btn-publish').disabled = (status === 'PUBLISHED');
+  document.getElementById('issue-success').classList.add('hidden');
+}
+
+// C10: 保存草稿
+async function saveDraft() {
+  if (!currentPlanId) { showToast('请先创建草稿'); return; }
+  const content = document.getElementById('plan-content').value;
+  const title = document.getElementById('plan-title').value;
+  const r = await fetch(`/tools/plugin/plan/${currentPlanId}/draft`, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ title, content }),
+  });
+  const j = await r.json();
+  showToast(j.success ? '草稿已保存' : '保存失败：' + (j.error?.message||''));
+  if (j.success) loadPlanVersions();
+}
+
+// C12: 发布
+async function publishCurrentDraft() {
+  if (!currentPlanId) { showToast('没有可发布的草稿'); return; }
+  if (!confirm('发布后将通知患者，旧版本自动归档，确认发布？')) return;
+
+  // 先保存最新内容
+  await saveDraft();
+
+  const r = await fetch(`/tools/plugin/plan/${currentPlanId}/publish`, { method:'POST' });
+  const j = await r.json();
+  if (!j.success) { showToast('发布失败：' + (j.error?.message||'')); return; }
+
+  // 同时通过原有接口发推送通知
+  const content = document.getElementById('plan-content').value;
+  const title = document.getElementById('plan-title').value;
+  await fetch('/tools/risk/plan/issue', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ archive_id: selectedPatient.patient_id, plan_content: content, title }),
+  });
+
+  currentPlanStatus = 'PUBLISHED';
+  document.getElementById('btn-publish').disabled = true;
+  document.getElementById('plan-status-text').textContent = '当前状态：已发布';
+  document.getElementById('issue-success').classList.remove('hidden');
+  document.getElementById('issue-success-msg').textContent =
+    `✅ 方案已发布并下达，通知已推送至患者端（归档 ${j.data.archived_previous} 个历史版本）`;
+  loadPlanVersions();
+}
+
+// C7: 历史版本列表
+async function loadPlanVersions() {
+  if (!selectedPatient) return;
+  const r = await fetch(`/tools/plugin/plan/versions/${selectedPatient.patient_id}`);
+  const j = await r.json();
+  const list = document.getElementById('plan-versions-list');
+  if (!j.success || !j.data.items.length) {
+    list.innerHTML = '<p class="text-xs text-gray-400 text-center py-3">暂无方案记录</p>';
+    planVersions = [];
+    return;
+  }
+  planVersions = j.data.items;
+  const STATUS_STYLE = {
+    DRAFT:     'bg-gray-100 text-gray-500',
+    PUBLISHED: 'bg-emerald-100 text-emerald-700',
+    ARCHIVED:  'bg-gray-100 text-gray-400',
+  };
+  list.innerHTML = planVersions.map(v => `
+    <div class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer group"
+      onclick='loadVersion(${JSON.stringify(v)})'>
+      <div class="flex-1 min-w-0">
+        <p class="text-xs font-medium text-gray-700 truncate">${v.title}</p>
+        <p class="text-xs text-gray-400">${v.created_at.substring(0,16).replace('T',' ')}</p>
+      </div>
+      <span class="text-xs px-1.5 py-0.5 rounded flex-shrink-0 ${STATUS_STYLE[v.status]||'bg-gray-100 text-gray-500'}">${v.status}</span>
+    </div>`).join('');
+}
+
+async function loadVersion(v) {
+  // 获取完整内容
+  const r = await fetch(`/tools/plugin/plan/${v.plan_id}/summary?format=patient_text`);
+  // 直接用 full content — 取原始方案
+  const r2 = await fetch(`/tools/plugin/plan/versions/${selectedPatient.patient_id}`);
+  // 简化：直接展示 preview
+  document.getElementById('plan-title').value = v.title;
+  showPlanContent(v.content_preview || '（点击保存草稿后可编辑完整内容）', v.status);
+  currentPlanId = v.plan_id;
+  currentPlanStatus = v.status;
+}
+
+// ── C 新建草稿弹窗 ────────────────────────────────────────────────────────────
+function openDraftModal() {
+  if (!selectedPatient) return;
+  setDraftSource('manual');
+  document.getElementById('draft-title').value = '个性化中医调理方案';
+  document.getElementById('draft-modal').classList.remove('hidden');
+}
+function closeDraftModal() { document.getElementById('draft-modal').classList.add('hidden'); }
+
+function setDraftSource(src) {
+  draftSource = src; selectedTemplateId = null; selectedCopyPlanId = null;
+  document.querySelectorAll('.src-btn').forEach(b => {
+    const active = b.dataset.src === src;
+    b.style.background = active ? '#4E7A61' : '';
+    b.style.color = active ? 'white' : '';
+    b.style.borderColor = active ? '#4E7A61' : '';
+  });
+  document.getElementById('template-picker').classList.toggle('hidden', src !== 'template');
+  document.getElementById('copy-picker').classList.toggle('hidden', src !== 'copy');
+  if (src === 'template') loadTemplateList();
+  if (src === 'copy') loadCopyVersionList();
+}
+
+async function loadTemplateList() {
+  const list = document.getElementById('template-list');
+  const r = await fetch('/tools/plugin/template/list?type=plan&page_size=30');
+  const j = await r.json();
+  if (!j.success || !j.data.items.length) {
+    list.innerHTML = '<div class="text-xs text-gray-400 text-center py-4">暂无模板</div>'; return;
+  }
+  list.innerHTML = j.data.items.map(t => `
+    <div class="px-3 py-2 hover:bg-gray-50 cursor-pointer text-xs flex justify-between items-center"
+      onclick="selectTemplate('${t.template_id}', this)"
+      data-id="${t.template_id}">
+      <span class="font-medium text-gray-700">${t.name}</span>
+      <span class="text-gray-400 truncate ml-2 max-w-32">${t.content_preview}</span>
+    </div>`).join('');
+}
+function selectTemplate(id, el) {
+  selectedTemplateId = id;
+  document.querySelectorAll('#template-list [onclick]').forEach(e => e.classList.remove('bg-emerald-50'));
+  el.classList.add('bg-emerald-50');
+}
+
+function loadCopyVersionList() {
+  const list = document.getElementById('copy-version-list');
+  if (!planVersions.length) { list.innerHTML = '<div class="text-xs text-gray-400 text-center py-4">暂无历史方案</div>'; return; }
+  list.innerHTML = planVersions.map(v => `
+    <div class="px-3 py-2 hover:bg-gray-50 cursor-pointer text-xs flex justify-between"
+      onclick="selectCopyVersion('${v.plan_id}', this)">
+      <span class="font-medium text-gray-700">${v.title}</span>
+      <span class="text-gray-400">${v.status}</span>
+    </div>`).join('');
+}
+function selectCopyVersion(id, el) {
+  selectedCopyPlanId = id;
+  document.querySelectorAll('#copy-version-list [onclick]').forEach(e => e.classList.remove('bg-emerald-50'));
+  el.classList.add('bg-emerald-50');
+}
+
+async function confirmCreateDraft() {
+  if (draftSource === 'template' && !selectedTemplateId) { showToast('请选择模板'); return; }
+  if (draftSource === 'copy' && !selectedCopyPlanId) { showToast('请选择要复制的版本'); return; }
+  const title = document.getElementById('draft-title').value || '个性化中医调理方案';
+  const body = {
+    patient_id: selectedPatient.patient_id,
+    source: draftSource,
+    title,
+    template_id: selectedTemplateId,
+    copy_from_plan_id: selectedCopyPlanId,
+  };
+  const r = await fetch('/tools/plugin/plan/draft', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(body),
+  });
+  const j = await r.json();
+  if (!j.success) { showToast('创建失败：' + (j.error?.message||'')); return; }
+  closeDraftModal();
+  currentPlanId = j.data.plan_id;
+  currentPlanStatus = 'DRAFT';
+  document.getElementById('plan-title').value = j.data.title;
+  showPlanContent('（草稿已创建，请在此编辑内容后保存）', 'DRAFT');
+  showToast('草稿已创建');
+  loadPlanVersions();
+}
+
+// ── C11: 版本对比（diff）──────────────────────────────────────────────────────
+function openDiffModal() {
+  if (!planVersions.length) { showToast('暂无版本可对比'); return; }
+  const opts = planVersions.map(v =>
+    `<option value="${v.plan_id}">${v.title} (${v.status})</option>`).join('');
+  document.getElementById('diff-old').innerHTML = opts;
+  document.getElementById('diff-new').innerHTML = opts;
+  if (planVersions.length >= 2) {
+    document.getElementById('diff-old').selectedIndex = 1;
+    document.getElementById('diff-new').selectedIndex = 0;
+  }
+  document.getElementById('diff-result').classList.add('hidden');
+  document.getElementById('diff-stats').classList.add('hidden');
+  document.getElementById('diff-modal').classList.remove('hidden');
+}
+async function runDiff() {
+  const oldId = document.getElementById('diff-old').value;
+  const newId = document.getElementById('diff-new').value;
+  if (oldId === newId) { showToast('请选择不同的两个版本'); return; }
+  const r = await fetch(`/tools/plugin/plan/diff?plan_id_old=${oldId}&plan_id_new=${newId}`);
+  const j = await r.json();
+  if (!j.success) { showToast('对比失败'); return; }
+  const d = j.data;
+  const resultEl = document.getElementById('diff-result');
+  if (d.unchanged) {
+    resultEl.textContent = '两个版本内容完全相同。';
+  } else {
+    resultEl.innerHTML = d.diff_lines.map(line => {
+      if (line.startsWith('+') && !line.startsWith('+++'))
+        return `<span style="color:#059669;background:#d1fae5;display:block;">${escHtml(line)}</span>`;
+      if (line.startsWith('-') && !line.startsWith('---'))
+        return `<span style="color:#dc2626;background:#fee2e2;display:block;">${escHtml(line)}</span>`;
+      if (line.startsWith('@@'))
+        return `<span style="color:#6366f1;display:block;">${escHtml(line)}</span>`;
+      return `<span style="display:block;">${escHtml(line)}</span>`;
+    }).join('');
+  }
+  resultEl.classList.remove('hidden');
+  document.getElementById('diff-add').textContent = d.additions;
+  document.getElementById('diff-del').textContent = d.deletions;
+  document.getElementById('diff-stats').classList.remove('hidden');
+}
+
+// ── C13: 摘要渲染 ────────────────────────────────────────────────────────────
+function openSummaryModal() {
+  if (!currentPlanId) { showToast('请先打开一个方案'); return; }
+  document.getElementById('summary-modal').classList.remove('hidden');
+  loadSummary('his_text');
+}
+async function loadSummary(fmt) {
+  ['his', 'patient'].forEach(k => {
+    const btn = document.getElementById(`sum-btn-${k}`);
+    const isActive = (k === 'his' && fmt === 'his_text') || (k === 'patient' && fmt === 'patient_text');
+    btn.style.background = isActive ? '#5070A8' : '';
+    btn.style.color = isActive ? 'white' : '';
+    btn.style.borderColor = isActive ? '#5070A8' : '';
+    btn.className = isActive
+      ? 'px-3 py-1.5 rounded-lg border text-xs font-medium'
+      : 'px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 text-xs font-medium';
+  });
+  const r = await fetch(`/tools/plugin/plan/${currentPlanId}/summary?format=${fmt}`);
+  const j = await r.json();
+  if (!j.success) { showToast('渲染失败'); return; }
+  document.getElementById('summary-text').value = j.data.summary;
+  document.getElementById('summary-len').textContent = `原文 ${j.data.full_length} 字符`;
+}
+
+// ── E. 随访计划（plugin/followup/plan）────────────────────────────────────────
+async function createFollowupPlan() {
+  if (!selectedPatient) return;
+  const cadence = parseInt(document.getElementById('fu-cadence').value) || 7;
+  const weeks = parseInt(document.getElementById('fu-weeks').value) || 4;
+  const r = await fetch('/tools/plugin/followup/plan', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      patient_id: selectedPatient.patient_id,
+      cadence_days: cadence,
+      total_weeks: weeks,
+    }),
+  });
+  const j = await r.json();
+  const result = document.getElementById('fu-result');
+  result.classList.remove('hidden');
+  if (j.success) {
+    result.className = 'mt-2 text-xs text-emerald-700 bg-emerald-50 rounded px-3 py-2';
+    result.textContent = `✅ 创建成功，共生成 ${j.data.tasks_created} 个随访任务，截止 ${j.data.end_date}`;
+  } else {
+    result.className = 'mt-2 text-xs text-red-600 bg-red-50 rounded px-3 py-2';
+    result.textContent = `❌ ${j.error?.message || '创建失败'}`;
+  }
+}
+
+// ── 自动风险横幅 ──────────────────────────────────────────────────────────────
+let _autoBannerTimer = null, _autoBannerTick = null;
+
+async function autoTriggerRiskScan() {
+  if (!selectedPatient) return;
+  try {
+    const r = await fetch(`/tools/risk/analyze/${selectedPatient.patient_id}`, { method:'POST' });
+    const j = await r.json();
+    if (!j.success) return;
+    const analysis = j.data?.analysis;
+    if (analysis && ['HIGH','MEDIUM'].includes(analysis.risk_level))
+      showAutoRiskBanner(analysis, j.data.new_alerts || []);
+  } catch {}
+}
+
+function showAutoRiskBanner(analysis, newAlerts) {
+  const themes = {
+    HIGH:'bg-red-100 border-red-500 text-red-900',
+    MEDIUM:'bg-amber-100 border-amber-500 text-amber-900',
+  };
+  const banner = document.getElementById('auto-risk-banner');
+  banner.className = `fixed top-20 left-1/2 -translate-x-1/2 z-50 w-[620px] max-w-[90vw] rounded-xl border-l-4 p-4 shadow-2xl flex items-start gap-3 ${themes[analysis.risk_level]||themes.MEDIUM}`;
+  document.getElementById('banner-title').textContent =
+    `${selectedPatient?.name||'该患者'} · ${analysis.risk_level==='HIGH'?'⚠️ 高风险预警':'⚡ 中风险提示'}`;
+  const factors = (analysis.risk_factors||[]).slice(0,3);
+  const alertNote = newAlerts.length ? `（已创建${newAlerts.length}条预警）` : '';
+  document.getElementById('banner-factors').textContent =
+    factors.length ? factors.join(' · ') + alertNote : '请及时查看 AI 分析结果' + alertNote;
+  clearTimeout(_autoBannerTimer); clearInterval(_autoBannerTick);
+  let secs = 8;
+  document.getElementById('banner-countdown').textContent = `${secs}s 后自动关闭`;
+  _autoBannerTick = setInterval(() => {
+    secs--; const el = document.getElementById('banner-countdown');
+    if (el) el.textContent = secs > 0 ? `${secs}s 后自动关闭` : '';
+    if (secs <= 0) clearInterval(_autoBannerTick);
+  }, 1000);
+  _autoBannerTimer = setTimeout(dismissAutoRiskBanner, 8000);
+  banner.classList.remove('hidden');
+}
+
+function dismissAutoRiskBanner() {
+  clearTimeout(_autoBannerTimer); clearInterval(_autoBannerTick);
+  const b = document.getElementById('auto-risk-banner');
+  if (b) b.classList.add('hidden');
+}
+
+function focusRiskPanel() {
+  dismissAutoRiskBanner();
+  if (!document.getElementById('risk-result').classList.contains('hidden')) {
+    document.getElementById('risk-result').scrollIntoView({ behavior:'smooth', block:'nearest' });
+  } else {
+    triggerAnalysis();
+  }
+}
+
+// ── 工具函数 ──────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+document.getElementById('patient-search').addEventListener('keydown', e => {
+  if (e.key === 'Enter') searchPatients();
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('#patient-search') && !e.target.closest('#search-results'))
+    document.getElementById('search-results').innerHTML = '';
+});
+</script>
+{% endblock %}
