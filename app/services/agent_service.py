@@ -828,11 +828,18 @@ async def run_agent_stream(
     import httpx, json as json_lib
     base_url = settings.anthropic_base_url or None
     claude_model = settings.anthropic_model
-    messages: list = [{"role": "user", "content": query}]
+    # OpenAI 格式：system 作为首条消息
+    messages: list = [{"role": "system", "content": _SYSTEM_PROMPT}, {"role": "user", "content": query}]
     result_data: Any = None
     navigate_url: str | None = None
     executed_steps: list = []
     final_message = ""
+
+    # 将 Anthropic tool schema 转换为 OpenAI function calling 格式
+    openai_tools = [
+        {"type": "function", "function": {"name": t["name"], "description": t["description"], "parameters": t["input_schema"]}}
+        for t in AGENT_TOOLS
+    ]
 
     yield {"type": "thinking"}
 
@@ -841,59 +848,55 @@ async def run_agent_stream(
             async with httpx.AsyncClient(timeout=60.0) as client:
                 for _ in range(4):
                     resp = await client.post(
-                        f"{base_url}/v1/messages",
+                        f"{base_url}/chat/completions",
                         headers={
                             "Content-Type": "application/json",
-                            "x-api-key": settings.anthropic_api_key,
                             "Authorization": f"Bearer {settings.anthropic_api_key}",
-                            "anthropic-version": "2023-06-01",
                         },
                         json={
                             "model": claude_model,
                             "max_tokens": 4096,
-                            "system": _SYSTEM_PROMPT,
-                            "tools": AGENT_TOOLS,
                             "messages": messages,
+                            "tools": openai_tools,
+                            "tool_choice": "auto",
                         },
                     )
                     data = resp.json()
-                    # 检查 HTTP 状态，代理错误时抛出
                     if resp.status_code != 200:
-                        err_msg = (
-                            data.get("error", {}).get("message")
-                            or data.get("message")
-                            or str(data)
-                        )
-                        import logging
-                        logging.warning(f"[Agent] Claude API error {resp.status_code}: {err_msg} | model={claude_model} | url={base_url}")
+                        err_msg = data.get("error", {}).get("message") or str(data)
                         yield {"type": "error", "message": f"AI调用失败（{resp.status_code}）：{err_msg}"}
                         return
-                    texts = [b["text"] for b in data.get("content", []) if b.get("type") == "text"]
-                    tools = [b for b in data.get("content", []) if b.get("type") == "tool_use"]
-                    if not tools:
-                        final_message = " ".join(texts).strip()
+                    choice = data["choices"][0]
+                    msg = choice["message"]
+                    text = msg.get("content") or ""
+                    tool_calls = msg.get("tool_calls") or []
+                    if not tool_calls:
+                        final_message = text.strip()
                         break
-                    messages.append({"role": "assistant", "content": data["content"]})
-                    results = []
-                    for t in tools:
-                        yield {"type": "tool_call", "tool": t["name"], "label": _TOOL_LABELS.get(t["name"], t["name"])}
-                        out = await _execute_tool(t["name"], t["input"], db, current_user)
+                    messages.append({"role": "assistant", "content": text, "tool_calls": tool_calls})
+                    for tc in tool_calls:
+                        tool_name = tc["function"]["name"]
+                        tool_input = json_lib.loads(tc["function"]["arguments"])
+                        yield {"type": "tool_call", "tool": tool_name, "label": _TOOL_LABELS.get(tool_name, tool_name)}
+                        out = await _execute_tool(tool_name, tool_input, db, current_user)
                         step = {
-                            "tool": t["name"],
-                            "label": _TOOL_LABELS.get(t["name"], t["name"]),
-                            "summary": _tool_summary(t["name"], t["input"], out),
+                            "tool": tool_name,
+                            "label": _TOOL_LABELS.get(tool_name, tool_name),
+                            "summary": _tool_summary(tool_name, tool_input, out),
                             "status": "error" if "error" in out else "success",
                         }
                         executed_steps.append(step)
                         yield {"type": "tool_result", **step}
-                        if t["name"] == "navigate_to":
+                        if tool_name == "navigate_to":
                             navigate_url = out.get("url")
                         elif "error" not in out:
                             result_data = out
-                        results.append({"type": "tool_result", "tool_use_id": t["id"], "content": json_lib.dumps(out, ensure_ascii=False, default=str)})
-                    messages.append({"role": "user", "content": results})
-                    if data.get("stop_reason") == "end_turn":
-                        final_message = " ".join(texts).strip()
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tc["id"],
+                            "content": json_lib.dumps(out, ensure_ascii=False, default=str),
+                        })
+                    if choice.get("finish_reason") == "stop":
                         break
                 else:
                     final_message = "操作已执行完毕。"
@@ -983,33 +986,46 @@ async def run_agent(query: str, db: AsyncSession, current_user: Any) -> dict:
 
     if base_url:
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            openai_tools = [
+                {"type": "function", "function": {"name": t["name"], "description": t["description"], "parameters": t["input_schema"]}}
+                for t in AGENT_TOOLS
+            ]
+            messages = [{"role": "system", "content": _SYSTEM_PROMPT}, {"role": "user", "content": query}]
+            async with httpx.AsyncClient(timeout=60.0) as client:
                 for _ in range(4):
-                    resp = await client.post(f"{base_url}/v1/messages", headers={"Content-Type": "application/json", "x-api-key": settings.anthropic_api_key, "Authorization": f"Bearer {settings.anthropic_api_key}", "anthropic-version": "2023-06-01"}, json={"model": claude_model, "max_tokens": 4096, "system": _SYSTEM_PROMPT, "tools": AGENT_TOOLS, "messages": messages})
+                    resp = await client.post(
+                        f"{base_url}/chat/completions",
+                        headers={"Content-Type": "application/json", "Authorization": f"Bearer {settings.anthropic_api_key}"},
+                        json={"model": claude_model, "max_tokens": 4096, "messages": messages, "tools": openai_tools, "tool_choice": "auto"},
+                    )
                     data = resp.json()
-                    texts = [b["text"] for b in data.get("content", []) if b.get("type") == "text"]
-                    tools = [b for b in data.get("content", []) if b.get("type") == "tool_use"]
-                    if not tools:
-                        final_message = " ".join(texts).strip()
+                    if resp.status_code != 200:
+                        err_msg = data.get("error", {}).get("message") or str(data)
+                        return {"message": f"AI调用失败（{resp.status_code}）：{err_msg}", "data": None, "navigate_url": None, "execution_id": exec_id}
+                    choice = data["choices"][0]
+                    msg = choice["message"]
+                    text = msg.get("content") or ""
+                    tool_calls = msg.get("tool_calls") or []
+                    if not tool_calls:
+                        final_message = text.strip()
                         break
-                    messages.append({"role": "assistant", "content": data["content"]})
-                    results = []
-                    for t in tools:
-                        out = await _execute_tool(t["name"], t["input"], db, current_user)
+                    messages.append({"role": "assistant", "content": text, "tool_calls": tool_calls})
+                    for tc in tool_calls:
+                        tool_name = tc["function"]["name"]
+                        tool_input = json_lib.loads(tc["function"]["arguments"])
+                        out = await _execute_tool(tool_name, tool_input, db, current_user)
                         executed_steps.append({
-                            "tool": t["name"],
-                            "label": _TOOL_LABELS.get(t["name"], t["name"]),
-                            "summary": _tool_summary(t["name"], t["input"], out),
+                            "tool": tool_name,
+                            "label": _TOOL_LABELS.get(tool_name, tool_name),
+                            "summary": _tool_summary(tool_name, tool_input, out),
                             "status": "error" if "error" in out else "success",
                         })
-                        if t["name"] == "navigate_to":
+                        if tool_name == "navigate_to":
                             navigate_url = out.get("url")
                         elif "error" not in out:
                             result_data = out
-                        results.append({"type": "tool_result", "tool_use_id": t["id"], "content": json_lib.dumps(out, ensure_ascii=False, default=str)})
-                    messages.append({"role": "user", "content": results})
-                    if data.get("stop_reason") == "end_turn":
-                        final_message = " ".join(texts).strip()
+                        messages.append({"role": "tool", "tool_call_id": tc["id"], "content": json_lib.dumps(out, ensure_ascii=False, default=str)})
+                    if choice.get("finish_reason") == "stop":
                         break
                 else:
                     final_message = "操作已执行完毕。"
