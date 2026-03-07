@@ -219,7 +219,246 @@ AGENT_TOOLS = [
             },
             "required": ["patient_id"]
         }
-    }
+    },
+    # ── 档案 CRUD ────────────────────────────────────────────────────────────
+    {
+        "name": "get_patient_archive",
+        "description": "查询患者档案详情（姓名/性别/出生日期/手机/地址/既往史/过敏史等完整信息）",
+        "input_schema": {
+            "type": "object",
+            "properties": {"archive_id": {"type": "string", "description": "档案ID（十六进制字符串）"}},
+            "required": ["archive_id"]
+        }
+    },
+    {
+        "name": "update_patient_archive",
+        "description": "修改患者档案信息，仅传需要修改的字段",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "archive_id":   {"type": "string", "description": "档案ID"},
+                "name":         {"type": "string", "description": "姓名"},
+                "gender":       {"type": "string", "enum": ["male", "female"], "description": "性别"},
+                "phone":        {"type": "string", "description": "手机号"},
+                "birth_date":   {"type": "string", "description": "出生日期 YYYY-MM-DD"},
+                "address":      {"type": "string", "description": "居住地址"},
+                "occupation":   {"type": "string", "description": "职业"},
+                "id_number":    {"type": "string", "description": "证件号"},
+                "ethnicity":    {"type": "string", "description": "民族"},
+                "emergency_contact_name":  {"type": "string", "description": "紧急联系人姓名"},
+                "emergency_contact_phone": {"type": "string", "description": "紧急联系人电话"},
+            },
+            "required": ["archive_id"]
+        }
+    },
+    {
+        "name": "delete_patient_archive",
+        "description": "将患者档案移入回收站（软删除）",
+        "input_schema": {
+            "type": "object",
+            "properties": {"archive_id": {"type": "string", "description": "档案ID"}},
+            "required": ["archive_id"]
+        }
+    },
+    # ── 标签管理 ─────────────────────────────────────────────────────────────
+    {
+        "name": "list_patient_labels",
+        "description": "查看患者当前的所有标签",
+        "input_schema": {
+            "type": "object",
+            "properties": {"archive_id": {"type": "string", "description": "档案ID"}},
+            "required": ["archive_id"]
+        }
+    },
+    {
+        "name": "assign_patient_label",
+        "description": "给患者打标签，按标签名称查找并绑定",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "archive_id": {"type": "string", "description": "档案ID"},
+                "label_name": {"type": "string", "description": "标签名称"},
+                "note":       {"type": "string", "description": "打标备注（可选）"}
+            },
+            "required": ["archive_id", "label_name"]
+        }
+    },
+    {
+        "name": "remove_patient_label",
+        "description": "移除患者的某个标签",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "archive_id": {"type": "string", "description": "档案ID"},
+                "label_name": {"type": "string", "description": "要移除的标签名称"}
+            },
+            "required": ["archive_id", "label_name"]
+        }
+    },
+    # ── 预警 ─────────────────────────────────────────────────────────────────
+    {
+        "name": "close_alert",
+        "description": "关闭（结束）一条预警事件，将状态从 OPEN/ACKED 改为 CLOSED",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "event_id": {"type": "string", "description": "预警事件ID（UUID格式）"},
+                "note":     {"type": "string", "description": "关闭原因备注（可选）"}
+            },
+            "required": ["event_id"]
+        }
+    },
+    {
+        "name": "get_risk_dashboard",
+        "description": "查看高危患者看板：列出有未处置 HIGH 级预警的患者",
+        "input_schema": {"type": "object", "properties": {"limit": {"type": "integer", "description": "返回数量，默认10"}}}
+    },
+    # ── 随访 ─────────────────────────────────────────────────────────────────
+    {
+        "name": "list_followup_plans",
+        "description": "查看患者的随访计划列表（可按姓名查患者的所有计划）",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "patient_name": {"type": "string", "description": "患者姓名（可选，不传则查全部）"},
+                "limit":        {"type": "integer", "description": "返回数量，默认10"}
+            }
+        }
+    },
+    {
+        "name": "today_followup_tasks",
+        "description": "查看今日待随访任务列表",
+        "input_schema": {"type": "object", "properties": {"limit": {"type": "integer", "description": "返回数量，默认20"}}}
+    },
+    # ── 干预管理 ─────────────────────────────────────────────────────────────
+    {
+        "name": "list_interventions",
+        "description": "查看干预计划列表（可按患者姓名或状态筛选）",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "patient_name": {"type": "string", "description": "患者姓名（可选）"},
+                "status":       {"type": "string", "description": "状态：IN_PROGRESS/COMPLETED/PAUSED（可选）"},
+                "limit":        {"type": "integer", "description": "返回数量，默认10"}
+            }
+        }
+    },
+    {
+        "name": "create_intervention",
+        "description": "为患者创建干预计划（中医干预：针灸/推拿/药膳/运动等）",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "patient_name":      {"type": "string", "description": "患者姓名"},
+                "plan_name":         {"type": "string", "description": "计划名称，如：气血双补针灸疗程"},
+                "intervention_type": {"type": "string", "description": "类型：ACUPUNCTURE/TUINA/DIET/EXERCISE/HERBAL/OTHER"},
+                "goal":              {"type": "string", "description": "干预目标（可选）"},
+                "content_detail":    {"type": "string", "description": "内容详情：穴位/动作/方药等（可选）"},
+                "duration_weeks":    {"type": "integer", "description": "疗程周数，默认4"},
+                "frequency":         {"type": "string", "description": "频率：DAILY/WEEKLY/BIWEEKLY，默认WEEKLY"}
+            },
+            "required": ["patient_name", "plan_name", "intervention_type"]
+        }
+    },
+    # ── 宣教管理 ─────────────────────────────────────────────────────────────
+    {
+        "name": "list_education_records",
+        "description": "查看宣教记录列表（已发送的健康教育内容）",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "limit": {"type": "integer", "description": "返回数量，默认10"}
+            }
+        }
+    },
+    {
+        "name": "send_education",
+        "description": "向患者发送宣教内容（健康教育）",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "patient_name": {"type": "string", "description": "患者姓名"},
+                "title":        {"type": "string", "description": "宣教标题"},
+                "content":      {"type": "string", "description": "宣教内容正文"},
+                "edu_type":     {"type": "string", "description": "类型：DIET/EXERCISE/MEDICATION/LIFESTYLE/OTHER，默认LIFESTYLE"}
+            },
+            "required": ["patient_name", "title", "content"]
+        }
+    },
+    # ── 指导管理 ─────────────────────────────────────────────────────────────
+    {
+        "name": "list_guidance_records",
+        "description": "查看医学指导记录列表",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "patient_name": {"type": "string", "description": "患者姓名（可选）"},
+                "limit":        {"type": "integer", "description": "返回数量，默认10"}
+            }
+        }
+    },
+    {
+        "name": "create_guidance_record",
+        "description": "为患者创建并下达医学指导内容",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "patient_name": {"type": "string", "description": "患者姓名"},
+                "title":        {"type": "string", "description": "指导标题"},
+                "content":      {"type": "string", "description": "指导内容"},
+                "guidance_type":{"type": "string", "description": "类型：GUIDANCE/EDUCATION/INTERVENTION，默认GUIDANCE"}
+            },
+            "required": ["patient_name", "title", "content"]
+        }
+    },
+    # ── 咨询管理 ─────────────────────────────────────────────────────────────
+    {
+        "name": "list_consultations",
+        "description": "查看患者咨询列表（含待处理/已回复等状态）",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "status": {"type": "string", "description": "状态筛选：PENDING/IN_PROGRESS/RESOLVED（可选）"},
+                "limit":  {"type": "integer", "description": "返回数量，默认10"}
+            }
+        }
+    },
+    # ── 健康指标 ─────────────────────────────────────────────────────────────
+    {
+        "name": "record_health_indicator",
+        "description": "录入患者健康指标（血压/血糖/体重等）",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "patient_name":     {"type": "string", "description": "患者姓名"},
+                "indicator_type":   {"type": "string", "enum": ["BLOOD_PRESSURE", "BLOOD_GLUCOSE", "WEIGHT", "WAIST_CIRCUMFERENCE"], "description": "指标类型"},
+                "systolic":         {"type": "number", "description": "收缩压（血压时必填）"},
+                "diastolic":        {"type": "number", "description": "舒张压（血压时必填）"},
+                "value":            {"type": "number", "description": "数值（血糖/体重/腰围时填）"},
+                "measured_at":      {"type": "string", "description": "测量时间 YYYY-MM-DD HH:MM（可选，默认当前时间）"}
+            },
+            "required": ["patient_name", "indicator_type"]
+        }
+    },
+    {
+        "name": "list_health_indicators",
+        "description": "查询患者近期健康指标记录（血压/血糖/体重趋势）",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "patient_name":   {"type": "string", "description": "患者姓名"},
+                "indicator_type": {"type": "string", "description": "指标类型（可选，不传返回所有类型）"},
+                "limit":          {"type": "integer", "description": "返回条数，默认10"}
+            },
+            "required": ["patient_name"]
+        }
+    },
+    # ── 统计 ─────────────────────────────────────────────────────────────────
+    {
+        "name": "get_business_stats",
+        "description": "查看业务统计数据（复诊率、咨询量、预警数、随访完成率等 KPI）",
+        "input_schema": {"type": "object", "properties": {}}
+    },
 ]
 
 _PAGE_URL_MAP = {
@@ -652,8 +891,507 @@ async def _exec_create_followup_task(db: AsyncSession, current_user: Any, args: 
     }
 
 
+async def _exec_get_patient_archive(db: AsyncSession, args: dict) -> dict:
+    from app.models.archive import PatientArchive
+    import uuid as uuid_mod
+    try:
+        aid = uuid_mod.UUID(args["archive_id"])
+    except (KeyError, ValueError):
+        return {"error": "archive_id 格式无效"}
+    r = await db.execute(select(PatientArchive).where(PatientArchive.id == aid))
+    a = r.scalar_one_or_none()
+    if not a:
+        return {"error": "档案不存在"}
+    return {
+        "archive_id": str(a.id).replace("-", ""),
+        "name": a.name, "gender": a.gender,
+        "birth_date": str(a.birth_date) if a.birth_date else None,
+        "phone": a.phone, "ethnicity": a.ethnicity, "occupation": a.occupation,
+        "address": a.address, "id_number": a.id_number,
+        "archive_type": a.archive_type.value if a.archive_type else None,
+        "past_history": a.past_history, "family_history": a.family_history,
+        "allergy_history": a.allergy_history,
+        "emergency_contact_name": a.emergency_contact_name,
+        "emergency_contact_phone": a.emergency_contact_phone,
+    }
+
+
+async def _exec_update_patient_archive(db: AsyncSession, args: dict) -> dict:
+    from app.models.archive import PatientArchive
+    from datetime import datetime
+    import uuid as uuid_mod
+    try:
+        aid = uuid_mod.UUID(args["archive_id"])
+    except (KeyError, ValueError):
+        return {"error": "archive_id 格式无效"}
+    r = await db.execute(select(PatientArchive).where(PatientArchive.id == aid))
+    a = r.scalar_one_or_none()
+    if not a:
+        return {"error": "档案不存在"}
+    updatable = ["name", "gender", "phone", "address", "occupation", "id_number",
+                 "ethnicity", "emergency_contact_name", "emergency_contact_phone"]
+    for field in updatable:
+        if field in args and args[field] is not None:
+            setattr(a, field, args[field])
+    if args.get("birth_date"):
+        try:
+            a.birth_date = datetime.strptime(args["birth_date"], "%Y-%m-%d").date()
+        except ValueError:
+            return {"error": "birth_date 格式错误，请用 YYYY-MM-DD"}
+    db.add(a)
+    await db.flush()
+    return {"success": True, "archive_id": str(a.id).replace("-", ""), "name": a.name}
+
+
+async def _exec_delete_patient_archive(db: AsyncSession, args: dict) -> dict:
+    from app.models.archive import PatientArchive
+    import uuid as uuid_mod
+    try:
+        aid = uuid_mod.UUID(args["archive_id"])
+    except (KeyError, ValueError):
+        return {"error": "archive_id 格式无效"}
+    r = await db.execute(select(PatientArchive).where(PatientArchive.id == aid))
+    a = r.scalar_one_or_none()
+    if not a:
+        return {"error": "档案不存在"}
+    await db.delete(a)
+    await db.flush()
+    return {"success": True, "message": f"档案「{a.name}」已移入回收站"}
+
+
+async def _exec_list_patient_labels(db: AsyncSession, args: dict) -> dict:
+    from app.models.label import Label, PatientLabel
+    import uuid as uuid_mod
+    try:
+        aid = uuid_mod.UUID(args["archive_id"])
+    except (KeyError, ValueError):
+        return {"error": "archive_id 格式无效"}
+    stmt = (
+        select(PatientLabel, Label)
+        .join(Label, PatientLabel.label_id == Label.id)
+        .where(PatientLabel.patient_id == aid)
+    )
+    result = await db.execute(stmt)
+    rows = result.all()
+    return {
+        "count": len(rows),
+        "items": [{"label_id": pl.label_id, "name": lb.name, "color": lb.color, "note": pl.note} for pl, lb in rows],
+    }
+
+
+async def _exec_assign_patient_label(db: AsyncSession, current_user: Any, args: dict) -> dict:
+    from app.models.label import Label, PatientLabel
+    import uuid as uuid_mod
+    try:
+        aid = uuid_mod.UUID(args["archive_id"])
+    except (KeyError, ValueError):
+        return {"error": "archive_id 格式无效"}
+    label_name = args.get("label_name", "").strip()
+    lr = await db.execute(select(Label).where(Label.name == label_name, Label.is_active == True))
+    label = lr.scalar_one_or_none()
+    if not label:
+        return {"error": f"标签「{label_name}」不存在，请先在标签管理中创建"}
+    # 检查是否已有
+    exist_r = await db.execute(
+        select(PatientLabel).where(PatientLabel.patient_id == aid, PatientLabel.label_id == label.id)
+    )
+    if exist_r.scalar_one_or_none():
+        return {"success": True, "message": f"患者已有标签「{label_name}」，无需重复添加"}
+    pl = PatientLabel(patient_id=aid, label_id=label.id, note=args.get("note"), created_by=current_user.id)
+    db.add(pl)
+    await db.flush()
+    return {"success": True, "label": label_name}
+
+
+async def _exec_remove_patient_label(db: AsyncSession, args: dict) -> dict:
+    from app.models.label import Label, PatientLabel
+    import uuid as uuid_mod
+    try:
+        aid = uuid_mod.UUID(args["archive_id"])
+    except (KeyError, ValueError):
+        return {"error": "archive_id 格式无效"}
+    label_name = args.get("label_name", "").strip()
+    lr = await db.execute(select(Label).where(Label.name == label_name))
+    label = lr.scalar_one_or_none()
+    if not label:
+        return {"error": f"标签「{label_name}」不存在"}
+    pr = await db.execute(
+        select(PatientLabel).where(PatientLabel.patient_id == aid, PatientLabel.label_id == label.id)
+    )
+    pl = pr.scalar_one_or_none()
+    if not pl:
+        return {"error": f"患者未绑定标签「{label_name}」"}
+    await db.delete(pl)
+    await db.flush()
+    return {"success": True, "message": f"已移除标签「{label_name}」"}
+
+
+async def _exec_close_alert(db: AsyncSession, current_user: Any, args: dict) -> dict:
+    import uuid as uuid_mod
+    from datetime import datetime, timezone
+    try:
+        eid = uuid_mod.UUID(args["event_id"])
+    except (KeyError, ValueError):
+        return {"error": "event_id 格式无效"}
+    r = await db.execute(select(AlertEvent).where(AlertEvent.id == eid))
+    event = r.scalar_one_or_none()
+    if not event:
+        return {"error": "预警事件不存在"}
+    if event.status == AlertStatus.CLOSED:
+        return {"error": "预警已经是 CLOSED 状态"}
+    event.status = AlertStatus.CLOSED
+    event.handled_by_id = current_user.id
+    event.handler_note = args.get("note", "")
+    event.acked_at = datetime.now(timezone.utc)
+    db.add(event)
+    return {"success": True, "event_id": args["event_id"], "new_status": "CLOSED"}
+
+
+async def _exec_get_risk_dashboard(db: AsyncSession, args: dict) -> dict:
+    from app.models.enums import AlertSeverity
+    limit = min(int(args.get("limit", 10)), 50)
+    stmt = (
+        select(AlertEvent)
+        .where(AlertEvent.status == AlertStatus.OPEN, AlertEvent.severity == AlertSeverity.HIGH)
+        .order_by(AlertEvent.created_at.desc())
+        .limit(limit)
+    )
+    result = await db.execute(stmt)
+    events = result.scalars().all()
+    items = []
+    for e in events:
+        ur = await db.execute(select(User).where(User.id == e.user_id))
+        user = ur.scalar_one_or_none()
+        items.append({"event_id": str(e.id), "patient": user.name if user else "未知",
+                      "message": e.message, "created_at": e.created_at.isoformat()})
+    return {"count": len(items), "items": items}
+
+
+async def _exec_list_followup_plans(db: AsyncSession, args: dict) -> dict:
+    from app.models.enums import FollowupStatus
+    limit = min(int(args.get("limit", 10)), 50)
+    stmt = select(FollowupPlan).order_by(FollowupPlan.start_date.desc()).limit(limit)
+    patient_name = args.get("patient_name", "").strip()
+    if patient_name:
+        user_r = await db.execute(select(User).where(User.name.contains(patient_name)))
+        users = user_r.scalars().all()
+        if not users:
+            return {"count": 0, "items": [], "note": f"未找到患者「{patient_name}」"}
+        user_ids = [u.id for u in users]
+        stmt = stmt.where(FollowupPlan.user_id.in_(user_ids))
+    result = await db.execute(stmt)
+    plans = result.scalars().all()
+    items = []
+    for p in plans:
+        ur = await db.execute(select(User).where(User.id == p.user_id))
+        user = ur.scalar_one_or_none()
+        items.append({
+            "plan_id": str(p.id), "patient": user.name if user else "未知",
+            "disease": p.disease_type.value, "status": p.status.value,
+            "start_date": str(p.start_date), "end_date": str(p.end_date),
+            "frequency_days": p.frequency_days,
+        })
+    return {"count": len(items), "items": items}
+
+
+async def _exec_today_followup_tasks(db: AsyncSession, args: dict) -> dict:
+    from datetime import date
+    limit = min(int(args.get("limit", 20)), 50)
+    today = date.today()
+    stmt = select(FollowupTask).where(FollowupTask.scheduled_date == today).limit(limit)
+    result = await db.execute(stmt)
+    tasks = result.scalars().all()
+    items = []
+    for t in tasks:
+        pr = await db.execute(select(FollowupPlan).where(FollowupPlan.id == t.plan_id))
+        plan = pr.scalar_one_or_none()
+        if plan:
+            ur = await db.execute(select(User).where(User.id == plan.user_id))
+            user = ur.scalar_one_or_none()
+            items.append({
+                "task_id": str(t.id), "patient": user.name if user else "未知",
+                "disease": plan.disease_type.value,
+                "scheduled_date": str(t.scheduled_date),
+            })
+    return {"count": len(items), "items": items, "date": str(today)}
+
+
+async def _exec_list_interventions(db: AsyncSession, args: dict) -> dict:
+    from app.models.intervention import Intervention
+    limit = min(int(args.get("limit", 10)), 50)
+    filters = []
+    status_str = args.get("status")
+    if status_str:
+        filters.append(Intervention.status == status_str)
+    patient_name = args.get("patient_name", "").strip()
+    if patient_name:
+        from app.models.archive import PatientArchive
+        ar = await db.execute(select(PatientArchive).where(PatientArchive.name.contains(patient_name)).limit(5))
+        archives = ar.scalars().all()
+        if not archives:
+            return {"count": 0, "items": []}
+        patient_ids = [a.user_id for a in archives if a.user_id]
+        if patient_ids:
+            filters.append(Intervention.patient_id.in_(patient_ids))
+    stmt = select(Intervention).order_by(Intervention.created_at.desc()).limit(limit)
+    if filters:
+        stmt = stmt.where(and_(*filters))
+    result = await db.execute(stmt)
+    items_raw = result.scalars().all()
+    return {
+        "count": len(items_raw),
+        "items": [{"id": i.id, "plan_name": i.plan_name, "type": i.intervention_type,
+                   "status": i.status, "duration_weeks": i.duration_weeks,
+                   "start_date": str(i.start_date) if i.start_date else None} for i in items_raw],
+    }
+
+
+async def _exec_create_intervention(db: AsyncSession, current_user: Any, args: dict) -> dict:
+    from app.models.intervention import Intervention
+    from app.models.archive import PatientArchive
+    from datetime import datetime, date
+    patient_name = args.get("patient_name", "").strip()
+    if not patient_name:
+        return {"error": "患者姓名不能为空"}
+    ar = await db.execute(select(PatientArchive).where(PatientArchive.name == patient_name).limit(1))
+    archive = ar.scalar_one_or_none()
+    if not archive:
+        return {"error": f"未找到患者「{patient_name}」"}
+    patient_id = archive.user_id if archive.user_id else archive.id
+    iv = Intervention(
+        patient_id=patient_id,
+        plan_name=args.get("plan_name", "中医干预计划"),
+        intervention_type=args.get("intervention_type", "OTHER"),
+        goal=args.get("goal"),
+        content_detail=args.get("content_detail"),
+        duration_weeks=int(args.get("duration_weeks", 4)),
+        frequency=args.get("frequency", "WEEKLY"),
+        status="IN_PROGRESS",
+        start_date=date.today(),
+        created_by=current_user.id,
+    )
+    db.add(iv)
+    await db.flush()
+    return {"success": True, "intervention_id": iv.id, "plan_name": iv.plan_name, "patient": patient_name}
+
+
+async def _exec_list_education_records(db: AsyncSession, args: dict) -> dict:
+    from app.models.education import EducationRecord
+    limit = min(int(args.get("limit", 10)), 50)
+    result = await db.execute(
+        select(EducationRecord).order_by(EducationRecord.created_at.desc()).limit(limit)
+    )
+    records = result.scalars().all()
+    return {
+        "count": len(records),
+        "items": [{"id": str(r.id), "title": r.title, "edu_type": r.edu_type,
+                   "created_at": r.created_at.isoformat()} for r in records],
+    }
+
+
+async def _exec_send_education(db: AsyncSession, current_user: Any, args: dict) -> dict:
+    from app.models.education import EducationRecord, EducationDelivery
+    from app.models.archive import PatientArchive
+    patient_name = args.get("patient_name", "").strip()
+    if not patient_name:
+        return {"error": "患者姓名不能为空"}
+    ar = await db.execute(select(PatientArchive).where(PatientArchive.name == patient_name).limit(1))
+    archive = ar.scalar_one_or_none()
+    if not archive:
+        return {"error": f"未找到患者「{patient_name}」"}
+    record = EducationRecord(
+        title=args.get("title", "健康宣教"),
+        content=args.get("content", ""),
+        edu_type=args.get("edu_type", "LIFESTYLE"),
+        send_scope="SINGLE",
+        created_by=current_user.id,
+    )
+    db.add(record)
+    await db.flush()
+    delivery = EducationDelivery(
+        record_id=record.id,
+        patient_id=archive.user_id if archive.user_id else archive.id,
+        send_method="IN_APP",
+    )
+    db.add(delivery)
+    await db.flush()
+    return {"success": True, "record_id": record.id, "patient": patient_name, "title": record.title}
+
+
+async def _exec_list_guidance_records(db: AsyncSession, args: dict) -> dict:
+    from app.models.guidance import GuidanceRecord
+    limit = min(int(args.get("limit", 10)), 50)
+    patient_name = args.get("patient_name", "").strip()
+    stmt = select(GuidanceRecord).order_by(GuidanceRecord.created_at.desc()).limit(limit)
+    if patient_name:
+        from app.models.archive import PatientArchive
+        ar = await db.execute(select(PatientArchive).where(PatientArchive.name.contains(patient_name)).limit(5))
+        archives = ar.scalars().all()
+        patient_ids = [a.user_id for a in archives if a.user_id]
+        if patient_ids:
+            stmt = stmt.where(GuidanceRecord.patient_id.in_(patient_ids))
+    result = await db.execute(stmt)
+    records = result.scalars().all()
+    return {
+        "count": len(records),
+        "items": [{"id": str(r.id), "title": r.title, "guidance_type": r.guidance_type.value,
+                   "status": r.status.value, "created_at": r.created_at.isoformat()} for r in records],
+    }
+
+
+async def _exec_create_guidance_record(db: AsyncSession, current_user: Any, args: dict) -> dict:
+    from app.models.guidance import GuidanceRecord, GuidanceStatus, GuidanceType
+    from app.models.archive import PatientArchive
+    import uuid as uuid_mod
+    patient_name = args.get("patient_name", "").strip()
+    if not patient_name:
+        return {"error": "患者姓名不能为空"}
+    ar = await db.execute(select(PatientArchive).where(PatientArchive.name == patient_name).limit(1))
+    archive = ar.scalar_one_or_none()
+    if not archive:
+        return {"error": f"未找到患者「{patient_name}」"}
+    type_map = {"GUIDANCE": GuidanceType.GUIDANCE, "EDUCATION": GuidanceType.EDUCATION, "INTERVENTION": GuidanceType.INTERVENTION}
+    g_type = type_map.get(args.get("guidance_type", "GUIDANCE"), GuidanceType.GUIDANCE)
+    record = GuidanceRecord(
+        patient_id=archive.user_id if archive.user_id else archive.id,
+        doctor_id=current_user.id,
+        guidance_type=g_type,
+        title=args.get("title", "医学指导"),
+        content=args.get("content", ""),
+        status=GuidanceStatus.PUBLISHED,
+        is_read=False,
+    )
+    db.add(record)
+    await db.flush()
+    return {"success": True, "record_id": str(record.id), "patient": patient_name}
+
+
+async def _exec_list_consultations(db: AsyncSession, args: dict) -> dict:
+    from app.models.consultation import Consultation
+    from sqlalchemy import desc
+    limit = min(int(args.get("limit", 10)), 50)
+    filters = []
+    status_str = args.get("status")
+    if status_str:
+        filters.append(Consultation.status == status_str)
+    stmt = select(Consultation).order_by(desc(Consultation.updated_at)).limit(limit)
+    if filters:
+        stmt = stmt.where(and_(*filters))
+    result = await db.execute(stmt)
+    items = result.scalars().all()
+    return {
+        "count": len(items),
+        "items": [{"id": str(c.id), "title": c.title, "status": c.status,
+                   "priority": c.priority, "updated_at": c.updated_at.isoformat()} for c in items],
+    }
+
+
+async def _exec_record_health_indicator(db: AsyncSession, current_user: Any, args: dict) -> dict:
+    from app.models.health import HealthIndicator
+    from app.models.archive import PatientArchive
+    from app.models.enums import IndicatorType
+    from datetime import datetime, timezone
+    import uuid as uuid_mod
+    patient_name = args.get("patient_name", "").strip()
+    if not patient_name:
+        return {"error": "患者姓名不能为空"}
+    ar = await db.execute(select(PatientArchive).where(PatientArchive.name == patient_name).limit(1))
+    archive = ar.scalar_one_or_none()
+    if not archive:
+        return {"error": f"未找到患者「{patient_name}」"}
+    ind_type_str = args.get("indicator_type", "")
+    try:
+        ind_type = IndicatorType[ind_type_str]
+    except KeyError:
+        return {"error": f"无效指标类型：{ind_type_str}，支持：BLOOD_PRESSURE/BLOOD_GLUCOSE/WEIGHT/WAIST_CIRCUMFERENCE"}
+    values: dict = {}
+    if ind_type == IndicatorType.BLOOD_PRESSURE:
+        if not args.get("systolic") or not args.get("diastolic"):
+            return {"error": "血压需填写 systolic（收缩压）和 diastolic（舒张压）"}
+        values = {"systolic": float(args["systolic"]), "diastolic": float(args["diastolic"])}
+    else:
+        if not args.get("value"):
+            return {"error": f"{ind_type_str} 需填写 value"}
+        values = {"value": float(args["value"])}
+    measured_at = datetime.now(timezone.utc)
+    if args.get("measured_at"):
+        try:
+            measured_at = datetime.strptime(args["measured_at"], "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+        except ValueError:
+            pass
+    patient_id = archive.user_id if archive.user_id else archive.id
+    indicator = HealthIndicator(
+        id=uuid_mod.uuid4(),
+        user_id=patient_id,
+        indicator_type=ind_type,
+        values=values,
+        recorded_at=measured_at,
+    )
+    db.add(indicator)
+    await db.flush()
+    return {"success": True, "patient": patient_name, "type": ind_type_str, "values": values}
+
+
+async def _exec_list_health_indicators(db: AsyncSession, args: dict) -> dict:
+    from app.models.health import HealthIndicator
+    from app.models.archive import PatientArchive
+    from app.models.enums import IndicatorType
+    patient_name = args.get("patient_name", "").strip()
+    if not patient_name:
+        return {"error": "患者姓名不能为空"}
+    ar = await db.execute(select(PatientArchive).where(PatientArchive.name == patient_name).limit(1))
+    archive = ar.scalar_one_or_none()
+    if not archive:
+        return {"error": f"未找到患者「{patient_name}」"}
+    patient_id = archive.user_id if archive.user_id else archive.id
+    limit = min(int(args.get("limit", 10)), 50)
+    stmt = (
+        select(HealthIndicator)
+        .where(HealthIndicator.user_id == patient_id)
+        .order_by(HealthIndicator.recorded_at.desc())
+        .limit(limit)
+    )
+    ind_type_str = args.get("indicator_type")
+    if ind_type_str:
+        try:
+            stmt = stmt.where(HealthIndicator.indicator_type == IndicatorType[ind_type_str])
+        except KeyError:
+            pass
+    result = await db.execute(stmt)
+    indicators = result.scalars().all()
+    from app.tools.plugin_tools import _INDICATOR_CN
+    return {
+        "count": len(indicators),
+        "patient": patient_name,
+        "items": [{"type": i.indicator_type.value, "type_cn": _INDICATOR_CN.get(i.indicator_type.value, i.indicator_type.value),
+                   "values": i.values, "measured_at": i.recorded_at.isoformat()} for i in indicators],
+    }
+
+
+async def _exec_get_business_stats(db: AsyncSession) -> dict:
+    from app.models.consultation import Consultation
+    from app.models.enums import AlertSeverity
+    from sqlalchemy import func
+    open_r = await db.execute(select(func.count()).select_from(AlertEvent).where(AlertEvent.status == AlertStatus.OPEN))
+    consult_r = await db.execute(select(func.count()).select_from(Consultation))
+    active_r = await db.execute(select(func.count(FollowupPlan.id)).where(FollowupPlan.status == FollowupStatus.ACTIVE))
+    total_r = await db.execute(select(func.count()).select_from(User).where(User.role == UserRole.PATIENT))
+    done_r = await db.execute(
+        select(func.count()).select_from(CheckIn).where(CheckIn.status == CheckInStatus.DONE)
+    )
+    total_ci_r = await db.execute(select(func.count()).select_from(CheckIn))
+    total_ci = total_ci_r.scalar_one()
+    done_ci = done_r.scalar_one()
+    return {
+        "total_patients": total_r.scalar_one(),
+        "active_followup_plans": active_r.scalar_one(),
+        "open_alerts": open_r.scalar_one(),
+        "total_consultations": consult_r.scalar_one(),
+        "followup_adherence_rate": round(done_ci / total_ci, 3) if total_ci > 0 else 0.0,
+    }
+
+
 async def _exec_navigate_to(args: dict) -> dict:
-    page = args["page"]
     qp = args.get("query_params", "").strip()
     url = _PAGE_URL_MAP.get(page, "/gui/admin/alerts")
     if qp:
@@ -738,6 +1476,27 @@ _TOOL_LABELS: dict[str, str] = {
     "get_plan_delta_suggestion": "方案调整建议",
     "get_followup_focus":      "随访重点",
     "get_recall_script":       "召回话术",
+    # 新增
+    "get_patient_archive":     "查询档案",
+    "update_patient_archive":  "修改档案",
+    "delete_patient_archive":  "删除档案",
+    "list_patient_labels":     "查看标签",
+    "assign_patient_label":    "打标签",
+    "remove_patient_label":    "移除标签",
+    "close_alert":             "关闭预警",
+    "get_risk_dashboard":      "高危看板",
+    "list_followup_plans":     "随访计划列表",
+    "today_followup_tasks":    "今日随访任务",
+    "list_interventions":      "查看干预计划",
+    "create_intervention":     "创建干预计划",
+    "list_education_records":  "查看宣教记录",
+    "send_education":          "发送宣教",
+    "list_guidance_records":   "查看指导记录",
+    "create_guidance_record":  "创建指导",
+    "list_consultations":      "查看咨询",
+    "record_health_indicator": "录入健康指标",
+    "list_health_indicators":  "查看指标历史",
+    "get_business_stats":      "业务统计",
 }
 
 
@@ -885,6 +1644,46 @@ async def _execute_tool(
         return await _exec_navigate_to(args)
     if name == "create_archive":
         return await _exec_create_archive(db, current_user, args)
+    if name == "get_patient_archive":
+        return await _exec_get_patient_archive(db, args)
+    if name == "update_patient_archive":
+        return await _exec_update_patient_archive(db, args)
+    if name == "delete_patient_archive":
+        return await _exec_delete_patient_archive(db, args)
+    if name == "list_patient_labels":
+        return await _exec_list_patient_labels(db, args)
+    if name == "assign_patient_label":
+        return await _exec_assign_patient_label(db, current_user, args)
+    if name == "remove_patient_label":
+        return await _exec_remove_patient_label(db, args)
+    if name == "close_alert":
+        return await _exec_close_alert(db, current_user, args)
+    if name == "get_risk_dashboard":
+        return await _exec_get_risk_dashboard(db, args)
+    if name == "list_followup_plans":
+        return await _exec_list_followup_plans(db, args)
+    if name == "today_followup_tasks":
+        return await _exec_today_followup_tasks(db, args)
+    if name == "list_interventions":
+        return await _exec_list_interventions(db, args)
+    if name == "create_intervention":
+        return await _exec_create_intervention(db, current_user, args)
+    if name == "list_education_records":
+        return await _exec_list_education_records(db, args)
+    if name == "send_education":
+        return await _exec_send_education(db, current_user, args)
+    if name == "list_guidance_records":
+        return await _exec_list_guidance_records(db, args)
+    if name == "create_guidance_record":
+        return await _exec_create_guidance_record(db, current_user, args)
+    if name == "list_consultations":
+        return await _exec_list_consultations(db, args)
+    if name == "record_health_indicator":
+        return await _exec_record_health_indicator(db, current_user, args)
+    if name == "list_health_indicators":
+        return await _exec_list_health_indicators(db, args)
+    if name == "get_business_stats":
+        return await _exec_get_business_stats(db)
     # ── Plugin AI 工具（调用插件端 AI 驱动接口）────────────────────────────────
     if name == "get_patient_brief":
         return await _exec_plugin_endpoint("get_patient_brief", db, current_user, args)
