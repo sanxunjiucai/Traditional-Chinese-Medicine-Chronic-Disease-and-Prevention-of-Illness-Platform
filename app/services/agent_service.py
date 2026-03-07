@@ -586,11 +586,11 @@ async def _exec_create_followup_task(db: AsyncSession, current_user: Any, args: 
     disease_str = args.get("disease_type", "高血压")
     disease_map = {
         "高血压": DiseaseType.HYPERTENSION,
-        "糖尿病": DiseaseType.DIABETES,
-        "冠心病": DiseaseType.CHD,
-        "脑卒中": DiseaseType.STROKE,
-        "慢阻肺": DiseaseType.COPD,
-        "肿瘤": DiseaseType.TUMOR,
+        "糖尿病": DiseaseType.DIABETES_T2,
+        "冠心病": DiseaseType.HYPERTENSION,
+        "脑卒中": DiseaseType.HYPERTENSION,
+        "慢阻肺": DiseaseType.HYPERTENSION,
+        "肿瘤":   DiseaseType.HYPERTENSION,
     }
     disease_type = disease_map.get(disease_str, DiseaseType.HYPERTENSION)
 
