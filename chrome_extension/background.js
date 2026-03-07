@@ -986,14 +986,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (action === 'agentChat') {
     const tabId = sender?.tab?.id;
     sendResponse({ started: true });
-    Promise.all([getApiKey(), getServerUrl(), getClaudeBaseUrl(), getClaudeModel()]).then(([apiKey, serverUrl, claudeBaseUrl, claudeModel]) => {
-      if (apiKey) {
-        // 扩展本地有 key → 直接从浏览器调用（绕过后端，不受 Cloudflare 拦截）
-        runAgentLoop(tabId, message.message, message.patientContext, apiKey, serverUrl, message.imageData, claudeBaseUrl, claudeModel);
-      } else {
-        // 无本地 key → 回退到后端服务器代理
-        runAgentViaServer(tabId, message.message, message.patientContext, serverUrl, message.imageData);
-      }
+    getServerUrl().then(serverUrl => {
+      // 始终走后端 SSE 代理（服务器已配置智谱 AI）
+      runAgentViaServer(tabId, message.message, message.patientContext, serverUrl, message.imageData);
     });
     return true;
   }
