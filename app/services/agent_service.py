@@ -809,6 +809,25 @@ async def _execute_tool(
 from typing import AsyncIterator
 
 
+def _safe_parse_args(raw) -> dict:
+    """安全解析 tool_call arguments，兼容 GLM/OpenAI 各种返回格式。"""
+    if isinstance(raw, dict):
+        return raw
+    if not raw or raw == "null":
+        return {}
+    try:
+        result = json.loads(raw)
+        return result if isinstance(result, dict) else {}
+    except Exception:
+        # 容忍尾部多余字符：取第一个完整 JSON 对象
+        try:
+            dec = json.JSONDecoder()
+            result, _ = dec.raw_decode(str(raw).strip())
+            return result if isinstance(result, dict) else {}
+        except Exception:
+            return {}
+
+
 async def run_agent_stream(
     query: str, db: AsyncSession, current_user: Any
 ) -> AsyncIterator[dict]:
@@ -861,7 +880,12 @@ async def run_agent_stream(
                             "tool_choice": "auto",
                         },
                     )
-                    data = resp.json()
+                    try:
+                        data = resp.json()
+                    except Exception as je:
+                        raw_preview = resp.text[:300] if resp.text else "(empty)"
+                        yield {"type": "error", "message": f"AI响应解析失败: {raw_preview}"}
+                        return
                     if resp.status_code != 200:
                         err_msg = data.get("error", {}).get("message") or str(data)
                         yield {"type": "error", "message": f"AI调用失败（{resp.status_code}）：{err_msg}"}
@@ -876,7 +900,7 @@ async def run_agent_stream(
                     messages.append({"role": "assistant", "content": text, "tool_calls": tool_calls})
                     for tc in tool_calls:
                         tool_name = tc["function"]["name"]
-                        tool_input = json_lib.loads(tc["function"]["arguments"])
+                        tool_input = _safe_parse_args(tc["function"].get("arguments", "{}"))
                         yield {"type": "tool_call", "tool": tool_name, "label": _TOOL_LABELS.get(tool_name, tool_name)}
                         out = await _execute_tool(tool_name, tool_input, db, current_user)
                         step = {
@@ -1012,7 +1036,7 @@ async def run_agent(query: str, db: AsyncSession, current_user: Any) -> dict:
                     messages.append({"role": "assistant", "content": text, "tool_calls": tool_calls})
                     for tc in tool_calls:
                         tool_name = tc["function"]["name"]
-                        tool_input = json_lib.loads(tc["function"]["arguments"])
+                        tool_input = _safe_parse_args(tc["function"].get("arguments", "{}"))
                         out = await _execute_tool(tool_name, tool_input, db, current_user)
                         executed_steps.append({
                             "tool": tool_name,
