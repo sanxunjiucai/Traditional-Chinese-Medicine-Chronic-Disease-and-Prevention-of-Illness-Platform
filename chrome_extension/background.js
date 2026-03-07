@@ -4,7 +4,7 @@
  * v3.0 - 支持 A-E 插件规范：上下文绑定/患者档案/方案版本/模板/随访
  */
 
-const DEFAULT_SERVER = 'http://localhost:8010';
+const DEFAULT_SERVER = 'http://localhost:8013';
 const ANALYZE_TIMEOUT_MS = 15000;
 
 async function getServerUrl() {
