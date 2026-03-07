@@ -20,11 +20,19 @@
   const statusDot     = document.getElementById('status-dot');
   const statusText    = document.getElementById('status-text');
   const openPlatform  = document.getElementById('open-platform');
+  const apiKeyInput      = document.getElementById('api-key');
+  const searchKeyInput   = document.getElementById('search-key');
+  const claudeUrlInput   = document.getElementById('claude-base-url');
+  const claudeModelInput = document.getElementById('claude-model');
 
   // ── 初始化：读取已保存配置 ────────────────────────────────────────────────
-  chrome.storage.local.get(['serverUrl', 'paramNames'], (result) => {
+  chrome.storage.local.get(['serverUrl', 'paramNames', 'anthropicApiKey', 'braveSearchKey', 'claudeBaseUrl', 'claudeModel'], (result) => {
     serverInput.value = result.serverUrl || DEFAULT_SERVER;
     paramInput.value  = result.paramNames || DEFAULT_PARAMS;
+    if (apiKeyInput)      apiKeyInput.value      = result.anthropicApiKey || '';
+    if (searchKeyInput)   searchKeyInput.value   = result.braveSearchKey  || '';
+    if (claudeUrlInput)   claudeUrlInput.value   = result.claudeBaseUrl   || '';
+    if (claudeModelInput) claudeModelInput.value = result.claudeModel     || '';
     updatePlatformLink(serverInput.value);
     detectCurrentTab();
   });
@@ -51,7 +59,11 @@
     // 测试连接
     const ok = await testConnection(serverUrl);
 
-    chrome.storage.local.set({ serverUrl, paramNames }, () => {
+    const anthropicApiKey = apiKeyInput?.value.trim() || '';
+    const braveSearchKey  = searchKeyInput?.value.trim() || '';
+    const claudeBaseUrl   = claudeUrlInput?.value.trim().replace(/\/$/, '') || '';
+    const claudeModel     = claudeModelInput?.value.trim() || '';
+    chrome.storage.local.set({ serverUrl, paramNames, anthropicApiKey, braveSearchKey, claudeBaseUrl, claudeModel }, () => {
       if (ok) {
         connResult.textContent = '连接成功，配置已保存 ✓';
         connResult.className = 'ok';

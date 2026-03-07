@@ -279,8 +279,6 @@ def _default_plan(constitution: dict | None, diseases: list[str]) -> str:
     lines = [
         f"## 中医调理方案（{body_type or '通用'}）",
         "",
-        "> 本方案由规则引擎生成，建议结合 AI 分析获取个性化方案。",
-        "",
         "### 一、综合评估摘要",
         f"患者体质类型为**{body_type or '待辨识'}**" + (f"，合并 {len(diseases)} 种慢性疾病（{' / '.join(diseases)}）" if diseases else "") + "，需针对性调护，防止疾病进展。",
         "",
@@ -334,6 +332,7 @@ async def _ai_analyze(
     constitution: dict | None,
     diseases: list[str],
     patient_name: str,
+    extra_context: str = "",
 ) -> dict:
     """调用大模型进行风险分析"""
     import anthropic
@@ -358,7 +357,7 @@ async def _ai_analyze(
 慢病史：{diseases_str}
 近期检验报告：
 {lab_str}
-
+{f'四诊信息：{extra_context}' if extra_context else ''}
 请输出 JSON 格式（不要有任何其他文字）：
 {{
   "risk_level": "HIGH 或 MEDIUM 或 LOW",
@@ -406,6 +405,7 @@ async def _ai_analyze(
 async def analyze_patient_risk(
     db: AsyncSession,
     archive_id: uuid.UUID,
+    extra_context: str = "",
 ) -> dict:
     """
     综合分析患者风险。
@@ -424,11 +424,14 @@ async def analyze_patient_risk(
     # 2. 分析
     if settings.anthropic_api_key:
         try:
-            result = await _ai_analyze(lab_reports, constitution, diseases, patient_name)
+            result = await _ai_analyze(lab_reports, constitution, diseases, patient_name, extra_context)
         except Exception:
             result = _rule_based_analysis(lab_reports, constitution, diseases)
     else:
         result = _rule_based_analysis(lab_reports, constitution, diseases)
+
+    if extra_context:
+        result["sizhen_context"] = extra_context
 
     return result
 

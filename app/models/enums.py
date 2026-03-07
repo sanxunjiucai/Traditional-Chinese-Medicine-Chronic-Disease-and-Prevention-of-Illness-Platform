@@ -47,6 +47,7 @@ class PlanStatus(str, enum.Enum):
 class FollowupStatus(str, enum.Enum):
     CREATED = "CREATED"
     ACTIVE = "ACTIVE"
+    IN_PROGRESS = "IN_PROGRESS"
     COMPLETED = "COMPLETED"
     TERMINATED = "TERMINATED"
 
@@ -103,10 +104,13 @@ class TemplateScope(str, enum.Enum):
     PUBLIC = "PUBLIC"          # 公开模板
     DEPARTMENT = "DEPARTMENT"  # 科室模板
     PERSONAL = "PERSONAL"      # 个人模板
+    GROUP = "GROUP"            # 组织/团队模板（兼容旧数据）
 
 
 class GuidanceStatus(str, enum.Enum):
     DRAFT = "DRAFT"
+    CONFIRMED = "CONFIRMED"      # 医生已确认，待分发
+    DISTRIBUTED = "DISTRIBUTED"  # 已分发三端
     PUBLISHED = "PUBLISHED"
     ARCHIVED = "ARCHIVED"
 

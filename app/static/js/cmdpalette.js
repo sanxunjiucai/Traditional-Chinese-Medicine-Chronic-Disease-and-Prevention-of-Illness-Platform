@@ -676,7 +676,7 @@
   }
 
   /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   *  提交执行
+   *  流式执行（SSE via fetch ReadableStream）
    * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
   async function submit(query) {
     if (isRequesting) return;
@@ -689,36 +689,156 @@
     quickChipsEl.style.display = 'none';
 
     appendUserMsg(query);
-    const loadingEl = appendLoadingBubble();
 
-    let resp, json;
+    // 创建流式消息气泡
+    const { bubbleEl, textEl, stepsEl } = appendStreamingBubble();
+
     try {
-      resp = await fetch('/tools/agent/execute', {
+      const resp = await fetch('/tools/agent/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query }),
       });
-      json = await resp.json();
+
+      if (!resp.ok) {
+        textEl.innerHTML = '请求失败（HTTP ' + resp.status + '）';
+        isRequesting = false;
+        renderQuickChips();
+        return;
+      }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      const stepRows = {};  // tool_name → DOM element
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();  // 保留未完整行
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          let ev;
+          try { ev = JSON.parse(line.slice(6)); } catch { continue; }
+
+          if (ev.type === 'thinking') {
+            textEl.innerHTML = '<span style="color:#9ca3af;font-size:12px">正在思考中…</span>';
+
+          } else if (ev.type === 'tool_call') {
+            // 创建该工具的步骤行（spinner状态）
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:5px 10px;border-top:1px solid #f3f4f6';
+            row.innerHTML = `
+              <span style="display:inline-block;width:14px;height:14px;border:2px solid #4E7A61;border-top-color:transparent;border-radius:50%;animation:cmd-spin 0.8s linear infinite;flex-shrink:0"></span>
+              <span style="font-size:12px;color:#374151;font-weight:500">${escHtml(ev.label)}</span>
+              <span style="font-size:11px;color:#9ca3af;flex:1">调用中…</span>`;
+            stepRows[ev.tool] = row;
+            stepsEl.appendChild(row);
+            stepsEl.parentElement.classList.remove('hidden');
+            scrollBottom();
+
+          } else if (ev.type === 'tool_result') {
+            // 更新对应步骤行为结果
+            const row = stepRows[ev.tool];
+            if (row) {
+              const icon = ev.status === 'success'
+                ? `<span style="color:#16a34a;font-size:14px;flex-shrink:0">✓</span>`
+                : `<span style="color:#dc2626;font-size:14px;flex-shrink:0">✗</span>`;
+              row.innerHTML = `
+                ${icon}
+                <span style="font-size:12px;color:#374151;font-weight:500;white-space:nowrap">${escHtml(ev.label)}</span>
+                <span style="font-size:11px;color:#9ca3af;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(ev.summary || '')}</span>`;
+            }
+
+          } else if (ev.type === 'done') {
+            // 渲染最终消息
+            const msg = ev.message || '执行完成';
+            textEl.innerHTML = msg.replace(/\n/g, '<br>').replace(/•/g, `<span style="color:${C.primary}">•</span>`);
+
+            // 渲染结构化结果（复用已有函数）
+            const payload = ev;
+            const { data, navigate_url, execution_id } = payload;
+            if (data?.success) {
+              bubbleEl.insertAdjacentHTML('beforeend', renderSuccess(data));
+            } else if (data?.items?.length > 0) {
+              bubbleEl.insertAdjacentHTML('beforeend', renderTable(data));
+            } else if (data && typeof data === 'object' && !data.items) {
+              bubbleEl.insertAdjacentHTML('beforeend', renderKV(data));
+            }
+            if (navigate_url) {
+              const btnLabel = navigate_url.includes('followup') ? '查看随访计划 →'
+                : navigate_url.includes('guidance')  ? '查看指导记录 →'
+                : navigate_url.includes('alert')     ? '查看预警列表 →'
+                : navigate_url.includes('archive')   ? '查看患者档案 →'
+                : '前往查看 →';
+              bubbleEl.insertAdjacentHTML('beforeend', `
+                <div style="margin-top:10px">
+                  <a href="${escHtml(navigate_url)}"
+                    style="display:inline-block;background:${C.primary};color:#fff;text-decoration:none;
+                           border-radius:8px;padding:6px 14px;font-size:12px;font-family:inherit"
+                    onmouseover="this.style.background='${C.primaryDark}'"
+                    onmouseout="this.style.background='${C.primary}'">${btnLabel}</a>
+                </div>`);
+            }
+            if (execution_id) {
+              bubbleEl.insertAdjacentHTML('beforeend', `
+                <div style="margin-top:8px;font-size:10px;color:#d1d5db">执行记录：${escHtml(execution_id)}</div>`);
+            }
+            scrollBottom();
+
+          } else if (ev.type === 'error') {
+            textEl.innerHTML = `<span style="color:#dc2626">${escHtml(ev.message || '执行失败')}</span>`;
+            scrollBottom();
+          }
+        }
+      }
     } catch (err) {
-      loadingEl.remove();
-      appendAssistantMsg('网络请求失败：' + err.message, null);
-      isRequesting = false;
-      renderQuickChips();
-      return;
+      textEl.innerHTML = `<span style="color:#dc2626">网络错误：${escHtml(err.message)}</span>`;
     }
 
-    loadingEl.remove();
     isRequesting = false;
-
-    if (!json.success) {
-      appendAssistantMsg(json.message || '执行失败，请稍后重试', null);
-      renderQuickChips();
-      return;
-    }
-
-    const { message } = json.data;
-    appendAssistantMsg(message || '执行完成', json.data);
     renderQuickChips();
+  }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   *  流式气泡（含步骤区）
+   * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  function appendStreamingBubble() {
+    const el = document.createElement('div');
+    el.className = 'cmd-msg';
+    el.style.cssText = 'display:flex;align-items:flex-start;gap:10px';
+    el.innerHTML = `
+      <div style="width:30px;height:30px;border-radius:50%;background:${C.primaryLight};
+           flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:2px">
+        <svg style="width:15px;height:15px;color:${C.primary}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3
+               m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547
+               A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531
+               c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+        </svg>
+      </div>
+      <div class="cmd-bubble cmd-stream-bubble"
+           style="flex:1;max-width:80%;background:#fff;border-radius:4px 18px 18px 18px;
+                  padding:11px 15px;font-size:13px;line-height:1.6;color:${C.text};
+                  border:1px solid ${C.border}">
+        <div class="cmd-stream-text" style="min-height:18px"></div>
+        <div class="cmd-steps-wrap hidden" style="margin-top:10px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">
+          <div style="padding:5px 10px;background:#f9fafb;border-bottom:1px solid #e5e7eb;
+                      font-size:11px;color:#6b7280;font-weight:500;letter-spacing:.03em">执行过程</div>
+          <div class="cmd-steps-body"></div>
+        </div>
+      </div>`;
+    messagesEl.appendChild(el);
+    scrollBottom();
+    const bubbleEl  = el.querySelector('.cmd-stream-bubble');
+    const textEl    = el.querySelector('.cmd-stream-text');
+    const stepsEl   = el.querySelector('.cmd-steps-body');
+    return { bubbleEl, textEl, stepsEl };
   }
 
   /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

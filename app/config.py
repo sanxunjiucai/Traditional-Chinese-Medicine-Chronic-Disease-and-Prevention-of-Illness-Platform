@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     demo_mode: bool = False
 
     anthropic_api_key: str = ""
+    anthropic_base_url: str = ""
+    anthropic_model: str = "claude-3-5-sonnet-20241022"
 
     # CORS：生产环境应通过 .env 设置 CORS_ORIGINS 为具体域名列表
     # 例：CORS_ORIGINS=["https://yourdomain.com","https://api.yourdomain.com"]

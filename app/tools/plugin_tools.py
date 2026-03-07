@@ -12,13 +12,16 @@ E. followup  — 随访计划与任务
 """
 from __future__ import annotations
 
+import asyncio
 import difflib
+import json
 import re
 import uuid
-from datetime import date, timedelta
-from typing import Annotated, Literal
+from datetime import date, datetime, timedelta, timezone
+from typing import Annotated, AsyncIterator, Literal, Optional
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import and_, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,7 +35,7 @@ from app.models.enums import (
     AlertStatus, DiseaseType, FollowupStatus, GuidanceStatus,
     GuidanceType, TaskType, UserRole,
 )
-from app.models.followup import FollowupPlan, FollowupTask
+from app.models.followup import CheckIn, FollowupPlan, FollowupTask
 from app.models.guidance import GuidanceRecord, GuidanceTemplate
 from app.models.health import ChronicDiseaseRecord, HealthIndicator, HealthProfile
 from app.models.user import User
@@ -190,7 +193,15 @@ async def patient_search(
     db: Annotated[AsyncSession, Depends(get_db)] = None,
     current_user=Depends(_PRO),
 ):
-    """搜索患者档案（支持姓名/手机/证件）"""
+    """搜索患者档案（支持 archive_id / 姓名 / 手机 / 证件）"""
+    # 优先：query 是 archive id（32位hex），精确匹配
+    aid = _parse_uuid(query)
+    if aid:
+        row = await db.get(PatientArchive, aid)
+        if row and not row.is_deleted:
+            return ok({"total": 1, "items": [_archive_brief(row)]})
+        return ok({"total": 0, "items": []})
+
     filters = [
         PatientArchive.is_deleted == False,
         or_(
@@ -245,9 +256,14 @@ async def get_patient_profile(
             .limit(1)
         )).scalar_one_or_none()
         if ca and ca.main_type:
+            sec_list = ca.secondary_types if isinstance(ca.secondary_types, list) else []
             constitution = {
                 "main_type": ca.main_type.value,
                 "main_type_cn": _BODY_TYPE_CN.get(ca.main_type.value, ca.main_type.value),
+                "secondary_types": [
+                    {"type": t, "type_cn": _BODY_TYPE_CN.get(t, t)}
+                    for t in sec_list if isinstance(t, str)
+                ],
                 "assessed_at": ca.scored_at.isoformat() if ca.scored_at else None,
             }
 
@@ -420,9 +436,21 @@ async def get_patient_risk_tags(
     # 档案标签
     manual_tags: list[str] = archive.tags or []
 
-    # 未处置预警
+    # ── 过敏史 ──
+    allergy_list: list[str] = []
+    raw_allergy = archive.allergy_history
+    if isinstance(raw_allergy, list):
+        allergy_list = [str(a) for a in raw_allergy if a]
+    elif isinstance(raw_allergy, str) and raw_allergy.strip():
+        allergy_list = [raw_allergy]
+
     alert_tags: list[dict] = []
+    disease_tags: list[str] = []
+    contraindication_alerts: list[dict] = []
+    comorbidity_alerts: list[dict] = []
+
     if archive.user_id:
+        # ── 未处置预警（近期异常指标）──
         alerts = (await db.execute(
             select(AlertEvent)
             .where(
@@ -442,9 +470,7 @@ async def get_patient_risk_tags(
             for e in alerts
         ]
 
-    # 慢病
-    disease_tags: list[str] = []
-    if archive.user_id:
+        # ── 慢病 + 禁忌 + 共病 ──
         diseases = (await db.execute(
             select(ChronicDiseaseRecord)
             .where(
@@ -452,10 +478,64 @@ async def get_patient_risk_tags(
                 ChronicDiseaseRecord.is_active == True,
             )
         )).scalars().all()
-        disease_tags = [
-            _DISEASE_CN.get(d.disease_type.value, d.disease_type.value)
-            for d in diseases
-        ]
+
+        for d in diseases:
+            disease_cn = _DISEASE_CN.get(d.disease_type.value, d.disease_type.value)
+            disease_tags.append(disease_cn)
+
+            # 禁忌：从 notes JSON 的 contraindications 字段提取
+            if d.notes:
+                try:
+                    notes_obj = json.loads(d.notes)
+                    for item in (notes_obj.get("contraindications") or []):
+                        contraindication_alerts.append({"disease": disease_cn, "item": item})
+                except (json.JSONDecodeError, AttributeError):
+                    pass
+
+            # 共病：从 complications 字段提取
+            complications = d.complications or []
+            if isinstance(complications, str):
+                try:
+                    complications = json.loads(complications)
+                except json.JSONDecodeError:
+                    complications = [complications]
+            for comp in complications:
+                if comp:
+                    comorbidity_alerts.append({"disease": disease_cn, "complication": str(comp)})
+
+        # ── 依从性：近30天随访任务完成率 ──
+        today = date.today()
+        cutoff = today - timedelta(days=30)
+        past_tasks = (await db.execute(
+            select(FollowupTask)
+            .join(FollowupPlan, FollowupTask.plan_id == FollowupPlan.id)
+            .where(
+                FollowupPlan.user_id == archive.user_id,
+                FollowupTask.scheduled_date < today,
+                FollowupTask.scheduled_date >= cutoff,
+                FollowupTask.required == True,
+            )
+        )).scalars().all()
+
+        adherence_alert: dict | None = None
+        if past_tasks:
+            task_ids = [t.id for t in past_tasks]
+            done_checkins = (await db.execute(
+                select(func.count()).select_from(CheckIn).where(
+                    CheckIn.task_id.in_(task_ids),
+                    CheckIn.status == "DONE",
+                )
+            )).scalar() or 0
+            total = len(past_tasks)
+            rate = round(done_checkins / total * 100)
+            risk_lv = "HIGH" if rate < 60 else ("MEDIUM" if rate < 80 else "LOW")
+            adherence_alert = {
+                "done_count": done_checkins,
+                "total_count": total,
+                "rate_pct": rate,
+                "risk_level": risk_lv,
+                "text": f"近30天随访完成率 {rate}%，{'依从性偏低，需关注' if risk_lv != 'LOW' else '依从性良好'}",
+            }
 
     # 综合风险等级推断
     has_high = any(a["severity"] == "HIGH" for a in alert_tags)
@@ -469,6 +549,343 @@ async def get_patient_risk_tags(
         "disease_tags": disease_tags,
         "alert_tags": alert_tags,
         "total_open_alerts": len(alert_tags),
+        "key_alerts": {
+            "allergy": allergy_list,
+            "contraindications": contraindication_alerts,
+            "comorbidities": comorbidity_alerts,
+            "indicator_alerts": alert_tags,          # 复用，前端按 severity 分类
+            "adherence": adherence_alert,
+        },
+    })
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# B-extra-0. AI 风险结论（Step 5 风险提示推理）
+# ──────────────────────────────────────────────────────────────────────────────
+
+async def _ai_generate_risk_conclusions(patient_summary: str, api_key: str) -> list[dict] | None:
+    """
+    调用 Claude Haiku 生成 3-6 条结构化风险结论标签。
+    返回 None 时由规则引擎降级。
+    """
+    if not api_key:
+        return None
+    try:
+        import anthropic
+        client = anthropic.AsyncAnthropic(api_key=api_key)
+        system_prompt = (
+            "你是中医慢病管理平台的AI风险分析助手。\n"
+            "根据患者数据，生成3-6条精准的风险结论标签，供医生快速决策。\n"
+            "输出格式：严格JSON数组，无任何额外文字或代码块标记。\n"
+            "每条包含三个字段：\n"
+            "- label: 显示文字，简洁精准，8字以内，"
+            "示例：代谢风险中高 / 血压控制欠佳 / 依从性偏低 / 中医痰湿夹瘀\n"
+            "- category: 维度，选自：代谢、心血管、肾脏、血糖、血压、血脂、依从性、中医、体重、营养\n"
+            "- level: 严重程度，high/medium/low 之一\n"
+            "要求：\n"
+            "1. 优先标注 HIGH 严重度指标；\n"
+            "2. 中医体质特征单独一条；\n"
+            "3. 依从性风险单独一条（如有随访数据）；\n"
+            "4. label 须含具体维度+程度描述，不能只写高风险。"
+        )
+        response = await client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=512,
+            system=system_prompt,
+            messages=[{"role": "user", "content": patient_summary}],
+        )
+        raw = response.content[0].text.strip()
+        json_match = re.search(r'\[.*\]', raw, re.DOTALL)
+        if not json_match:
+            return None
+        parsed = json.loads(json_match.group())
+        valid = [
+            {
+                "label":    str(c.get("label", "")).strip(),
+                "category": str(c.get("category", "综合")).strip(),
+                "level":    str(c.get("level", "medium")).lower(),
+            }
+            for c in parsed
+            if isinstance(c, dict) and c.get("label")
+        ]
+        return valid or None
+    except Exception:
+        return None
+
+
+def _rule_based_risk_conclusions(
+    diseases: list,
+    ca,
+    alert_msgs: list[str],
+    adherence_text: str,
+    hp,
+) -> list[dict]:
+    """无 API KEY 或 AI 调用失败时的规则引擎降级。"""
+    results: list[dict] = []
+    disease_values = {d.disease_type.value for d in diseases}
+
+    # 代谢
+    if "HYPERTENSION" in disease_values and "DIABETES_T2" in disease_values:
+        results.append({"label": "代谢综合征风险高", "category": "代谢", "level": "high"})
+    elif "DYSLIPIDEMIA" in disease_values or "DIABETES_T2" in disease_values:
+        results.append({"label": "代谢风险中等", "category": "代谢", "level": "medium"})
+
+    # 血压
+    if "HYPERTENSION" in disease_values:
+        has_high_bp = any("血压" in m and "[HIGH]" in m for m in alert_msgs)
+        lv = "high" if has_high_bp else "medium"
+        results.append({"label": f"血压控制{'欠佳' if lv == 'high' else '待优化'}", "category": "血压", "level": lv})
+
+    # 心脑血管
+    if "CORONARY_HEART_DISEASE" in disease_values or "CEREBROVASCULAR_DISEASE" in disease_values:
+        results.append({"label": "心脑血管风险高", "category": "心血管", "level": "high"})
+
+    # 肾脏
+    if "CHRONIC_KIDNEY_DISEASE" in disease_values:
+        results.append({"label": "慢性肾病需监控", "category": "肾脏", "level": "high"})
+
+    # 依从性
+    if adherence_text:
+        m = re.search(r'(\d+)', adherence_text)
+        if m:
+            rate = int(m.group(1))
+            if rate < 60:
+                results.append({"label": "管理依从性高风险", "category": "依从性", "level": "high"})
+            elif rate < 80:
+                results.append({"label": "管理依从性中风险", "category": "依从性", "level": "medium"})
+
+    # BMI
+    if hp and hp.bmi and hp.bmi >= 28:
+        results.append({"label": "超重/肥胖风险", "category": "体重", "level": "medium"})
+
+    # 中医体质
+    if ca and ca.main_type:
+        cn = _BODY_TYPE_CN.get(ca.main_type.value, "")
+        if cn and cn != "平和质":
+            tcm_label_map = {
+                "气虚质": "中医气虚倾向",    "阳虚质": "中医阳虚偏寒",
+                "阴虚质": "中医阴虚内热",    "痰湿质": "中医偏虚夹湿倾向",
+                "湿热质": "中医湿热内蕴",    "血瘀质": "中医血瘀倾向",
+                "气郁质": "中医气郁体质",    "特禀质": "中医特禀过敏体质",
+            }
+            results.append({"label": tcm_label_map.get(cn, f"中医{cn}倾向"), "category": "中医", "level": "low"})
+
+    return results or [{"label": "综合风险待评估", "category": "综合", "level": "low"}]
+
+
+@router.get("/patient/{patient_id}/risk-conclusions")
+async def get_patient_risk_conclusions(
+    patient_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+    current_user=Depends(_PRO),
+):
+    """
+    AI 风险结论生成：基于患者全量数据，产出 3-6 条精准风险标签。
+    无 ANTHROPIC_API_KEY 时降级为规则引擎。
+    """
+    aid = _parse_uuid(patient_id)
+    if not aid:
+        return fail("VALIDATION_ERROR", "patient_id 格式无效")
+
+    archive = await db.get(PatientArchive, aid)
+    if not archive or archive.is_deleted:
+        return fail("NOT_FOUND", "患者档案不存在", status_code=404)
+
+    # ── 并行收集数据 ──────────────────────────────────────────────────────────
+    ca_q    = select(ConstitutionAssessment).where(
+        ConstitutionAssessment.user_id == archive.user_id
+    ).order_by(desc(ConstitutionAssessment.scored_at)).limit(1)
+    disease_q = select(ChronicDiseaseRecord).where(
+        ChronicDiseaseRecord.user_id == archive.user_id,
+        ChronicDiseaseRecord.is_active == True,
+    )
+    alert_q = select(AlertEvent).where(
+        AlertEvent.user_id == archive.user_id,
+        AlertEvent.status == AlertStatus.OPEN,
+    ).order_by(desc(AlertEvent.created_at)).limit(8)
+    hp_q    = select(HealthProfile).where(HealthProfile.user_id == archive.user_id)
+
+    ca_res, dis_res, alert_res, hp_res = await asyncio.gather(
+        db.execute(ca_q),
+        db.execute(disease_q),
+        db.execute(alert_q),
+        db.execute(hp_q),
+    )
+    ca       = ca_res.scalar_one_or_none()
+    diseases = list(dis_res.scalars().all())
+    alerts   = list(alert_res.scalars().all())
+    hp       = hp_res.scalar_one_or_none()
+
+    # ── 依从性 ────────────────────────────────────────────────────────────────
+    adherence_text = ""
+    if archive.user_id:
+        today  = date.today()
+        cutoff = today - timedelta(days=30)
+        tasks  = (await db.execute(
+            select(FollowupTask)
+            .join(FollowupPlan, FollowupTask.plan_id == FollowupPlan.id)
+            .where(
+                FollowupPlan.user_id  == archive.user_id,
+                FollowupTask.scheduled_date < today,
+                FollowupTask.scheduled_date >= cutoff,
+                FollowupTask.required == True,
+            )
+        )).scalars().all()
+        if tasks:
+            done = (await db.execute(
+                select(func.count()).select_from(CheckIn).where(
+                    CheckIn.task_id.in_([t.id for t in tasks]),
+                    CheckIn.status == "DONE",
+                )
+            )).scalar() or 0
+            adherence_text = f"近30天随访完成率{round(done / len(tasks) * 100)}%"
+
+    # ── 构建 prompt 摘要 ──────────────────────────────────────────────────────
+    const_str = ""
+    if ca and ca.main_type:
+        main_cn = _BODY_TYPE_CN.get(ca.main_type.value, ca.main_type.value)
+        sec_list = ca.secondary_types if isinstance(ca.secondary_types, list) else []
+        sec_cn   = "、".join(_BODY_TYPE_CN.get(t, t) for t in sec_list if isinstance(t, str))
+        const_str = main_cn + (f"，兼夹{sec_cn}" if sec_cn else "")
+
+    disease_str = "、".join(
+        _DISEASE_CN.get(d.disease_type.value, d.disease_type.value) for d in diseases
+    ) or "无"
+
+    compl_parts: list[str] = []
+    for d in diseases:
+        comps = d.complications or []
+        if isinstance(comps, str):
+            try:    comps = json.loads(comps)
+            except: comps = [comps]
+        dcn = _DISEASE_CN.get(d.disease_type.value, d.disease_type.value)
+        for c in (comps or []):
+            if c:
+                compl_parts.append(f"{dcn}→{c}")
+
+    alert_lines = [f"[{e.severity.value}] {e.message}" for e in alerts]
+
+    allergy_str = (
+        "、".join(archive.allergy_history) if isinstance(archive.allergy_history, list)
+        else (archive.allergy_history or "无")
+    )
+
+    patient_summary = (
+        f"患者信息摘要：\n"
+        f"- 体质：{const_str or '未评估'}\n"
+        f"- 慢病诊断：{disease_str}\n"
+        f"- 并发症：{'；'.join(compl_parts) or '无'}\n"
+        f"- 近期异常预警：{chr(10).join(alert_lines) if alert_lines else '无'}\n"
+        f"- 依从性：{adherence_text or '无随访记录'}\n"
+        f"- BMI：{str(hp.bmi) if hp and hp.bmi else '未知'}\n"
+        f"- 过敏史：{allergy_str}"
+    )
+
+    from app.config import settings
+    conclusions = await _ai_generate_risk_conclusions(patient_summary, settings.anthropic_api_key)
+    if conclusions is None:
+        conclusions = _rule_based_risk_conclusions(diseases, ca, alert_lines, adherence_text, hp)
+
+    return ok({"patient_id": patient_id, "conclusions": conclusions})
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# B-extra. 补充采集（Step 4）
+# ──────────────────────────────────────────────────────────────────────────────
+
+class SupplementRequest(BaseModel):
+    # 生活方式快速勾选
+    sedentary: str | None = None          # 久坐：often/sometimes/rarely
+    exercise_frequency: str | None = None  # 运动频率：never/occasional/regular
+    sleep_quality: str | None = None       # 睡眠质量（中文或 poor/average/good）
+    stress_level: str | None = None        # 压力：high/medium/low
+    # 中医四诊（结构化）
+    tongue_color: str | None = None        # 舌色：淡红/红/暗红/淡白/紫暗
+    tongue_coating: str | None = None      # 舌苔：薄白/薄黄/厚腻/黄腻/无苔
+    tongue: str | None = None              # 舌象自由文字（兼容旧版）
+    pulse: str | None = None               # 脉象（如：弦细）
+    stool: str | None = None               # 大便：正常/干结/稀溏/不成形
+    urine: str | None = None               # 小便：正常/频多/短黄/夜尿多
+    sizhen_summary: str | None = None      # 四诊综合摘要
+    chief_complaint: str | None = None     # 主诉症状
+    # 经济评估
+    budget_tier: str | None = None        # low/medium/high
+    visit_frequency: str | None = None    # monthly/quarterly/biannual
+
+
+@router.post("/patient/{patient_id}/supplement")
+async def supplement_patient_info(
+    patient_id: str,
+    body: SupplementRequest,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+    current_user=Depends(_PRO),
+):
+    """
+    补充采集患者信息：
+    - 写入 patient_archives.tags（追加）
+    - 更新 health_profiles 生活方式字段
+    - 返回结构化补充摘要
+    """
+    aid = _parse_uuid(patient_id)
+    if not aid:
+        return fail("VALIDATION_ERROR", "patient_id 格式无效")
+
+    archive = await db.get(PatientArchive, aid)
+    if not archive or archive.is_deleted:
+        return fail("NOT_FOUND", "患者档案不存在", status_code=404)
+
+    # 追加标签
+    new_tags: list[str] = []
+    if body.sedentary:       new_tags.append(f"久坐:{body.sedentary}")
+    if body.stress_level:    new_tags.append(f"压力:{body.stress_level}")
+    if body.budget_tier:     new_tags.append(f"预算:{body.budget_tier}")
+    # 四诊结构化字段
+    tongue_text = body.tongue or ""
+    if body.tongue_color:   tongue_text = f"{body.tongue_color}舌" + (f"，苔{body.tongue_coating}" if body.tongue_coating else "")
+    elif body.tongue_coating: tongue_text = f"苔{body.tongue_coating}"
+    if tongue_text:          new_tags.append(f"舌象:{tongue_text[:20]}")
+    if body.pulse:           new_tags.append(f"脉象:{body.pulse[:20]}")
+    if body.sleep_quality:   new_tags.append(f"睡眠:{body.sleep_quality}")
+    if body.stool:           new_tags.append(f"大便:{body.stool}")
+    if body.urine:           new_tags.append(f"小便:{body.urine}")
+    if body.sizhen_summary:  new_tags.append(f"四诊:{body.sizhen_summary[:40]}")
+    if body.chief_complaint: new_tags.append(f"主诉:{body.chief_complaint[:40]}")
+
+    existing_tags = archive.tags or []
+    archive.tags = existing_tags + [t for t in new_tags if t not in existing_tags]
+    db.add(archive)
+
+    # 更新 HealthProfile（如存在）
+    hp_user_id = archive.user_id
+    hp_updated = False
+    if hp_user_id:
+        hp = (await db.execute(
+            select(HealthProfile).where(HealthProfile.user_id == hp_user_id)
+        )).scalar_one_or_none()
+        if hp:
+            if body.exercise_frequency:
+                hp.exercise_frequency = body.exercise_frequency
+                hp_updated = True
+            db.add(hp)
+
+    await db.commit()
+
+    summary_parts = []
+    if body.sedentary:       summary_parts.append(f"久坐习惯：{body.sedentary}")
+    if body.exercise_frequency: summary_parts.append(f"运动频率：{body.exercise_frequency}")
+    if body.sleep_quality:   summary_parts.append(f"睡眠质量：{body.sleep_quality}")
+    if body.stress_level:    summary_parts.append(f"压力水平：{body.stress_level}")
+    if body.tongue:          summary_parts.append(f"舌象：{body.tongue}")
+    if body.pulse:           summary_parts.append(f"脉象：{body.pulse}")
+    if body.chief_complaint: summary_parts.append(f"主诉：{body.chief_complaint}")
+    if body.budget_tier:     summary_parts.append(f"经济档位：{body.budget_tier}")
+    if body.visit_frequency: summary_parts.append(f"就诊频率偏好：{body.visit_frequency}")
+
+    return ok({
+        "patient_id": patient_id,
+        "tags_added": new_tags,
+        "health_profile_updated": hp_updated,
+        "summary": "；".join(summary_parts),
     })
 
 
@@ -483,6 +900,7 @@ def _plan_item(r: GuidanceRecord) -> dict:
         "status": r.status.value,
         "is_read": r.is_read,
         "created_at": r.created_at.isoformat(),
+        "updated_at": (r.updated_at or r.created_at).isoformat(),
         "content_preview": r.content[:120] + "..." if len(r.content) > 120 else r.content,
     }
 
@@ -504,11 +922,11 @@ async def list_plan_versions(
     if not archive or archive.is_deleted:
         return fail("NOT_FOUND", "患者档案不存在", status_code=404)
 
-    if not archive.user_id:
-        return ok({"total": 0, "items": []})
+    # 无 user_id 时用 archive.id 作为 patient_id（SQLite 不强制 FK）
+    pid_filter = archive.user_id if archive.user_id else archive.id
 
     filters = [
-        GuidanceRecord.patient_id == archive.user_id,
+        GuidanceRecord.patient_id == pid_filter,
         GuidanceRecord.guidance_type == GuidanceType.GUIDANCE,
     ]
     total = await db.scalar(select(func.count(GuidanceRecord.id)).where(and_(*filters)))
@@ -536,13 +954,12 @@ async def get_current_plan(
     if not archive or archive.is_deleted:
         return fail("NOT_FOUND", "患者档案不存在", status_code=404)
 
-    if not archive.user_id:
-        return ok({"plan": None})
+    pid_filter = archive.user_id if archive.user_id else archive.id
 
     plan = (await db.execute(
         select(GuidanceRecord)
         .where(
-            GuidanceRecord.patient_id == archive.user_id,
+            GuidanceRecord.patient_id == pid_filter,
             GuidanceRecord.guidance_type == GuidanceType.GUIDANCE,
             GuidanceRecord.status == GuidanceStatus.PUBLISHED,
         )
@@ -591,8 +1008,8 @@ async def create_plan_draft(
     if not archive or archive.is_deleted:
         return fail("NOT_FOUND", "患者档案不存在", status_code=404)
 
-    if not archive.user_id:
-        return fail("BUSINESS_ERROR", "该患者档案未关联系统用户，无法创建方案")
+    # 无关联用户时用 archive.id 作为方案归属（SQLite 不强制 FK，演示可用）
+    plan_patient_id = archive.user_id if archive.user_id else archive.id
 
     content = body.content
     title = body.title
@@ -618,7 +1035,7 @@ async def create_plan_draft(
         content = content or "（AI 正在生成，请稍后刷新...）"
 
     draft = GuidanceRecord(
-        patient_id=archive.user_id,
+        patient_id=plan_patient_id,
         doctor_id=current_user.id,
         guidance_type=GuidanceType.GUIDANCE,
         title=title,
@@ -738,6 +1155,10 @@ async def publish_plan(
         return fail("NOT_FOUND", "方案不存在", status_code=404)
     if plan.status == GuidanceStatus.PUBLISHED:
         return fail("BUSINESS_ERROR", "方案已处于 PUBLISHED 状态")
+    if plan.status == GuidanceStatus.CONFIRMED:
+        return fail("BUSINESS_ERROR", "已确认方案请通过分发流程处理")
+    if plan.status == GuidanceStatus.DISTRIBUTED:
+        return fail("BUSINESS_ERROR", "已分发方案不可重新发布")
     if plan.status == GuidanceStatus.ARCHIVED:
         return fail("BUSINESS_ERROR", "已归档方案不可重新发布")
 
@@ -773,7 +1194,7 @@ async def publish_plan(
 @router.get("/plan/{plan_id}/summary")
 async def render_plan_summary(
     plan_id: str,
-    format: Literal["his_text", "patient_text"] = Query(default="patient_text"),
+    format: Literal["his_text", "patient_text", "raw"] = Query(default="patient_text"),
     db: Annotated[AsyncSession, Depends(get_db)] = None,
     current_user=Depends(_PRO),
 ):
@@ -791,6 +1212,16 @@ async def render_plan_summary(
         return fail("NOT_FOUND", "方案不存在", status_code=404)
 
     raw = plan.content
+
+    if format == "raw":
+        return ok({
+            "plan_id": plan_id,
+            "title": plan.title,
+            "status": plan.status.value,
+            "format": format,
+            "summary": raw,
+            "full_length": len(raw),
+        })
 
     if format == "his_text":
         # 去除 Markdown 标记，生成 HIS 可粘贴纯文本
@@ -819,6 +1250,250 @@ async def render_plan_summary(
         "format": format,
         "summary": summary,
         "full_length": len(raw),
+    })
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# C-extra. Plan Preview / Confirm / Distribute
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _to_his_text(raw: str) -> str:
+    """将 Markdown 方案内容转换为 HIS 可粘贴纯文本。"""
+    text = re.sub(r"#{1,6}\s*", "", raw)
+    text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
+    text = re.sub(r"\*(.*?)\*", r"\1", text)
+    text = re.sub(r"`(.*?)`", r"\1", text)
+    text = re.sub(r">\s*", "", text)
+    text = re.sub(r"\n{3,}", "\n\n", text).strip()
+    return text
+
+
+def _to_patient_text(raw: str) -> str:
+    """将 Markdown 方案内容转换为患者友好版。"""
+    text = re.sub(r"#{1,3}\s*(.*)", r"【\1】", raw)
+    text = re.sub(r"#{4,6}\s*(.*)", r"- \1", text)
+    text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
+    text = re.sub(r"\*(.*?)\*", r"\1", text)
+    text = re.sub(r">`.*?`", "", text)
+    text = re.sub(r"\n{3,}", "\n\n", text).strip()
+    return text
+
+
+def _extract_modules(raw: str) -> dict:
+    """从方案内容中提取结构化管理端字段（简单关键词匹配）。"""
+    syndrome = ""
+    risk_level = ""
+    followup_days = 7
+    modules: list[str] = []
+
+    for line in raw.splitlines():
+        ln = line.strip()
+        if not syndrome and ("证候" in ln or "证型" in ln or "主证" in ln):
+            syndrome = ln
+        if not risk_level and ("高风险" in ln or "中风险" in ln or "低风险" in ln):
+            if "高风险" in ln:
+                risk_level = "HIGH"
+            elif "中风险" in ln:
+                risk_level = "MEDIUM"
+            else:
+                risk_level = "LOW"
+        for kw in ["作息", "饮食", "运动", "情志", "穴位", "艾灸", "到院"]:
+            if kw in ln and kw not in modules:
+                modules.append(kw)
+
+    m = re.search(r"随访[：:]\s*(\d+)\s*天", raw)
+    if m:
+        followup_days = int(m.group(1))
+
+    return {
+        "syndrome": syndrome or "—",
+        "risk_level": risk_level or "MEDIUM",
+        "followup_days": followup_days,
+        "modules": modules,
+    }
+
+
+@router.get("/plan/{plan_id}/preview")
+async def preview_plan(
+    plan_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+    current_user=Depends(_PRO),
+):
+    """
+    三端预览：返回 HIS 版、患者 H5 版、管理端结构化字段，以及变更清单。
+    """
+    pid = _parse_uuid(plan_id)
+    if not pid:
+        return fail("VALIDATION_ERROR", "plan_id 格式无效")
+
+    plan = await db.get(GuidanceRecord, pid)
+    if not plan:
+        return fail("NOT_FOUND", "方案不存在", status_code=404)
+
+    raw = plan.content
+    his_text = _to_his_text(raw)
+    patient_h5 = _to_patient_text(raw)
+    management = _extract_modules(raw)
+
+    change_list = [
+        "创建方案记录（状态→DISTRIBUTED）",
+        "患者 H5 端更新当前方案（is_read=False）",
+        "管理端写入干预记录（intervention_records）",
+        f"自动生成随访计划（间隔 {management['followup_days']} 天）",
+    ]
+
+    return ok({
+        "plan_id": plan_id,
+        "title": plan.title,
+        "status": plan.status.value,
+        "his_text": his_text,
+        "patient_h5": patient_h5,
+        "management": management,
+        "change_list": change_list,
+    })
+
+
+@router.post("/plan/{plan_id}/confirm")
+async def confirm_plan(
+    plan_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+    current_user=Depends(_PRO),
+):
+    """
+    确认方案：DRAFT → CONFIRMED。
+    状态锁定，此后只能通过 /distribute 或手动归档更改状态。
+    """
+    pid = _parse_uuid(plan_id)
+    if not pid:
+        return fail("VALIDATION_ERROR", "plan_id 格式无效")
+
+    plan = await db.get(GuidanceRecord, pid)
+    if not plan:
+        return fail("NOT_FOUND", "方案不存在", status_code=404)
+    if plan.status != GuidanceStatus.DRAFT:
+        return fail("BUSINESS_ERROR", f"只有草稿状态可确认，当前：{plan.status.value}")
+
+    plan.status = GuidanceStatus.CONFIRMED
+    db.add(plan)
+    await db.commit()
+
+    return ok({
+        "plan_id": plan_id,
+        "status": "CONFIRMED",
+        "confirmed_at": datetime.now(timezone.utc).isoformat(),
+    })
+
+
+class DistributeRequest(BaseModel):
+    targets: list[str] = ["his", "patient_h5", "management"]
+    auto_followup_days: int = 7
+
+
+@router.post("/plan/{plan_id}/distribute")
+async def distribute_plan(
+    plan_id: str,
+    body: DistributeRequest,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+    current_user=Depends(_PRO),
+):
+    """
+    一键分发：CONFIRMED → DISTRIBUTED。
+    按 targets 列表依次处理各端，并按 auto_followup_days 自动生成随访计划。
+    """
+    pid = _parse_uuid(plan_id)
+    if not pid:
+        return fail("VALIDATION_ERROR", "plan_id 格式无效")
+
+    plan = await db.get(GuidanceRecord, pid)
+    if not plan:
+        return fail("NOT_FOUND", "方案不存在", status_code=404)
+    if plan.status != GuidanceStatus.CONFIRMED:
+        return fail("BUSINESS_ERROR", f"只有已确认方案可分发，当前：{plan.status.value}")
+
+    results: dict = {}
+    raw = plan.content
+
+    # his：纯文本摘要，不写库
+    if "his" in body.targets:
+        his_text = _to_his_text(raw)
+        results["his"] = {"ok": True, "summary": his_text[:200]}
+
+    # patient_h5：标记方案为 DISTRIBUTED，患者可见
+    if "patient_h5" in body.targets:
+        plan.status = GuidanceStatus.DISTRIBUTED
+        plan.is_read = False
+        db.add(plan)
+        results["patient_h5"] = {"ok": True, "message": "已推送给患者"}
+
+    # management：写入干预记录
+    intervention_id = None
+    if "management" in body.targets:
+        mgmt = _extract_modules(raw)
+        intervention = GuidanceRecord(
+            patient_id=plan.patient_id,
+            doctor_id=current_user.id,
+            guidance_type=GuidanceType.INTERVENTION,
+            title=f"[分发] {plan.title}",
+            content=raw,
+            status=GuidanceStatus.PUBLISHED,
+            is_read=False,
+        )
+        db.add(intervention)
+        await db.flush()
+        intervention_id = str(intervention.id)
+        results["management"] = {"ok": True, "intervention_id": intervention_id}
+
+    await db.commit()
+
+    # 自动生成随访计划
+    followup_plan_id = None
+    followup_created = False
+    try:
+        archive = (await db.execute(
+            select(PatientArchive).where(
+                or_(
+                    PatientArchive.user_id == plan.patient_id,
+                    PatientArchive.id == plan.patient_id,
+                )
+            ).limit(1)
+        )).scalar_one_or_none()
+
+        if archive:
+            today = date.today()
+            cadence = body.auto_followup_days
+            end_date = today + timedelta(weeks=4)
+            fp = FollowupPlan(
+                user_id=plan.patient_id,
+                disease_type=DiseaseType.HYPERTENSION,
+                status=FollowupStatus.ACTIVE,
+                start_date=today,
+                end_date=end_date,
+                note=f"分发方案自动随访（间隔{cadence}天）",
+            )
+            db.add(fp)
+            await db.flush()
+            task = FollowupTask(
+                plan_id=fp.id,
+                task_type=TaskType.INDICATOR_REPORT,
+                name="指标上报",
+                scheduled_date=today + timedelta(days=cadence),
+                required=True,
+                meta={"source": "distribute", "plan_id": plan_id},
+            )
+            db.add(task)
+            await db.commit()
+            followup_plan_id = str(fp.id)
+            followup_created = True
+    except Exception as _follow_exc:
+        import logging as _log
+        _log.getLogger(__name__).warning("随访计划自动创建失败: %s", _follow_exc)
+
+    return ok({
+        "plan_id": plan_id,
+        "status": "DISTRIBUTED",
+        "results": results,
+        "followup_created": followup_created,
+        "followup_plan_id": followup_plan_id,
     })
 
 
@@ -940,8 +1615,7 @@ async def create_followup_plan(
     if not archive or archive.is_deleted:
         return fail("NOT_FOUND", "患者档案不存在", status_code=404)
 
-    if not archive.user_id:
-        return fail("BUSINESS_ERROR", "该患者档案未关联系统用户")
+    followup_user_id = archive.user_id if archive.user_id else archive.id
 
     # 验证 disease_type
     try:
@@ -953,7 +1627,7 @@ async def create_followup_plan(
     end_date = today + timedelta(weeks=body.total_weeks)
 
     plan = FollowupPlan(
-        user_id=archive.user_id,
+        user_id=followup_user_id,
         disease_type=dtype,
         status=FollowupStatus.ACTIVE,
         start_date=today,
@@ -997,6 +1671,339 @@ async def create_followup_plan(
         "cadence_days": body.cadence_days,
         "tasks_created": len(tasks_created),
         "task_schedule": tasks_created[:5],  # 展示前5条预览
+    })
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# F. Recall — 召回建议（基于 AlertEvent 推导召回动作）
+# ══════════════════════════════════════════════════════════════════════════════
+
+_RECALL_REASON_CN = {
+    "HIGH": "高风险预警触发召回",
+    "MEDIUM": "中风险预警触发召回",
+    "LOW": "低风险例行召回",
+}
+
+_RECALL_ACTION_MAP = {
+    "HIGH": "立即安排复诊，重新评估干预方案",
+    "MEDIUM": "建议调整随访频率，复查关键指标",
+    "LOW": "复评现有方案执行情况，更新健康档案",
+}
+
+
+def _alert_to_recall(alert: AlertEvent) -> dict:
+    sev = alert.severity.value
+    return {
+        "recall_id": str(alert.id),
+        "trigger_type": "ALERT_EVENT",
+        "trigger_reason": _RECALL_REASON_CN.get(sev, "预警触发召回"),
+        "severity": sev,
+        "recommendation": _RECALL_ACTION_MAP.get(sev, "请医生评估处理"),
+        "recommendation_payload": {
+            "action": "reassess" if sev == "HIGH" else "adjust_followup",
+            "priority": sev,
+        },
+        "evidence_summary": alert.message,
+        "current_status": alert.status.value,
+    }
+
+
+@router.get("/recall/{patient_id}")
+async def get_recall_suggestions(
+    patient_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+    current_user=Depends(_PRO),
+):
+    """
+    获取患者当前待处理的召回建议（来自 OPEN 状态的 AlertEvent）。
+    按严重程度降序排列，最多返回 10 条。
+    """
+    aid = _parse_uuid(patient_id)
+    if not aid:
+        return fail("VALIDATION_ERROR", "patient_id 格式无效")
+
+    archive = await db.get(PatientArchive, aid)
+    if not archive or archive.is_deleted:
+        return fail("NOT_FOUND", "患者档案不存在", status_code=404)
+
+    if not archive.user_id:
+        return ok({"patient_id": patient_id, "total": 0, "items": []})
+
+    alerts = (await db.execute(
+        select(AlertEvent)
+        .where(
+            AlertEvent.user_id == archive.user_id,
+            AlertEvent.status == AlertStatus.OPEN,
+        )
+        .order_by(desc(AlertEvent.created_at))
+        .limit(10)
+    )).scalars().all()
+
+    return ok({
+        "patient_id": patient_id,
+        "total": len(alerts),
+        "items": [_alert_to_recall(a) for a in alerts],
+    })
+
+
+class RecallActionRequest(BaseModel):
+    action: str          # "accept" | "ignore"
+    note: str = ""
+
+
+@router.patch("/recall/{alert_id}/action")
+async def handle_recall_action(
+    alert_id: str,
+    body: RecallActionRequest,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+    current_user=Depends(_PRO),
+):
+    """
+    处理召回建议：
+    - action=accept  → 将 AlertEvent 标记为 ACKNOWLEDGED（已确认需要处理）
+    - action=ignore  → 将 AlertEvent 标记为 RESOLVED（忽略本次召回）
+    """
+    aid = _parse_uuid(alert_id)
+    if not aid:
+        return fail("VALIDATION_ERROR", "alert_id 格式无效")
+
+    alert = await db.get(AlertEvent, aid)
+    if not alert:
+        return fail("NOT_FOUND", "召回记录不存在", status_code=404)
+
+    if body.action == "accept":
+        alert.status = AlertStatus.ACKED
+    elif body.action == "ignore":
+        alert.status = AlertStatus.CLOSED
+    else:
+        return fail("VALIDATION_ERROR", f"不支持的 action：{body.action}，仅支持 accept / ignore")
+
+    if body.note:
+        alert.message = alert.message + f"\n[处理备注] {body.note}"
+
+    db.add(alert)
+    await db.commit()
+
+    return ok({
+        "alert_id": alert_id,
+        "action": body.action,
+        "new_status": alert.status.value,
+        "note": body.note,
+    })
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# G. Workbench — 工作台：待处理患者聚合视图（医生维度）
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/workbench/pending")
+async def get_workbench_pending(
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+    current_user=Depends(_PRO),
+):
+    """
+    获取当前医生工作台待处理患者聚合视图。
+    返回三类患者列表：
+    - reassess_today：今日待复评（随访任务 scheduled_date=today 且未完成）
+    - recall_triggered：已触发召回但未处理（OPEN 状态 HIGH/MEDIUM 预警）
+    - followup_abnormal：随访异常（逾期未打卡）
+    每类最多 10 条，按档案信息聚合。
+    """
+    from datetime import datetime, timezone
+    today = date.today()
+
+    # ── 1. 今日待复评：today 的随访任务（未完成）──────────────────────────
+    today_tasks = (await db.execute(
+        select(FollowupTask, FollowupPlan)
+        .join(FollowupPlan, FollowupTask.plan_id == FollowupPlan.id)
+        .where(
+            FollowupTask.scheduled_date == today,
+        )
+        .order_by(FollowupTask.scheduled_date.asc())
+        .limit(20)
+    )).all()
+
+    # 找出 user_id → archive
+    reassess_user_ids = list({row.FollowupPlan.user_id for row in today_tasks})
+    reassess_archives: dict = {}
+    if reassess_user_ids:
+        rows = (await db.execute(
+            select(PatientArchive).where(
+                PatientArchive.user_id.in_(reassess_user_ids),
+                PatientArchive.is_deleted == False,
+            )
+        )).scalars().all()
+        reassess_archives = {str(a.user_id): a for a in rows}
+
+    reassess_today = []
+    seen_uid = set()
+    for row in today_tasks:
+        uid = str(row.FollowupPlan.user_id)
+        if uid in seen_uid:
+            continue
+        seen_uid.add(uid)
+        a = reassess_archives.get(uid)
+        if not a:
+            continue
+        reassess_today.append({
+            "archive_id": str(a.id),
+            "patient_name": a.name,
+            "phone": a.phone,
+            "pending_action": f"随访任务：{row.FollowupTask.name}",
+            "risk_tag": "待复评",
+            "recent_visit_at": str(row.FollowupTask.scheduled_date),
+            "latest_status": "PENDING",
+        })
+
+    # ── 2. 已触发召回（OPEN HIGH/MEDIUM 预警）──────────────────────────────
+    open_alerts = (await db.execute(
+        select(AlertEvent)
+        .where(AlertEvent.status == AlertStatus.OPEN)
+        .order_by(desc(AlertEvent.created_at))
+        .limit(30)
+    )).scalars().all()
+
+    recall_user_ids = [str(a.user_id) for a in open_alerts if a.user_id is not None]
+    recall_user_ids = list(set(recall_user_ids))
+    recall_archives: dict = {}
+    if recall_user_ids:
+        rows = (await db.execute(
+            select(PatientArchive).where(
+                PatientArchive.user_id.in_([_parse_uuid(uid) for uid in recall_user_ids if _parse_uuid(uid)]),
+                PatientArchive.is_deleted == False,
+            )
+        )).scalars().all()
+        recall_archives = {str(a.user_id): a for a in rows}
+
+    recall_triggered = []
+    seen_recall = set()
+    for alert in open_alerts:
+        uid = str(alert.user_id)
+        if uid in seen_recall:
+            continue
+        seen_recall.add(uid)
+        a = recall_archives.get(uid)
+        if not a:
+            continue
+        recall_triggered.append({
+            "archive_id": str(a.id),
+            "patient_name": a.name,
+            "phone": a.phone,
+            "pending_action": f"处理召回：{alert.message[:40]}",
+            "risk_tag": alert.severity.value,
+            "recent_visit_at": alert.created_at.isoformat()[:10],
+            "latest_status": "RECALL_OPEN",
+        })
+        if len(recall_triggered) >= 10:
+            break
+
+    # ── 3. 随访异常：逾期未打卡（scheduled_date < today）──────────────────
+    overdue_tasks = (await db.execute(
+        select(FollowupTask, FollowupPlan)
+        .join(FollowupPlan, FollowupTask.plan_id == FollowupPlan.id)
+        .where(
+            FollowupTask.scheduled_date < today,
+            FollowupPlan.status == FollowupStatus.ACTIVE,
+        )
+        .order_by(desc(FollowupTask.scheduled_date))
+        .limit(20)
+    )).all()
+
+    overdue_user_ids = [str(row.FollowupPlan.user_id) for row in overdue_tasks if row.FollowupPlan.user_id is not None]
+    overdue_user_ids = list(set(overdue_user_ids))
+    overdue_archives: dict = {}
+    if overdue_user_ids:
+        rows = (await db.execute(
+            select(PatientArchive).where(
+                PatientArchive.user_id.in_([_parse_uuid(uid) for uid in overdue_user_ids if _parse_uuid(uid)]),
+                PatientArchive.is_deleted == False,
+            )
+        )).scalars().all()
+        overdue_archives = {str(a.user_id): a for a in rows}
+
+    followup_abnormal = []
+    seen_over = set()
+    for row in overdue_tasks:
+        uid = str(row.FollowupPlan.user_id)
+        if uid in seen_over:
+            continue
+        seen_over.add(uid)
+        a = overdue_archives.get(uid)
+        if not a:
+            continue
+        followup_abnormal.append({
+            "archive_id": str(a.id),
+            "patient_name": a.name,
+            "phone": a.phone,
+            "pending_action": f"逾期随访：{row.FollowupTask.name}",
+            "risk_tag": "随访异常",
+            "recent_visit_at": str(row.FollowupTask.scheduled_date),
+            "latest_status": "OVERDUE",
+        })
+        if len(followup_abnormal) >= 10:
+            break
+
+    return ok({
+        "reassess_today": reassess_today[:10],
+        "recall_triggered": recall_triggered[:10],
+        "followup_abnormal": followup_abnormal[:10],
+        "counts": {
+            "reassess_today": len(reassess_today),
+            "recall_triggered": len(recall_triggered),
+            "followup_abnormal": len(followup_abnormal),
+        },
+    })
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# H. Feedback — 患者反馈摘要（最近打卡记录）
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/patient/{patient_id}/feedback")
+async def get_patient_feedback(
+    patient_id: str,
+    limit: int = Query(default=5, ge=1, le=20),
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+    current_user=Depends(_PRO),
+):
+    """
+    获取患者最近的随访打卡反馈（CheckIn记录）。
+    返回最近 N 条带备注或异常值的打卡记录，作为患者反馈摘要。
+    """
+    from app.models.followup import CheckIn
+    aid = _parse_uuid(patient_id)
+    if not aid:
+        return fail("VALIDATION_ERROR", "patient_id 格式无效")
+
+    archive = await db.get(PatientArchive, aid)
+    if not archive or archive.is_deleted:
+        return fail("NOT_FOUND", "患者档案不存在", status_code=404)
+
+    if not archive.user_id:
+        return ok({"patient_id": patient_id, "total": 0, "items": []})
+
+    checkins = (await db.execute(
+        select(CheckIn)
+        .where(CheckIn.user_id == archive.user_id)
+        .order_by(desc(CheckIn.checked_at))
+        .limit(limit)
+    )).scalars().all()
+
+    items = []
+    for c in checkins:
+        items.append({
+            "checkin_id": str(c.id),
+            "status": c.status.value,
+            "value": c.value,
+            "note": c.note or "",
+            "checked_at": c.checked_at.isoformat() if c.checked_at else None,
+            "created_at": c.created_at.isoformat(),
+        })
+
+    return ok({
+        "patient_id": patient_id,
+        "total": len(items),
+        "items": items,
     })
 
 
@@ -1065,3 +2072,154 @@ async def list_followup_tasks(
     ]
 
     return ok({"total": total, "patient_id": patient_id, "items": task_items})
+
+
+# ── F. Plugin Agent Stream ────────────────────────────────────────────────────
+
+class PluginAgentRequest(BaseModel):
+    query: str
+    patient_id: Optional[str] = None
+    patient_name: Optional[str] = None
+
+
+@router.post("/agent/stream")
+async def plugin_agent_stream(
+    body: PluginAgentRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user=Depends(_PRO),
+):
+    """
+    Chrome 插件专用 SSE Agent 端点。
+    使用服务器本地配置的 ANTHROPIC_API_KEY 和 ANTHROPIC_BASE_URL。
+    事件格式与 /tools/agent/stream 相同。
+    """
+    from app.services.agent_service import run_agent_stream
+
+    # 若提供了患者信息，拼入查询前缀方便 agent 定位
+    query = body.query
+    if body.patient_name:
+        query = f"[当前患者：{body.patient_name}，档案ID：{body.patient_id or '未知'}] {query}"
+
+    async def generate() -> AsyncIterator[str]:
+        try:
+            async for event in run_agent_stream(query, db, current_user):
+                yield f"data: {json.dumps(event, ensure_ascii=False, default=str)}\n\n"
+        except Exception as exc:
+            err = {"type": "error", "message": f"Agent 执行出错：{exc}"}
+            yield f"data: {json.dumps(err, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# I. Package Recommendation — Step 12 套餐推荐
+# ══════════════════════════════════════════════════════════════════════════════
+
+_PACKAGE_TEMPLATES = {
+    "online": {
+        "name": "线上管理包",
+        "cycle": "3个月",
+        "items": ["每周线上随访（1次）", "指标智能监测", "中医健康日报推送", "在线问诊优先响应"],
+        "reason_template": "适合{risk}风险患者，居家自我管理为主，成本较低",
+        "script_template": "我们的线上管理包可以帮您在家就能得到专业指导，每周都有医生跟踪您的健康数据，有问题随时在线咨询。",
+    },
+    "onsite": {
+        "name": "到院项目疗程",
+        "cycle": "1个月",
+        "items": ["针灸调理（每周2次）", "推拿理疗", "中药熏蒸", "体质专项评估"],
+        "reason_template": "适合{constitution}体质患者，到院疗程针对性强",
+        "script_template": "针对您的体质，我们设计了专属的到院疗程，通过针灸、推拿等方法来改善您的体质状态，效果会更直接。",
+    },
+    "comprehensive": {
+        "name": "综合管理包",
+        "cycle": "6个月",
+        "items": ["每月到院随访（1次）", "每周线上指导（1次）", "个性化中药方案", "节气保健提醒", "年度健康评估"],
+        "reason_template": "适合{risk}风险+慢病患者，线上线下结合，全方位管理",
+        "script_template": "综合管理包是我们最全面的方案，结合线上监测和定期到院，特别适合您这种情况，能帮助您更好地控制病情，改善生活质量。",
+    },
+}
+
+
+@router.get("/patient/{patient_id}/package-recommendation")
+async def get_package_recommendation(
+    patient_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+    current_user=Depends(_PRO),
+):
+    """
+    套餐推荐：基于风险等级 + 体质 + 慢病 → 匹配推荐套餐（3档）。
+    """
+    aid = _parse_uuid(patient_id)
+    if not aid:
+        return fail("VALIDATION_ERROR", "patient_id 格式无效")
+
+    archive = await db.get(PatientArchive, aid)
+    if not archive or archive.is_deleted:
+        return fail("NOT_FOUND", "患者档案不存在", status_code=404)
+
+    # 读取体质
+    constitution_type = ""
+    if archive.user_id:
+        ca = (await db.execute(
+            select(ConstitutionAssessment)
+            .where(ConstitutionAssessment.user_id == archive.user_id)
+            .order_by(desc(ConstitutionAssessment.created_at))
+            .limit(1)
+        )).scalar_one_or_none()
+        if ca and ca.main_type:
+            constitution_type = _BODY_TYPE_CN.get(ca.main_type.value if hasattr(ca.main_type, 'value') else str(ca.main_type), str(ca.main_type))
+
+    # 读取慢病数量
+    disease_count = 0
+    if archive.user_id:
+        disease_count = await db.scalar(
+            select(func.count(ChronicDiseaseRecord.id))
+            .where(ChronicDiseaseRecord.user_id == archive.user_id)
+        ) or 0
+
+    # 读取预警（推断风险）
+    risk_level = "LOW"
+    if archive.user_id:
+        open_alerts = await db.scalar(
+            select(func.count(AlertEvent.id))
+            .where(AlertEvent.user_id == archive.user_id, AlertEvent.status == AlertStatus.OPEN)
+        ) or 0
+        if open_alerts >= 2 or disease_count >= 2:
+            risk_level = "HIGH"
+        elif open_alerts >= 1 or disease_count >= 1:
+            risk_level = "MEDIUM"
+
+    risk_cn = {"HIGH": "高", "MEDIUM": "中", "LOW": "低"}.get(risk_level, "中")
+    const_cn = constitution_type or "气虚质"
+
+    packages = []
+    for tier, tpl in _PACKAGE_TEMPLATES.items():
+        packages.append({
+            "tier": tier,
+            "name": tpl["name"],
+            "cycle": tpl["cycle"],
+            "items": tpl["items"],
+            "reason": tpl["reason_template"].format(risk=risk_cn, constitution=const_cn),
+            "script": tpl["script_template"],
+            "recommended": (
+                (risk_level == "LOW" and tier == "online") or
+                (risk_level == "MEDIUM" and tier == "onsite") or
+                (risk_level == "HIGH" and tier == "comprehensive")
+            ),
+        })
+
+    return ok({
+        "patient_id": patient_id,
+        "risk_level": risk_level,
+        "constitution_type": constitution_type,
+        "disease_count": disease_count,
+        "packages": packages,
+    })

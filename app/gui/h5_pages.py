@@ -52,13 +52,6 @@ async def h5_plan(request: Request, access_token: str | None = Cookie(default=No
     return templates.TemplateResponse("patient/plan.html", {"request": request})
 
 
-@router.get("/h5/plan/detail", response_class=HTMLResponse)
-async def h5_plan_detail_v2(request: Request, access_token: str | None = Cookie(default=None)):
-    if not _is_logged_in(access_token):
-        return RedirectResponse(url="/login")
-    return templates.TemplateResponse("patient/plan_detail_v2.html", {"request": request})
-
-
 @router.get("/h5/plan/history", response_class=HTMLResponse)
 async def h5_plan_history(request: Request, access_token: str | None = Cookie(default=None)):
     if not _is_logged_in(access_token):

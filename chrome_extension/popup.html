@@ -217,6 +217,34 @@
       <span class="form-hint">多个参数名用英文逗号分隔，插件将依次从URL中读取</span>
     </div>
 
+    <!-- Claude API 地址（第三方转发） -->
+    <div class="form-group">
+      <label class="form-label" for="claude-base-url">Claude API 地址</label>
+      <input class="form-input" id="claude-base-url" type="text" placeholder="https://api.anthropic.com" autocomplete="off" spellcheck="false" />
+      <span class="form-hint">使用第三方转发时填写，如 https://code.newcli.com/claude。留空使用官方地址。</span>
+    </div>
+
+    <!-- 模型名 -->
+    <div class="form-group">
+      <label class="form-label" for="claude-model">模型名称</label>
+      <input class="form-input" id="claude-model" type="text" placeholder="claude-3-5-sonnet-20241022" autocomplete="off" spellcheck="false" />
+      <span class="form-hint">第三方代理支持的模型名，留空默认用 claude-3-5-sonnet-20241022</span>
+    </div>
+
+    <!-- API Key -->
+    <div class="form-group">
+      <label class="form-label" for="api-key">API Key（AI助手必需）</label>
+      <input class="form-input" id="api-key" type="password" placeholder="sk-ant-..." autocomplete="off" spellcheck="false" />
+      <span class="form-hint">官方或第三方转发的 API Key，本地存储，不上传。</span>
+    </div>
+
+    <!-- Brave Search Key（可选） -->
+    <div class="form-group">
+      <label class="form-label" for="search-key">Brave Search Key（可选）</label>
+      <input class="form-input" id="search-key" type="password" placeholder="BSA..." autocomplete="off" spellcheck="false" />
+      <span class="form-hint">提升网页搜索质量，不填则用 DuckDuckGo（免费无需Key）</span>
+    </div>
+
     <!-- 保存按钮 -->
     <button class="btn btn-primary" id="save-btn">保存配置</button>
 

@@ -158,6 +158,123 @@
       </div>
     </div>
 
+    <!-- ══ 四诊采集面板 ══ -->
+    <div id="sizhen-panel" class="bg-white rounded-xl shadow-sm p-4 hidden">
+      <div class="flex items-center justify-between mb-3">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">四诊采集</p>
+        <div class="flex items-center gap-2">
+          <span id="sizhen-updating" class="hidden text-xs flex items-center gap-1" style="color:#4E7A61">
+            <span class="inline-block w-3 h-3 border-2 rounded-full animate-spin"
+              style="border-color:#EBF2ED;border-top-color:#4E7A61;"></span>
+            更新中...
+          </span>
+          <button onclick="clearSizhen()" class="text-xs text-gray-400 hover:text-gray-600">清除</button>
+        </div>
+      </div>
+
+      <!-- 舌象 -->
+      <div class="mb-3">
+        <p class="text-xs font-medium text-gray-500 mb-1.5">舌色</p>
+        <div class="flex flex-wrap gap-1.5" id="tongue-color-group">
+          <button onclick="selectSizhen('tongue_color','淡红',this,'tongue-color-group')"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">淡红</button>
+          <button onclick="selectSizhen('tongue_color','红',this,'tongue-color-group')"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">红</button>
+          <button onclick="selectSizhen('tongue_color','暗红',this,'tongue-color-group')"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">暗红</button>
+          <button onclick="selectSizhen('tongue_color','淡白',this,'tongue-color-group')"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">淡白</button>
+          <button onclick="selectSizhen('tongue_color','紫暗',this,'tongue-color-group')"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">紫暗</button>
+        </div>
+        <p class="text-xs font-medium text-gray-500 mt-2 mb-1.5">舌苔</p>
+        <div class="flex flex-wrap gap-1.5" id="tongue-coating-group">
+          <button onclick="selectSizhen('tongue_coating','薄白苔',this,'tongue-coating-group')"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">薄白</button>
+          <button onclick="selectSizhen('tongue_coating','薄黄苔',this,'tongue-coating-group')"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">薄黄</button>
+          <button onclick="selectSizhen('tongue_coating','厚腻苔',this,'tongue-coating-group')"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">厚腻</button>
+          <button onclick="selectSizhen('tongue_coating','黄腻苔',this,'tongue-coating-group')"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">黄腻</button>
+          <button onclick="selectSizhen('tongue_coating','无苔',this,'tongue-coating-group')"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">无苔</button>
+        </div>
+      </div>
+
+      <!-- 脉象（多选）-->
+      <div class="mb-3">
+        <p class="text-xs font-medium text-gray-500 mb-1.5">脉象 <span class="text-gray-400 font-normal">（可多选）</span></p>
+        <div class="flex flex-wrap gap-1.5" id="pulse-group">
+          <button onclick="selectSizhenMulti('pulse','浮脉',this)"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">浮</button>
+          <button onclick="selectSizhenMulti('pulse','沉脉',this)"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">沉</button>
+          <button onclick="selectSizhenMulti('pulse','迟脉',this)"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">迟</button>
+          <button onclick="selectSizhenMulti('pulse','数脉',this)"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">数</button>
+          <button onclick="selectSizhenMulti('pulse','弦脉',this)"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">弦</button>
+          <button onclick="selectSizhenMulti('pulse','滑脉',this)"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">滑</button>
+          <button onclick="selectSizhenMulti('pulse','涩脉',this)"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">涩</button>
+          <button onclick="selectSizhenMulti('pulse','细脉',this)"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">细</button>
+          <button onclick="selectSizhenMulti('pulse','洪脉',this)"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">洪</button>
+        </div>
+      </div>
+
+      <!-- 睡眠 -->
+      <div class="mb-3">
+        <p class="text-xs font-medium text-gray-500 mb-1.5">睡眠</p>
+        <div class="flex flex-wrap gap-1.5" id="sleep-group">
+          <button onclick="selectSizhen('sleep','睡眠良好',this,'sleep-group')"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">良好</button>
+          <button onclick="selectSizhen('sleep','睡眠欠佳',this,'sleep-group')"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">欠佳</button>
+          <button onclick="selectSizhen('sleep','失眠',this,'sleep-group')"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">失眠</button>
+          <button onclick="selectSizhen('sleep','多梦',this,'sleep-group')"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">多梦</button>
+        </div>
+      </div>
+
+      <!-- 二便 -->
+      <div>
+        <p class="text-xs font-medium text-gray-500 mb-1.5">大便</p>
+        <div class="flex flex-wrap gap-1.5" id="stool-group">
+          <button onclick="selectSizhen('stool','大便正常',this,'stool-group')"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">正常</button>
+          <button onclick="selectSizhen('stool','大便干结',this,'stool-group')"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">干结</button>
+          <button onclick="selectSizhen('stool','大便稀溏',this,'stool-group')"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">稀溏</button>
+          <button onclick="selectSizhen('stool','大便不成形',this,'stool-group')"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">不成形</button>
+        </div>
+        <p class="text-xs font-medium text-gray-500 mt-2 mb-1.5">小便</p>
+        <div class="flex flex-wrap gap-1.5" id="urine-group">
+          <button onclick="selectSizhen('urine','小便正常',this,'urine-group')"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">正常</button>
+          <button onclick="selectSizhen('urine','小便频多',this,'urine-group')"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">频多</button>
+          <button onclick="selectSizhen('urine','小便短黄',this,'urine-group')"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">短黄</button>
+          <button onclick="selectSizhen('urine','夜尿多',this,'urine-group')"
+            class="sizhen-btn px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600 hover:bg-gray-200">夜尿多</button>
+        </div>
+      </div>
+
+      <!-- 四诊摘要条 -->
+      <div id="sizhen-summary-bar" class="hidden mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 leading-relaxed">
+        <span class="font-medium text-gray-600">已记录：</span>
+        <span id="sizhen-summary-text"></span>
+      </div>
+    </div>
+
     <!-- 临床数据 Tab（检验/就诊/处方/影像）-->
     <div id="clinic-panel" class="bg-white rounded-xl shadow-sm overflow-hidden hidden">
       <div class="flex overflow-x-auto border-b border-gray-100 text-xs">
@@ -223,11 +340,9 @@
       </div>
 
       <!-- AI 生成加载 -->
-      <div id="plan-loading" class="hidden flex items-center justify-center py-10">
-        <div class="text-center">
-          <div class="inline-block animate-spin w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full mb-3"></div>
-          <p class="text-sm text-gray-500">AI 正在生成调理方案...</p>
-        </div>
+      <div id="plan-loading" class="hidden py-4">
+        <div id="plan-stream-status" class="text-sm text-gray-500 mb-3 text-center">AI 正在生成调理方案...</div>
+        <div id="plan-stream-steps" class="space-y-2 text-xs"></div>
       </div>
 
       <!-- 方案编辑区 -->
@@ -473,6 +588,7 @@ async function selectPatient(a) {
   document.getElementById('patient-card').classList.remove('hidden');
   document.getElementById('no-patient').classList.add('hidden');
   document.getElementById('clinic-panel').classList.remove('hidden');
+  document.getElementById('sizhen-panel').classList.remove('hidden');
   document.getElementById('plan-versions-card').classList.remove('hidden');
   document.getElementById('followup-card').classList.remove('hidden');
   document.getElementById('btn-analyze').disabled = false;
@@ -489,6 +605,7 @@ async function selectPatient(a) {
 
   resetRiskPanel();
   resetPlanPanel();
+  clearSizhen();
 
   // B. 加载完整档案 profile
   loadProfile(a.patient_id);
@@ -660,7 +777,12 @@ async function triggerAnalysis() {
   document.getElementById('btn-analyze-text').textContent = '分析中...';
 
   try {
-    const r = await fetch(`/tools/risk/analyze/${selectedPatient.patient_id}`, { method:'POST' });
+    const extraCtx = buildSizhenContext();
+    const r = await fetch(`/tools/risk/analyze/${selectedPatient.patient_id}`, {
+      method:'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ extra_context: extraCtx }),
+    });
     const j = await r.json();
     document.getElementById('risk-loading').classList.add('hidden');
     document.getElementById('btn-analyze').disabled = false;
@@ -724,23 +846,81 @@ async function generateAIPlan() {
   document.getElementById('btn-gen-plan').disabled = true;
   document.getElementById('issue-success').classList.add('hidden');
 
+  const statusEl = document.getElementById('plan-stream-status');
+  const stepsEl = document.getElementById('plan-stream-steps');
+  stepsEl.innerHTML = '';
+  statusEl.textContent = 'AI 正在生成调理方案...';
+
+  const stepRows = {};
+  let planText = '';
+
   try {
-    // 1. AI 生成方案文本
-    const r = await fetch('/tools/risk/plan/generate', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ archive_id: selectedPatient.patient_id }),
+    const resp = await fetch('/tools/agent/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: `为患者 ${selectedPatient.name}（档案ID: ${selectedPatient.patient_id}）生成个性化中医调理方案`
+      }),
     });
-    const j = await r.json();
+
+    if (!resp.ok) {
+      throw new Error('HTTP ' + resp.status);
+    }
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        let ev;
+        try { ev = JSON.parse(line.slice(6)); } catch { continue; }
+
+        if (ev.type === 'thinking') {
+          statusEl.innerHTML = '<span style="color:#9ca3af">正在思考中...</span>';
+        } else if (ev.type === 'tool_call') {
+          const row = document.createElement('div');
+          row.className = 'flex items-center gap-2 text-gray-600 bg-gray-50 rounded px-2 py-1.5';
+          row.innerHTML = `<svg class="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="3" stroke-dasharray="60" stroke-dashoffset="20"/></svg><span>${ev.label || ev.tool}</span>`;
+          stepsEl.appendChild(row);
+          stepRows[ev.tool] = row;
+        } else if (ev.type === 'tool_result') {
+          const row = stepRows[ev.tool];
+          if (row) {
+            const icon = ev.status === 'success'
+              ? '<svg class="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>'
+              : '<svg class="w-3 h-3 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>';
+            row.innerHTML = `${icon}<span>${ev.label || ev.tool}</span><span class="text-gray-400 ml-auto text-xs">${ev.summary || ''}</span>`;
+            row.className = 'flex items-center gap-2 bg-gray-50 rounded px-2 py-1.5 ' + (ev.status === 'success' ? 'text-gray-700' : 'text-red-600');
+          }
+        } else if (ev.type === 'done') {
+          statusEl.innerHTML = '<span style="color:#10b981">✓ 生成完成</span>';
+          if (ev.data && ev.data.plan_markdown) {
+            planText = ev.data.plan_markdown;
+          }
+        } else if (ev.type === 'error') {
+          statusEl.innerHTML = `<span style="color:#dc2626">✗ ${ev.message}</span>`;
+        }
+      }
+    }
+
     document.getElementById('plan-loading').classList.add('hidden');
     document.getElementById('btn-gen-plan').disabled = false;
 
-    if (!j.success) {
+    if (!planText) {
       document.getElementById('plan-idle').classList.remove('hidden');
-      showToast('生成失败：' + (j.error?.message||'')); return;
+      showToast('未能生成方案内容');
+      return;
     }
-    const planText = j.data.plan_markdown;
 
-    // 2. 自动创建草稿记录（plugin/plan/draft）
+    // 创建草稿记录
     const dr = await fetch('/tools/plugin/plan/draft', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
@@ -758,11 +938,11 @@ async function generateAIPlan() {
 
     showPlanContent(planText, 'DRAFT');
     loadPlanVersions();
-  } catch {
+  } catch (err) {
     document.getElementById('plan-loading').classList.add('hidden');
     document.getElementById('plan-idle').classList.remove('hidden');
     document.getElementById('btn-gen-plan').disabled = false;
-    showToast('网络错误，请重试');
+    showToast('网络错误：' + err.message);
   }
 }
 
@@ -851,15 +1031,21 @@ async function loadPlanVersions() {
 }
 
 async function loadVersion(v) {
-  // 获取完整内容
-  const r = await fetch(`/tools/plugin/plan/${v.plan_id}/summary?format=patient_text`);
-  // 直接用 full content — 取原始方案
-  const r2 = await fetch(`/tools/plugin/plan/versions/${selectedPatient.patient_id}`);
-  // 简化：直接展示 preview
   document.getElementById('plan-title').value = v.title;
-  showPlanContent(v.content_preview || '（点击保存草稿后可编辑完整内容）', v.status);
   currentPlanId = v.plan_id;
   currentPlanStatus = v.status;
+  // 加载完整内容（非摘要，用 his_text 格式取原文）
+  try {
+    const r = await fetch(`/tools/plugin/plan/${v.plan_id}/summary?format=raw`);
+    const j = await r.json();
+    if (j.success && j.data.summary) {
+      showPlanContent(j.data.summary, v.status);
+    } else {
+      showPlanContent(v.content_preview || '（内容加载失败，请重试）', v.status);
+    }
+  } catch {
+    showPlanContent(v.content_preview || '（网络错误）', v.status);
+  }
 }
 
 // ── C 新建草稿弹窗 ────────────────────────────────────────────────────────────
@@ -1040,13 +1226,136 @@ async function createFollowupPlan() {
   }
 }
 
+// ── 四诊采集 ──────────────────────────────────────────────────────────────────
+let sizhenData = { tongue_color: null, tongue_coating: null, pulse: [], sleep: null, stool: null, urine: null };
+let _sizhenTimer = null;
+let _draftRefreshTimer = null;
+
+function selectSizhen(field, value, el, groupId) {
+  if (sizhenData[field] === value) {
+    sizhenData[field] = null;
+    el.style.background = '';
+    el.style.color = '';
+  } else {
+    document.querySelectorAll(`#${groupId} .sizhen-btn`).forEach(b => {
+      b.style.background = ''; b.style.color = '';
+    });
+    sizhenData[field] = value;
+    el.style.background = '#4E7A61';
+    el.style.color = 'white';
+  }
+  onSizhenChange();
+}
+
+function selectSizhenMulti(field, value, el) {
+  const idx = sizhenData.pulse.indexOf(value);
+  if (idx >= 0) {
+    sizhenData.pulse.splice(idx, 1);
+    el.style.background = ''; el.style.color = '';
+  } else {
+    sizhenData.pulse.push(value);
+    el.style.background = '#4E7A61'; el.style.color = 'white';
+  }
+  onSizhenChange();
+}
+
+function clearSizhen() {
+  sizhenData = { tongue_color: null, tongue_coating: null, pulse: [], sleep: null, stool: null, urine: null };
+  document.querySelectorAll('.sizhen-btn').forEach(b => { b.style.background = ''; b.style.color = ''; });
+  document.getElementById('sizhen-summary-bar').classList.add('hidden');
+}
+
+function buildSizhenContext() {
+  const parts = [];
+  if (sizhenData.tongue_color) parts.push(`舌色${sizhenData.tongue_color}`);
+  if (sizhenData.tongue_coating) parts.push(sizhenData.tongue_coating);
+  if (sizhenData.pulse.length) parts.push(`脉象${sizhenData.pulse.join('兼')}`);
+  if (sizhenData.sleep) parts.push(sizhenData.sleep);
+  if (sizhenData.stool) parts.push(sizhenData.stool);
+  if (sizhenData.urine) parts.push(sizhenData.urine);
+  return parts.join('，');
+}
+
+function updateSizhenSummary() {
+  const ctx = buildSizhenContext();
+  const bar = document.getElementById('sizhen-summary-bar');
+  const text = document.getElementById('sizhen-summary-text');
+  if (ctx) { bar.classList.remove('hidden'); text.textContent = ctx; }
+  else { bar.classList.add('hidden'); text.textContent = ''; }
+}
+
+function onSizhenChange() {
+  updateSizhenSummary();
+  clearTimeout(_sizhenTimer);
+  _sizhenTimer = setTimeout(async () => {
+    if (!selectedPatient) return;
+    const ctx = buildSizhenContext();
+    await autoRefreshRisk(ctx);
+    if (currentPlanId && ctx && !document.getElementById('plan-content').classList.contains('hidden')) {
+      autoRefreshDraft(ctx);
+    }
+  }, 800);
+}
+
+async function autoRefreshRisk(extraContext) {
+  if (!selectedPatient) return;
+  const updEl = document.getElementById('sizhen-updating');
+  updEl.classList.remove('hidden');
+  try {
+    const r = await fetch(`/tools/risk/analyze/${selectedPatient.patient_id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ extra_context: extraContext }),
+    });
+    const j = await r.json();
+    if (j.success) {
+      currentRiskResult = j.data.analysis;
+      renderRiskResult(j.data.analysis, j.data.new_alerts || []);
+      document.getElementById('risk-idle').classList.add('hidden');
+      document.getElementById('risk-loading').classList.add('hidden');
+      document.getElementById('btn-gen-plan').disabled = false;
+    }
+  } catch (_) {}
+  updEl.classList.add('hidden');
+}
+
+async function autoRefreshDraft(extraContext) {
+  clearTimeout(_draftRefreshTimer);
+  _draftRefreshTimer = setTimeout(async () => {
+    if (!selectedPatient || !currentPlanId) return;
+    const statusText = document.getElementById('plan-status-text');
+    const origText = statusText.textContent;
+    statusText.textContent = '⏳ AI 正在根据四诊信息更新方案...';
+    try {
+      const r = await fetch('/tools/risk/plan/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archive_id: selectedPatient.patient_id, extra_context: extraContext }),
+      });
+      const j = await r.json();
+      if (j.success && j.data?.plan_markdown) {
+        document.getElementById('plan-content').value = j.data.plan_markdown;
+        statusText.textContent = '✓ 已根据四诊信息更新方案（未保存）';
+        showToast('AI 已根据四诊信息更新草稿，可手动保存');
+      } else {
+        statusText.textContent = origText;
+      }
+    } catch (_) { statusText.textContent = origText; }
+  }, 500);
+}
+
 // ── 自动风险横幅 ──────────────────────────────────────────────────────────────
 let _autoBannerTimer = null, _autoBannerTick = null;
 
 async function autoTriggerRiskScan() {
   if (!selectedPatient) return;
   try {
-    const r = await fetch(`/tools/risk/analyze/${selectedPatient.patient_id}`, { method:'POST' });
+    const ctx = buildSizhenContext();
+    const r = await fetch(`/tools/risk/analyze/${selectedPatient.patient_id}`, {
+      method:'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ extra_context: ctx }),
+    });
     const j = await r.json();
     if (!j.success) return;
     const analysis = j.data?.analysis;

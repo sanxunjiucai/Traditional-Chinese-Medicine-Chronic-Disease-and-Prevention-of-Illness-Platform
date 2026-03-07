@@ -804,6 +804,168 @@ async def _execute_tool(
     return {"error": f"未知工具: {name}"}
 
 
+# ── 流式主入口（SSE） ─────────────────────────────────────────────────────────
+
+from typing import AsyncIterator
+
+
+async def run_agent_stream(
+    query: str, db: AsyncSession, current_user: Any
+) -> AsyncIterator[dict]:
+    """流式 Agent 执行：逐步 yield 事件 dict，供 SSE 端点使用。
+    事件类型：
+      thinking  — 正在调用模型
+      tool_call — 正在执行工具
+      tool_result — 工具返回结果
+      done      — 全部完成
+      error     — 发生错误
+    """
+    exec_id = str(uuid.uuid4())
+    if not settings.anthropic_api_key:
+        yield {"type": "error", "message": "AI 助手暂时不可用（API key 未配置）"}
+        return
+
+    import httpx, json as json_lib
+    base_url = settings.anthropic_base_url or None
+    claude_model = settings.anthropic_model
+    messages: list = [{"role": "user", "content": query}]
+    result_data: Any = None
+    navigate_url: str | None = None
+    executed_steps: list = []
+    final_message = ""
+
+    yield {"type": "thinking"}
+
+    try:
+        if base_url:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                for _ in range(4):
+                    resp = await client.post(
+                        f"{base_url}/v1/messages",
+                        headers={
+                            "Content-Type": "application/json",
+                            "x-api-key": settings.anthropic_api_key,
+                            "Authorization": f"Bearer {settings.anthropic_api_key}",
+                            "anthropic-version": "2023-06-01",
+                        },
+                        json={
+                            "model": claude_model,
+                            "max_tokens": 4096,
+                            "system": _SYSTEM_PROMPT,
+                            "tools": AGENT_TOOLS,
+                            "messages": messages,
+                        },
+                    )
+                    data = resp.json()
+                    # 检查 HTTP 状态，代理错误时抛出
+                    if resp.status_code != 200:
+                        err_msg = (
+                            data.get("error", {}).get("message")
+                            or data.get("message")
+                            or str(data)
+                        )
+                        import logging
+                        logging.warning(f"[Agent] Claude API error {resp.status_code}: {err_msg} | model={claude_model} | url={base_url}")
+                        yield {"type": "error", "message": f"AI调用失败（{resp.status_code}）：{err_msg}"}
+                        return
+                    texts = [b["text"] for b in data.get("content", []) if b.get("type") == "text"]
+                    tools = [b for b in data.get("content", []) if b.get("type") == "tool_use"]
+                    if not tools:
+                        final_message = " ".join(texts).strip()
+                        break
+                    messages.append({"role": "assistant", "content": data["content"]})
+                    results = []
+                    for t in tools:
+                        yield {"type": "tool_call", "tool": t["name"], "label": _TOOL_LABELS.get(t["name"], t["name"])}
+                        out = await _execute_tool(t["name"], t["input"], db, current_user)
+                        step = {
+                            "tool": t["name"],
+                            "label": _TOOL_LABELS.get(t["name"], t["name"]),
+                            "summary": _tool_summary(t["name"], t["input"], out),
+                            "status": "error" if "error" in out else "success",
+                        }
+                        executed_steps.append(step)
+                        yield {"type": "tool_result", **step}
+                        if t["name"] == "navigate_to":
+                            navigate_url = out.get("url")
+                        elif "error" not in out:
+                            result_data = out
+                        results.append({"type": "tool_result", "tool_use_id": t["id"], "content": json_lib.dumps(out, ensure_ascii=False, default=str)})
+                    messages.append({"role": "user", "content": results})
+                    if data.get("stop_reason") == "end_turn":
+                        final_message = " ".join(texts).strip()
+                        break
+                else:
+                    final_message = "操作已执行完毕。"
+        else:
+            import anthropic
+            client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+            for _ in range(4):
+                response = await client.messages.create(
+                    model="claude-haiku-4-5-20251001",
+                    max_tokens=1024,
+                    system=_SYSTEM_PROMPT,
+                    tools=AGENT_TOOLS,
+                    messages=messages,
+                )
+                texts = [b.text for b in response.content if b.type == "text"]
+                tools = [b for b in response.content if b.type == "tool_use"]
+                if not tools:
+                    final_message = " ".join(texts).strip()
+                    break
+                messages.append({"role": "assistant", "content": response.content})
+                results = []
+                for t in tools:
+                    yield {"type": "tool_call", "tool": t.name, "label": _TOOL_LABELS.get(t.name, t.name)}
+                    out = await _execute_tool(t.name, t.input, db, current_user)
+                    step = {
+                        "tool": t.name,
+                        "label": _TOOL_LABELS.get(t.name, t.name),
+                        "summary": _tool_summary(t.name, t.input, out),
+                        "status": "error" if "error" in out else "success",
+                    }
+                    executed_steps.append(step)
+                    yield {"type": "tool_result", **step}
+                    if t.name == "navigate_to":
+                        navigate_url = out.get("url")
+                    elif "error" not in out:
+                        result_data = out
+                    results.append({"type": "tool_result", "tool_use_id": t.id, "content": json.dumps(out, ensure_ascii=False, default=str)})
+                messages.append({"role": "user", "content": results})
+                if response.stop_reason == "end_turn":
+                    final_message = " ".join(texts).strip()
+                    break
+            else:
+                final_message = "操作已执行完毕。"
+    except Exception as e:
+        yield {"type": "error", "message": f"AI 执行失败：{e}"}
+        return
+
+    if navigate_url is None:
+        navigate_url = _infer_navigate_url(result_data, executed_steps)
+    if not final_message:
+        final_message = _build_fallback_message(result_data, executed_steps)
+
+    try:
+        await log_action(
+            db, action="AGENT_EXECUTE", resource_type="AgentQuery",
+            user_id=current_user.id, resource_id=exec_id,
+            old_values=None, new_values={"query": query, "navigate_url": navigate_url},
+        )
+        await db.commit()
+    except Exception:
+        pass
+
+    yield {
+        "type": "done",
+        "message": final_message,
+        "data": result_data,
+        "navigate_url": navigate_url,
+        "execution_id": exec_id,
+        "executed_steps": executed_steps,
+    }
+
+
 # ── 主入口 ────────────────────────────────────────────────────────────────────
 
 
@@ -812,8 +974,9 @@ async def run_agent(query: str, db: AsyncSession, current_user: Any) -> dict:
     if not settings.anthropic_api_key:
         return {"message": "AI 助手暂时不可用（API key 未正确配置）。", "data": None, "navigate_url": None, "execution_id": exec_id}
     
-    import os, httpx, json as json_lib
-    base_url = os.environ.get("ANTHROPIC_BASE_URL")
+    import httpx, json as json_lib
+    base_url = settings.anthropic_base_url or None
+    claude_model = settings.anthropic_model
     messages = [{"role": "user", "content": query}]
     result_data, navigate_url, final_message = None, None, ""
     executed_steps: list = []
@@ -822,7 +985,7 @@ async def run_agent(query: str, db: AsyncSession, current_user: Any) -> dict:
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 for _ in range(4):
-                    resp = await client.post(f"{base_url}/v1/messages", headers={"Content-Type": "application/json", "x-api-key": settings.anthropic_api_key, "anthropic-version": "2023-06-01"}, json={"model": "claude-haiku-4-5-20251001", "max_tokens": 1024, "system": _SYSTEM_PROMPT, "tools": AGENT_TOOLS, "messages": messages})
+                    resp = await client.post(f"{base_url}/v1/messages", headers={"Content-Type": "application/json", "x-api-key": settings.anthropic_api_key, "Authorization": f"Bearer {settings.anthropic_api_key}", "anthropic-version": "2023-06-01"}, json={"model": claude_model, "max_tokens": 4096, "system": _SYSTEM_PROMPT, "tools": AGENT_TOOLS, "messages": messages})
                     data = resp.json()
                     texts = [b["text"] for b in data.get("content", []) if b.get("type") == "text"]
                     tools = [b for b in data.get("content", []) if b.get("type") == "tool_use"]

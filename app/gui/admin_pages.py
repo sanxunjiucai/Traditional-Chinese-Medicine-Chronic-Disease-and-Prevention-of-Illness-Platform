@@ -1771,3 +1771,14 @@ async def admin_health_assess_comp_detail(
         "admin/assess_health_comp_detail.html",
         {"request": request, "report_id": report_id, "user_ctx": ctx},
     )
+
+
+# ── HIS 接诊演示页面 ──
+
+@router.get("/gui/his/reception", response_class=HTMLResponse)
+async def his_reception(request: Request, access_token: str | None = Cookie(default=None)):
+    """HIS 接诊工作站演示页面 — 用于展示诊中助手 Chrome 插件与 HIS 系统的集成效果"""
+    ctx = _get_user_ctx(access_token)
+    if not ctx:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse("his/reception.html", {"request": request, "user_ctx": ctx})

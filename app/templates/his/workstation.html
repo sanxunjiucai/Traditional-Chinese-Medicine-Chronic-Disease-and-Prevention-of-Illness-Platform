@@ -1,0 +1,840 @@
+{% extends "_layouts/his.html" %}
+{% block title %}门诊工作站 - HIS{% endblock %}
+
+{% block content %}
+<style>
+  /* ── 全局重置 ── */
+  *, *::before, *::after { box-sizing: border-box; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+
+  /* ── 患者队列抽屉 ── */
+  #queue-drawer { transition: transform 0.25s ease; }
+  .queue-item { border-left: 3px solid transparent; transition: all 0.15s; }
+  .queue-item:hover { background: #f0f4ff; border-left-color: #4f6ef7; }
+  .queue-item.active { background: #eef1ff; border-left-color: #4f6ef7; }
+
+  /* ── 工作站三栏 ── */
+  #workstation { display: none; }
+  .panel-left  { width: 280px; min-width: 260px; flex-shrink: 0; }
+  .panel-mid   { flex: 1; min-width: 0; }
+  .panel-right { width: 300px; min-width: 280px; flex-shrink: 0; }
+
+  /* ── 区块标签 ── */
+  .emr-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 10px; border-radius: 4px; font-size: 12px; font-weight: 600;
+  }
+  .badge-blue   { background: #2563eb; color: #fff; }
+  .badge-purple { background: #7c3aed; color: #fff; }
+  .badge-green  { background: #059669; color: #fff; }
+  .badge-gray   { background: #6b7280; color: #fff; }
+  .badge-orange { background: #d97706; color: #fff; }
+
+  /* ── 电子病历区块 ── */
+  .emr-section { border-bottom: 1px solid #e5e7eb; }
+  .emr-section-header { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: #fafafa; }
+  .emr-section-body { padding: 10px 16px; min-height: 60px; }
+  .emr-section-body textarea {
+    width: 100%; border: none; outline: none; resize: none;
+    font-size: 13px; line-height: 1.7; background: transparent; color: #374151;
+    font-family: inherit;
+  }
+
+  /* ── 处方列表 ── */
+  .rx-row { display: grid; grid-template-columns: 1fr 52px 40px 40px 40px 44px 50px; gap: 0; font-size: 12px; align-items: center; }
+  .rx-row > * { padding: 6px 4px; border-right: 1px solid #f3f4f6; }
+  .rx-row > *:last-child { border-right: none; }
+
+  /* ── 诊断标签 ── */
+  .diag-tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500;
+    border: 1px solid; cursor: default;
+  }
+  .diag-tag.primary { background: #dbeafe; color: #1d4ed8; border-color: #93c5fd; }
+  .diag-tag.secondary { background: #f3f4f6; color: #374151; border-color: #d1d5db; }
+  .diag-tag-main { background: #fef3c7; color: #92400e; font-size: 10px; padding: 1px 5px; border-radius: 3px; }
+
+  /* ── 质控条目 ── */
+  .qc-item { display: flex; align-items: flex-start; gap: 8px; padding: 7px 0; border-bottom: 1px solid #f3f4f6; font-size: 12px; }
+
+  /* ── 右侧历史 ── */
+  .hist-item { padding: 10px 0; border-bottom: 1px solid #f3f4f6; }
+  .section-collapse { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; cursor: pointer; }
+
+  /* ── 药品候选行 ── */
+  .drug-cand { display: flex; align-items: flex-start; gap-6px; padding: 8px 0; border-bottom: 1px solid #f9fafb; font-size: 12px; }
+
+  /* ── 滚动条 ── */
+  .scroll-y { overflow-y: auto; }
+  .scroll-y::-webkit-scrollbar { width: 4px; }
+  .scroll-y::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+</style>
+
+<!-- ═══════════════════════════════════════════════════════════
+     患者队列选择界面（初始状态）
+════════════════════════════════════════════════════════════ -->
+<div id="queue-view" style="height:calc(100vh - 56px); display:flex; flex-direction:column;">
+  <!-- 队列工具栏 -->
+  <div style="background:#fff; border-bottom:1px solid #e5e7eb; padding:10px 16px; display:flex; align-items:center; gap:10px; flex-shrink:0;">
+    <span style="font-size:13px; color:#6b7280;">今日门诊队列</span>
+    <span id="queue-count" style="background:#eff6ff; color:#3b82f6; font-size:12px; padding:1px 8px; border-radius:20px; font-weight:600;">0 人</span>
+    <div style="flex:1;"></div>
+    <input id="queue-search" type="text" placeholder="搜索患者姓名 / 手机号"
+      style="width:220px; padding:6px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; outline:none;"
+      oninput="filterQueue(this.value)">
+    <button onclick="loadPatients()" style="padding:6px 14px; background:#f3f4f6; border:none; border-radius:6px; font-size:13px; cursor:pointer; color:#374151;">刷新</button>
+  </div>
+
+  <!-- 表头 -->
+  <div style="background:#f9fafb; border-bottom:1px solid #e5e7eb; padding:8px 16px; display:grid; grid-template-columns:32px 1fr 80px 120px 100px 80px 80px; gap:8px; font-size:12px; color:#9ca3af; font-weight:500; flex-shrink:0;">
+    <div></div>
+    <div>患者姓名</div>
+    <div>性别/年龄</div>
+    <div>手机号</div>
+    <div>档案类型</div>
+    <div>过敏史</div>
+    <div>操作</div>
+  </div>
+
+  <!-- 队列列表 -->
+  <div id="queue-list" class="scroll-y" style="flex:1;">
+    <div style="padding:60px 0; text-align:center; color:#9ca3af; font-size:14px;">加载中...</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     接诊工作站（三栏布局）
+════════════════════════════════════════════════════════════ -->
+<div id="workstation" style="height:calc(100vh - 56px); display:none; flex-direction:column;">
+
+  <!-- 患者信息条 -->
+  <div style="background:#1e2d5a; color:#fff; padding:6px 16px; display:flex; align-items:center; gap:12px; flex-shrink:0; font-size:13px; flex-wrap:wrap; position:relative; z-index:50;">
+
+    <!-- 患者队列 hover 触发区 -->
+    <div id="queue-trigger" style="position:relative;"
+         onmouseenter="showQueuePanel()" onmouseleave="hideQueuePanelDelayed()">
+      <!-- 图标按钮 -->
+      <button style="background:rgba(255,255,255,0.12); border:none; color:#fff; width:32px; height:32px;
+                     border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+                     transition:background 0.15s;"
+              onmouseover="this.style.background='rgba(255,255,255,0.22)'"
+              onmouseout="this.style.background='rgba(255,255,255,0.12)'"
+              title="患者队列">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+        </svg>
+      </button>
+
+      <!-- 患者队列悬浮面板 -->
+      <div id="queue-panel" onmouseenter="cancelHidePanel()" onmouseleave="hideQueuePanelDelayed()"
+           style="display:none; position:absolute; top:calc(100% + 8px); left:0;
+                  width:300px; background:#fff; border-radius:12px;
+                  box-shadow:0 8px 32px rgba(0,0,0,0.18); border:1px solid #e5e7eb;
+                  overflow:hidden; z-index:200;">
+        <!-- 面板标题 -->
+        <div style="padding:10px 14px; background:#f8faff; border-bottom:1px solid #e5e7eb;
+                    display:flex; align-items:center; justify-content:space-between;">
+          <span style="font-size:13px; font-weight:600; color:#1e2d5a;">今日患者队列</span>
+          <span id="panel-count" style="font-size:11px; color:#6b7280; background:#e5e7eb;
+                 padding:1px 7px; border-radius:10px;">0 人</span>
+        </div>
+        <!-- 搜索 -->
+        <div style="padding:8px 10px; border-bottom:1px solid #f3f4f6;">
+          <input id="panel-search" type="text" placeholder="搜索患者..."
+                 oninput="filterPanelList(this.value)"
+                 style="width:100%; padding:5px 10px; border:1px solid #e5e7eb; border-radius:6px;
+                        font-size:12px; outline:none; font-family:inherit; color:#374151;">
+        </div>
+        <!-- 患者列表 -->
+        <div id="panel-patient-list" style="max-height:320px; overflow-y:auto;">
+          <div style="padding:20px; text-align:center; color:#9ca3af; font-size:12px;">加载中...</div>
+        </div>
+      </div>
+    </div>
+
+    <button onclick="startVisit()" style="background:#16a34a; border:none; color:#fff; padding:5px 14px; border-radius:5px; font-size:13px; font-weight:600; cursor:pointer;">● 开始接诊</button>
+    <div style="width:1px; height:20px; background:rgba(255,255,255,0.2);"></div>
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+    <span id="ws-name" style="font-weight:600;"></span>
+    <span id="ws-age-gender" style="color:#93c5fd;"></span>
+    <div style="width:1px; height:16px; background:rgba(255,255,255,0.2);"></div>
+    <span style="color:#94a3b8; font-size:12px;">门诊病历号：</span><span id="ws-mrn" style="font-family:monospace;"></span>
+    <span style="color:#94a3b8; font-size:12px;">费别：</span><span style="background:#15803d; color:#fff; padding:1px 8px; border-radius:3px; font-size:11px;">自费</span>
+    <span style="color:#94a3b8; font-size:12px;">挂号科目：</span><span id="ws-dept">中医科</span>
+    <div id="ws-allergy-bar" style="display:none; background:#fef2f2; border:1px solid #fca5a5; color:#dc2626; padding:2px 10px; border-radius:4px; font-size:12px; align-items:center; gap:4px;">
+      ⚠ 过敏信息：<span id="ws-allergy"></span>
+    </div>
+    <div style="flex:1;"></div>
+    <span style="color:#94a3b8; font-size:12px;">身份证：</span><span id="ws-idnum" style="font-family:monospace; font-size:12px;"></span>
+  </div>
+
+  <!-- 三栏主体 -->
+  <div style="flex:1; display:flex; overflow:hidden; gap:1px; background:#e5e7eb;">
+
+    <!-- ── 左栏：门诊医嘱 ── -->
+    <div class="panel-left scroll-y" style="background:#fff; display:flex; flex-direction:column;">
+      <!-- 左栏标题 -->
+      <div style="padding:8px 12px; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
+        <div style="display:flex; gap:12px;">
+          <span style="font-size:13px; font-weight:600; color:#374151; border-bottom:2px solid #3b82f6; padding-bottom:4px;">门诊</span>
+          <span style="font-size:13px; color:#9ca3af; cursor:pointer;">医嘱</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px; font-size:12px;">
+          <span style="color:#6b7280;">4个处方，</span>
+          <span>合计：</span>
+        </div>
+      </div>
+      <div style="padding:6px 12px; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; gap:6px; flex-shrink:0;">
+        <span style="font-size:16px; font-weight:700; color:#dc2626;">¥123.45</span>
+        <div style="flex:1;"></div>
+        <button style="padding:3px 8px; border:1px solid #d1d5db; border-radius:4px; background:#fff; font-size:12px; cursor:pointer; color:#374151;">🖨 打印</button>
+        <button style="padding:3px 8px; border:1px solid #d1d5db; border-radius:4px; background:#fff; font-size:12px; cursor:pointer; color:#374151;">☑ 全选</button>
+        <button style="padding:3px 10px; border:none; border-radius:4px; background:#3b82f6; font-size:12px; cursor:pointer; color:#fff; font-weight:500;">↑ 提交医嘱(1)</button>
+      </div>
+
+      <!-- 处方表头 -->
+      <div class="rx-row" style="background:#f9fafb; font-size:11px; color:#9ca3af; font-weight:500; border-bottom:1px solid #e5e7eb; flex-shrink:0;">
+        <div style="padding:5px 8px;">药品/项目<br>目名称</div>
+        <div style="text-align:center;">剂量</div>
+        <div style="text-align:center;">途径</div>
+        <div style="text-align:center;">频次</div>
+        <div style="text-align:center;">天数</div>
+        <div style="text-align:center;">数量</div>
+        <div style="text-align:right;">金额</div>
+      </div>
+
+      <!-- 处方明细 -->
+      <div class="scroll-y" style="flex:1; min-height:0;">
+        <div id="rx-list">
+          <!-- 药品行由 JS 渲染 -->
+        </div>
+
+        <!-- 搜索栏 -->
+        <div style="padding:8px 12px; border-top:1px solid #e5e7eb; position:sticky; bottom:0; background:#fff;">
+          <div style="display:flex; align-items:center; border:1px solid #d1d5db; border-radius:6px; padding:5px 10px; gap:6px;">
+            <svg width="13" height="13" fill="none" stroke="#9ca3af" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input placeholder="搜索..." style="border:none; outline:none; font-size:13px; flex:1; color:#374151;" />
+            <span style="font-size:11px; color:#9ca3af; background:#f3f4f6; padding:1px 5px; border-radius:3px;">ctrl K</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 药品分类 Tabs -->
+      <div style="border-top:1px solid #e5e7eb; flex-shrink:0;">
+        <div style="display:flex; gap:0; overflow-x:auto; border-bottom:1px solid #e5e7eb;">
+          <button class="drug-tab active" onclick="switchDrugTab(this,'common')" style="padding:7px 10px; font-size:12px; white-space:nowrap; border:none; background:none; cursor:pointer; border-bottom:2px solid #3b82f6; color:#3b82f6; font-weight:600;">科室常用</button>
+          <button class="drug-tab" onclick="switchDrugTab(this,'ai')" style="padding:7px 10px; font-size:12px; white-space:nowrap; border:none; background:none; cursor:pointer; border-bottom:2px solid transparent; color:#6b7280;">✦ AI</button>
+          <button class="drug-tab" onclick="switchDrugTab(this,'doctor')" style="padding:7px 10px; font-size:12px; white-space:nowrap; border:none; background:none; cursor:pointer; border-bottom:2px solid transparent; color:#6b7280;">医生指定</button>
+          <button class="drug-tab" onclick="switchDrugTab(this,'plan1')" style="padding:7px 10px; font-size:12px; white-space:nowrap; border:none; background:none; cursor:pointer; border-bottom:2px solid transparent; color:#6b7280;">推荐方案1</button>
+          <button class="drug-tab" onclick="switchDrugTab(this,'plan2')" style="padding:7px 10px; font-size:12px; white-space:nowrap; border:none; background:none; cursor:pointer; border-bottom:2px solid transparent; color:#6b7280;">推荐方案2</button>
+        </div>
+        <div style="padding:8px 12px; display:flex; align-items:center; justify-content:space-between;">
+          <span style="font-size:12px; color:#6b7280;">☐ 全选　合计：<strong style="color:#dc2626;">¥405</strong></span>
+          <button style="padding:4px 12px; background:#3b82f6; color:#fff; border:none; border-radius:5px; font-size:12px; cursor:pointer; font-weight:500;">+ 添加</button>
+        </div>
+        <div id="drug-candidates" class="scroll-y" style="max-height:220px; padding:0 12px 8px;">
+          <!-- 候选药品 -->
+        </div>
+      </div>
+
+      <!-- 底部审核区 -->
+      <div style="border-top:1px solid #e5e7eb; padding:8px 12px; flex-shrink:0;">
+        <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+          <span style="font-size:12px;">✦ 智能审方</span>
+          <span style="background:#fef3c7; color:#92400e; font-size:11px; padding:1px 6px; border-radius:3px; font-weight:500;">2个问题</span>
+          <div style="flex:1;"></div>
+          <button style="font-size:11px; color:#6b7280; background:none; border:none; cursor:pointer;">一键修复 ▼</button>
+        </div>
+        <div style="font-size:11px; color:#d97706; margin-bottom:3px;">○ 阿莫西林：药效与病情不一致</div>
+        <div style="font-size:11px; color:#d97706; margin-bottom:6px;">○ 奥美拉唑肠溶片：与病情不一致</div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-size:12px;">医保合规</span>
+          <span style="background:#dcfce7; color:#166534; font-size:11px; padding:1px 6px; border-radius:3px;">1个问题</span>
+          <span style="margin-left:auto; background:#f0fdf4; color:#16a34a; font-size:11px; padding:1px 6px; border-radius:3px;">✓ 通过</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 中栏：电子病历 ── -->
+    <div class="panel-mid scroll-y" style="background:#fff; display:flex; flex-direction:column;">
+      <!-- 标题栏 -->
+      <div style="padding:10px 16px; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; gap:8px; flex-shrink:0; background:#fff; position:sticky; top:0; z-index:10;">
+        <svg width="16" height="16" fill="none" stroke="#f59e0b" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+        <span style="font-size:14px; font-weight:600; color:#111827;">电子病历</span>
+        <svg width="14" height="14" fill="none" stroke="#f59e0b" stroke-width="2" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        <div style="flex:1;"></div>
+        <button style="display:flex; align-items:center; gap:4px; font-size:12px; color:#6b7280; background:none; border:1px solid #e5e7eb; border-radius:5px; padding:4px 10px; cursor:pointer;">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+          同步
+        </button>
+      </div>
+
+      <!-- 主诉 -->
+      <div class="emr-section">
+        <div class="emr-section-header">
+          <span class="emr-badge badge-blue">主诉</span>
+          <span style="font-size:13px; color:#374151;">主诉</span>
+        </div>
+        <div class="emr-section-body">
+          <textarea id="emr-chief" rows="2" placeholder="主要症状：症状，持续时间持续时间" style="color:#374151;"></textarea>
+        </div>
+      </div>
+
+      <!-- 专科查体 -->
+      <div class="emr-section">
+        <div class="emr-section-header">
+          <span class="emr-badge badge-purple">专科</span>
+          <span style="font-size:13px; color:#374151;">专科查体</span>
+        </div>
+        <div class="emr-section-body">
+          <textarea id="emr-specialty" rows="2" placeholder="暂无" style="color:#9ca3af;"></textarea>
+        </div>
+      </div>
+
+      <!-- 既往史 -->
+      <div class="emr-section">
+        <div class="emr-section-header">
+          <span class="emr-badge badge-green">既往史</span>
+          <span style="font-size:13px; color:#374151;">既往史</span>
+        </div>
+        <div class="emr-section-body">
+          <textarea id="emr-history" rows="4" placeholder="暂无既往史记录"></textarea>
+          <div style="text-align:right; margin-top:4px;">
+            <button style="font-size:11px; color:#3b82f6; background:none; border:none; cursor:pointer;">推理数据采源</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 一般情况 -->
+      <div class="emr-section">
+        <div class="emr-section-header">
+          <span class="emr-badge badge-gray">一般</span>
+          <span style="font-size:13px; color:#374151;">一般情况</span>
+        </div>
+        <div class="emr-section-body" style="display:flex; gap:16px; flex-wrap:wrap;">
+          <span style="font-size:13px; color:#374151;">姓名：<strong id="emr-name"></strong></span>
+          <span style="font-size:13px; color:#374151;">性别<span id="emr-gender"></span></span>
+          <span style="font-size:13px; color:#374151;">年龄<span id="emr-age"></span></span>
+        </div>
+      </div>
+
+      <!-- 诊断 -->
+      <div class="emr-section">
+        <div class="emr-section-header">
+          <span class="emr-badge badge-orange">诊断</span>
+          <span style="font-size:13px; color:#374151;">初步诊断</span>
+        </div>
+        <div class="emr-section-body">
+          <div id="diag-tags" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+            <!-- 诊断标签 -->
+          </div>
+          <!-- 快捷键提示栏 -->
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;">
+            <span style="font-size:11px; background:#e0e7ff; color:#4338ca; padding:2px 7px; border-radius:3px;">tab + ↑/↓</span>
+            <span style="font-size:11px; color:#9ca3af;">切换到候区</span>
+            <span style="font-size:11px; background:#e0e7ff; color:#4338ca; padding:2px 7px; border-radius:3px;">ctrl + ↑/↓</span>
+            <span style="font-size:11px; color:#9ca3af;">顺序切换</span>
+            <span style="font-size:11px; background:#e0e7ff; color:#4338ca; padding:2px 7px; border-radius:3px;">ctrl + shift + ↑/↓</span>
+            <span style="font-size:11px; color:#9ca3af;">病历切换</span>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button style="padding:4px 12px; border:1px solid #d1d5db; border-radius:5px; font-size:12px; background:#fff; cursor:pointer; color:#374151;">疾病通用(复诊)模板 ▾</button>
+            <button style="padding:4px 12px; border:1px solid #d1d5db; border-radius:5px; font-size:12px; background:#fff; cursor:pointer; color:#374151;">智能辅助 ▾</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 病历质控 -->
+      <div class="emr-section" style="border-bottom:none;">
+        <div class="emr-section-header" style="justify-content:space-between;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:13px; font-weight:500; color:#374151;">病历质控助手</span>
+            <svg width="14" height="14" fill="none" stroke="#f59e0b" stroke-width="2" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            <span style="background:#fef3c7; color:#92400e; font-size:11px; padding:1px 7px; border-radius:10px; font-weight:600;">4个问题</span>
+          </div>
+          <button style="font-size:12px; color:#3b82f6; background:none; border:none; cursor:pointer;">一键修复 ▾</button>
+        </div>
+        <div class="emr-section-body" style="padding-top:0;">
+          <div class="qc-item">
+            <span style="color:#f59e0b; font-size:14px; margin-top:1px;">○</span>
+            <div>诊断：诊断术语不规范，请使用标准医学术语</div>
+            <button style="margin-left:auto; font-size:11px; color:#3b82f6; background:none; border:none; cursor:pointer; white-space:nowrap;">修复</button>
+          </div>
+          <div class="qc-item">
+            <span style="color:#f59e0b; font-size:14px; margin-top:1px;">○</span>
+            <div>主诉：缺少时间、性质等详细描述，信息不完整</div>
+            <button style="margin-left:auto; font-size:11px; color:#3b82f6; background:none; border:none; cursor:pointer; white-space:nowrap;">修复</button>
+          </div>
+          <div class="qc-item">
+            <span style="color:#6b7280; font-size:14px; margin-top:1px;">○</span>
+            <div>诊断：诊断术语不规范，请使用标准医学术语</div>
+            <button style="margin-left:auto; font-size:11px; color:#3b82f6; background:none; border:none; cursor:pointer; white-space:nowrap;">修复</button>
+          </div>
+          <div class="qc-item" style="border-bottom:none;">
+            <span style="color:#16a34a; font-size:14px; margin-top:1px;">✓</span>
+            <div style="color:#9ca3af;">诊断：诊断术语不规范，请使用标准医学术语</div>
+            <span style="margin-left:auto; font-size:11px; color:#16a34a; white-space:nowrap;">已修复</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 右栏：诊疗助手 ── -->
+    <div class="panel-right scroll-y" style="background:#fff; display:flex; flex-direction:column;">
+      <!-- 标题 -->
+      <div style="padding:10px 14px; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; gap:6px; flex-shrink:0; background:#fff; position:sticky; top:0; z-index:10;">
+        <span style="font-size:14px; font-weight:600; color:#111827;">诊疗助手</span>
+        <svg width="14" height="14" fill="none" stroke="#f59e0b" stroke-width="2" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        <div style="flex:1;"></div>
+        <button style="background:none; border:none; cursor:pointer; color:#9ca3af;">⊞</button>
+      </div>
+
+      <!-- 标签页 -->
+      <div style="display:flex; border-bottom:1px solid #e5e7eb; overflow-x:auto; flex-shrink:0;">
+        <button class="hist-tab active" onclick="switchHistTab(this,'hist')" style="padding:7px 10px; font-size:12px; border:none; background:none; cursor:pointer; color:#3b82f6; border-bottom:2px solid #3b82f6; font-weight:500; white-space:nowrap;">历史就诊
+          <span style="background:#fee2e2; color:#dc2626; font-size:10px; padding:1px 5px; border-radius:3px; margin-left:3px;">有互认</span>
+        </button>
+        <button class="hist-tab" onclick="switchHistTab(this,'diag')" style="padding:7px 10px; font-size:12px; border:none; background:none; cursor:pointer; color:#6b7280; border-bottom:2px solid transparent; white-space:nowrap;">诊断推荐</button>
+        <button class="hist-tab" onclick="switchHistTab(this,'pre')" style="padding:7px 10px; font-size:12px; border:none; background:none; cursor:pointer; color:#6b7280; border-bottom:2px solid transparent; white-space:nowrap;">诊前史</button>
+        <button class="hist-tab" onclick="switchHistTab(this,'ana')" style="padding:7px 10px; font-size:12px; border:none; background:none; cursor:pointer; color:#6b7280; border-bottom:2px solid transparent; white-space:nowrap;">既往情况分析</button>
+      </div>
+
+      <!-- 历史就诊内容 -->
+      <div id="tab-hist" style="flex:1; padding:12px 14px;">
+        <!-- 子标签 -->
+        <div style="display:flex; gap:4px; margin-bottom:12px;">
+          <button style="padding:4px 12px; border:1px solid #d1d5db; border-radius:5px; font-size:12px; background:#eff6ff; color:#3b82f6; cursor:pointer; font-weight:500;">病历</button>
+          <button style="padding:4px 12px; border:1px solid #d1d5db; border-radius:5px; font-size:12px; background:#fff; color:#374151; cursor:pointer;">医嘱</button>
+          <button style="padding:4px 12px; border:1px solid #d1d5db; border-radius:5px; font-size:12px; background:#fff; color:#374151; cursor:pointer;">检验</button>
+        </div>
+
+        <!-- 历史就诊列表 -->
+        <div class="section-collapse" onclick="toggleSection('hist-records')">
+          <span style="font-size:13px; font-weight:600; color:#111827;">历史就诊</span>
+          <svg width="14" height="14" fill="none" stroke="#9ca3af" stroke-width="2" viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6"/></svg>
+        </div>
+        <div id="hist-records">
+          <div id="hist-visit-list">
+            <div style="font-size:12px; color:#9ca3af; text-align:center; padding:16px 0;">加载历史就诊中...</div>
+          </div>
+        </div>
+
+        <!-- 历史就诊摘要 -->
+        <div class="section-collapse" onclick="toggleSection('hist-summary')" style="margin-top:8px;">
+          <span style="font-size:13px; font-weight:600; color:#111827;">历史就诊摘要</span>
+          <svg width="14" height="14" fill="none" stroke="#9ca3af" stroke-width="2" viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6"/></svg>
+        </div>
+        <div id="hist-summary" style="font-size:12px; line-height:1.8; color:#374151; padding:4px 0;">
+          <span id="hist-summary-text" style="color:#9ca3af;">加载中...</span>
+        </div>
+
+        <!-- 既往情况分析 -->
+        <div class="section-collapse" onclick="toggleSection('hist-analysis')" style="margin-top:8px;">
+          <span style="font-size:13px; font-weight:600; color:#111827;">既往情况分析</span>
+          <svg width="14" height="14" fill="none" stroke="#9ca3af" stroke-width="2" viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6"/></svg>
+        </div>
+        <div id="hist-analysis" style="padding:4px 0;">
+          <div id="hist-disease-tags" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;"></div>
+          <div style="font-size:12px; font-weight:500; color:#374151; margin-bottom:6px;">1. 关键指标变化</div>
+          <div style="background:#f9fafb; border-radius:6px; padding:10px; font-size:11px; color:#9ca3af; text-align:center;">暂无指标数据</div>
+        </div>
+      </div>
+
+      <!-- 其他 Tab 占位 -->
+      <div id="tab-diag" style="display:none; padding:16px; color:#9ca3af; font-size:13px; text-align:center;">诊断推荐功能开发中</div>
+      <div id="tab-pre" style="display:none; padding:16px; color:#9ca3af; font-size:13px; text-align:center;">诊前史功能开发中</div>
+      <div id="tab-ana" style="display:none; padding:16px; color:#9ca3af; font-size:13px; text-align:center;">既往情况分析功能开发中</div>
+    </div>
+
+  </div><!-- 三栏结束 -->
+</div><!-- 工作站结束 -->
+
+
+<!-- 患者队列选择 Modal -->
+<div id="queue-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:100; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:12px; width:680px; max-height:80vh; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <div style="padding:16px 20px; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; justify-content:space-between;">
+      <span style="font-size:15px; font-weight:600; color:#111827;">选择患者</span>
+      <button onclick="closeModal()" style="background:none; border:none; font-size:20px; color:#9ca3af; cursor:pointer;">×</button>
+    </div>
+    <div style="padding:12px 20px; border-bottom:1px solid #e5e7eb;">
+      <input id="modal-search" type="text" placeholder="搜索患者姓名 / 手机号"
+        style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; outline:none;"
+        oninput="filterQueue(this.value)">
+    </div>
+    <div id="modal-queue-list" class="scroll-y" style="flex:1;"></div>
+  </div>
+</div>
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+/* ═══════════════════ 数据 & 状态 ═══════════════════ */
+let allPatients = [];
+let currentPatient = null;
+
+const DEMO_RX = [
+  { name: '铝碳酸镁咀嚼片\n[0.5g*20片/盒]', dose: '20mg', route: '口服', freq: 'tid', days: 7, qty: '2 盒', price: 17, checked: true },
+  { name: '铝碳酸镁咀嚼片\n[0.5g*20片/盒]', dose: '20mg', route: '口服', freq: 'tid', days: 7, qty: '2 盒', price: 17, checked: true },
+  { name: '铝碳酸镁咀嚼片\n[0.5g*20片/盒]', dose: '20mg', route: '口服', freq: 'tid', days: 7, qty: '2 盒', price: 17, checked: false },
+];
+
+const DEMO_DRUGS = [
+  { name: '金叶败毒颗粒-[10g*8袋/盒]', spec: '10mg | 口服 | tid | 14天 | 2', price: 30, stock: 900, type: '甲', checked: true },
+  { name: '金叶败毒颗粒-[10g*8袋/盒]', spec: '10mg | 口服 | tid | 14天 | 2', price: 30, stock: 900, type: '甲', checked: true },
+  { name: '金叶败毒颗粒-[10g*8袋/盒]', spec: '10mg | 口服 | tid | 14天 | 2', price: 30, stock: 900, type: '甲', checked: true },
+];
+
+/* ═══════════════════ 初始化 ═══════════════════ */
+(async function init() {
+  renderRxList();
+  renderDrugCandidates();
+  await loadPatients();
+  // 检查 hash 里是否有已选患者
+  const hashId = getHashPatientId();
+  if (hashId) {
+    const p = allPatients.find(x => x.id === hashId);
+    if (p) enterWorkstation(p);
+  }
+})();
+
+function getHashPatientId() {
+  const hash = window.location.hash.replace(/^#\/?/, '');
+  const params = new URLSearchParams(hash);
+  return params.get('patient_id') || null;
+}
+
+/* ═══════════════════ 患者加载 ═══════════════════ */
+async function loadPatients() {
+  try {
+    const r = await fetch('/tools/archive/archives?page=1&page_size=100');
+    const j = await r.json();
+    if (j.success) {
+      allPatients = j.data.items || [];
+      document.getElementById('queue-count').textContent = allPatients.length + ' 人';
+      renderQueueList(allPatients);
+    }
+  } catch (e) {
+    document.getElementById('queue-list').innerHTML = '<div style="padding:40px;text-align:center;color:#ef4444;">加载失败，请刷新重试</div>';
+  }
+}
+
+function calcAge(birthDate) {
+  if (!birthDate) return '-';
+  return new Date().getFullYear() - new Date(birthDate).getFullYear() + '岁';
+}
+
+function archiveTypeLabel(t) {
+  const m = { ELDERLY:'老年档案', FEMALE:'女性档案', CHILD:'儿童档案', KEY_FOCUS:'重点人群', NORMAL:'普通档案' };
+  return m[t] || t || '普通档案';
+}
+
+function renderQueueList(patients) {
+  const colors = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#ef4444'];
+  const html = patients.length ? patients.map((p, i) => {
+    const age = calcAge(p.birth_date);
+    const gender = p.gender === 'MALE' ? '男' : p.gender === 'FEMALE' ? '女' : '-';
+    const hasAllergy = p.allergy_history && p.allergy_history !== '无' && p.allergy_history !== '';
+    const color = colors[i % colors.length];
+    return `
+    <div class="queue-item" onclick="selectFromQueue('${p.id}')"
+      style="display:grid; grid-template-columns:32px 1fr 80px 120px 100px 80px 80px; gap:8px;
+             padding:10px 16px; border-bottom:1px solid #f3f4f6; cursor:pointer; align-items:center;">
+      <div style="width:28px;height:28px;border-radius:50%;background:${color}20;color:${color};
+                  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">
+        ${p.name ? p.name[0] : '?'}
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:#111827;">${p.name || '未知'}</div>
+        <div style="font-size:11px;color:#9ca3af;">${p.id?.substring(0,8) || ''}</div>
+      </div>
+      <div style="font-size:13px;color:#374151;">${gender} / ${age}</div>
+      <div style="font-size:13px;color:#374151;">${p.phone || '-'}</div>
+      <div style="font-size:12px;color:#6b7280;">${archiveTypeLabel(p.archive_type)}</div>
+      <div style="font-size:12px;color:${hasAllergy?'#dc2626':'#9ca3af'};">
+        ${hasAllergy ? '⚠ 有' : '无'}
+      </div>
+      <div>
+        <button onclick="event.stopPropagation();selectFromQueue('${p.id}')"
+          style="padding:4px 12px;background:#3b82f6;color:#fff;border:none;border-radius:5px;font-size:12px;cursor:pointer;font-weight:500;">
+          接诊
+        </button>
+      </div>
+    </div>`;
+  }).join('') : '<div style="padding:60px;text-align:center;color:#9ca3af;">暂无患者数据</div>';
+  document.getElementById('queue-list').innerHTML = html;
+}
+
+function filterQueue(q) {
+  const kw = q.toLowerCase();
+  const filtered = kw ? allPatients.filter(p =>
+    (p.name && p.name.includes(kw)) || (p.phone && p.phone.includes(kw))
+  ) : allPatients;
+  renderQueueList(filtered);
+}
+
+/* ═══════════════════ 进入工作站 ═══════════════════ */
+function selectFromQueue(id) {
+  const p = allPatients.find(x => x.id === id);
+  if (!p) return;
+  enterWorkstation(p);
+}
+
+function enterWorkstation(p) {
+  currentPatient = p;
+
+  // 更新 hash 触发插件识别（穿透 content script 沙箱）
+  location.hash = `patient_id=${p.id}`;
+  // 立即通过 postMessage 强制展开插件（穿透 isolated world，绕过 debounce）
+  window.postMessage({ __tcm: true, type: 'patient-select', patientId: p.id }, '*');
+
+  // 切换视图
+  document.getElementById('queue-view').style.display = 'none';
+  document.getElementById('workstation').style.display = 'flex';
+  document.getElementById('workstation').style.flexDirection = 'column';
+
+  // 填充患者信息条
+  const age = calcAge(p.birth_date);
+  const gender = p.gender === 'MALE' ? '男' : p.gender === 'FEMALE' ? '女' : '';
+  document.getElementById('ws-name').textContent = p.name || '未知';
+  document.getElementById('ws-age-gender').textContent = `${age} ${gender}`;
+  document.getElementById('ws-mrn').textContent = p.id?.substring(0, 12).toUpperCase() || '-';
+  document.getElementById('ws-idnum').textContent = p.id_number || '无';
+
+  if (p.allergy_history && p.allergy_history !== '无' && p.allergy_history !== '') {
+    const bar = document.getElementById('ws-allergy-bar');
+    bar.style.display = 'flex';
+    document.getElementById('ws-allergy').textContent = p.allergy_history;
+  }
+
+  // 填充病历
+  document.getElementById('emr-name').textContent = p.name || '-';
+  document.getElementById('emr-gender').textContent = gender ? ' ' + gender : '';
+  document.getElementById('emr-age').textContent = age !== '-' ? ' ' + age : '';
+  document.getElementById('emr-history').value = p.past_history || '';
+
+  // 诊断标签（从 tags 或 past_history 中推断）
+  renderDiagTags(p);
+
+  // 右侧：历史就诊 & 分析
+  loadHistoryData(p);
+}
+
+function backToQueue() {
+  location.hash = '';
+  document.getElementById('workstation').style.display = 'none';
+  document.getElementById('queue-view').style.display = 'flex';
+  currentPatient = null;
+}
+
+/* ─── 队列悬浮面板 ─── */
+let panelHideTimer = null;
+
+function showQueuePanel() {
+  cancelHidePanel();
+  renderPanelList(allPatients);
+  document.getElementById('panel-count').textContent = allPatients.length + ' 人';
+  document.getElementById('queue-panel').style.display = 'block';
+}
+
+function hideQueuePanelDelayed() {
+  panelHideTimer = setTimeout(() => {
+    document.getElementById('queue-panel').style.display = 'none';
+    document.getElementById('panel-search').value = '';
+  }, 200);
+}
+
+function cancelHidePanel() {
+  if (panelHideTimer) { clearTimeout(panelHideTimer); panelHideTimer = null; }
+}
+
+function filterPanelList(q) {
+  const kw = q.toLowerCase();
+  const filtered = kw ? allPatients.filter(p =>
+    (p.name && p.name.includes(kw)) || (p.phone && p.phone.includes(kw))
+  ) : allPatients;
+  renderPanelList(filtered);
+}
+
+function renderPanelList(patients) {
+  const el = document.getElementById('panel-patient-list');
+  if (!patients.length) {
+    el.innerHTML = '<div style="padding:16px;text-align:center;color:#9ca3af;font-size:12px;">无匹配患者</div>';
+    return;
+  }
+  const colors = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899'];
+  el.innerHTML = patients.map((p, i) => {
+    const age = calcAge(p.birth_date);
+    const gender = p.gender === 'MALE' ? '男' : p.gender === 'FEMALE' ? '女' : '';
+    const isActive = currentPatient && currentPatient.id === p.id;
+    const color = colors[i % colors.length];
+    return `
+    <div onclick="switchPatientFromPanel('${p.id}')"
+         style="display:flex; align-items:center; gap:10px; padding:9px 14px; cursor:pointer;
+                background:${isActive ? '#eff6ff' : '#fff'};
+                border-left:3px solid ${isActive ? '#3b82f6' : 'transparent'};
+                transition:all 0.15s;"
+         onmouseover="if(!${isActive})this.style.background='#f8faff'"
+         onmouseout="if(!${isActive})this.style.background='#fff'">
+      <div style="width:30px;height:30px;border-radius:50%;background:${color}20;color:${color};
+                  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">
+        ${p.name ? p.name[0] : '?'}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:${isActive?'700':'500'};color:${isActive?'#1d4ed8':'#111827'};
+                    display:flex;align-items:center;gap:6px;">
+          ${p.name || '未知'}
+          ${isActive ? '<span style="font-size:10px;background:#3b82f6;color:#fff;padding:1px 5px;border-radius:3px;">当前</span>' : ''}
+        </div>
+        <div style="font-size:11px;color:#9ca3af;">${gender} ${age} · ${p.phone || '无电话'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function switchPatientFromPanel(id) {
+  document.getElementById('queue-panel').style.display = 'none';
+  const p = allPatients.find(x => x.id === id);
+  if (!p) return;
+  // 无论是否同一患者，都立即强制展开插件
+  window.postMessage({ __tcm: true, type: 'patient-select', patientId: p.id }, '*');
+  if (currentPatient && currentPatient.id === id) return; // 同一患者只展开，不重新渲染
+  enterWorkstation(p);
+}
+
+/* ═══════════════════ 诊断标签 ═══════════════════ */
+function renderDiagTags(p) {
+  const tags = p.tags ? (Array.isArray(p.tags) ? p.tags : p.tags.split(',').map(s=>s.trim())) : [];
+  const container = document.getElementById('diag-tags');
+  const diagItems = tags.slice(0, 3).map((t, i) => `
+    <span class="diag-tag ${i===0?'primary':'secondary'}">
+      ${i===0?'<span class="diag-tag-main">主</span>':''}
+      ${t}
+      <span onclick="removeTag(this.parentElement)" style="cursor:pointer; opacity:0.6; font-size:14px; line-height:1;">×</span>
+    </span>`).join('');
+  container.innerHTML = diagItems + `
+    <button onclick="addDiag()" style="padding:3px 10px;border:1px dashed #d1d5db;border-radius:20px;background:none;font-size:12px;cursor:pointer;color:#6b7280;">
+      + 添加诊断
+    </button>`;
+}
+
+function removeTag(el) { el.remove(); }
+function addDiag() { showToast('请在诊断输入框中搜索疾病'); }
+
+/* ═══════════════════ 右侧历史数据 ═══════════════════ */
+async function loadHistoryData(p) {
+  // 历史就诊摘要
+  const summaryParts = [];
+  if (p.past_history) summaryParts.push(p.past_history.substring(0, 80));
+  if (p.family_history) summaryParts.push('家族史：' + p.family_history.substring(0, 40));
+  document.getElementById('hist-summary-text').textContent = summaryParts.join('。') || '暂无历史摘要';
+  document.getElementById('hist-summary-text').style.color = summaryParts.length ? '#374151' : '#9ca3af';
+
+  // 历史就诊 - 从随访/评估记录中模拟
+  try {
+    const r = await fetch(`/tools/scale/records?page=1&page_size=5`);
+    const j = await r.json();
+    const items = j.success ? (j.data.items || []) : [];
+    renderHistVisits(items);
+  } catch(e) {
+    renderHistVisits([]);
+  }
+
+  // 既往疾病标签
+  const diseases = p.tags ? (Array.isArray(p.tags) ? p.tags : p.tags.split(',').map(s=>s.trim())) : [];
+  const tagColors = ['#dbeafe|#1d4ed8', '#fce7f3|#9d174d', '#d1fae5|#065f46', '#fef3c7|#92400e'];
+  document.getElementById('hist-disease-tags').innerHTML = diseases.slice(0,4).map((d,i) => {
+    const [bg, fg] = tagColors[i%tagColors.length].split('|');
+    return `<span style="background:${bg};color:${fg};font-size:12px;padding:3px 10px;border-radius:20px;font-weight:500;">${d}</span>`;
+  }).join('') || '<span style="color:#9ca3af;font-size:12px;">无慢病标签</span>';
+}
+
+function renderHistVisits(items) {
+  if (!items.length) {
+    document.getElementById('hist-visit-list').innerHTML = '<div style="font-size:12px;color:#9ca3af;padding:12px 0;">暂无历史就诊记录</div>';
+    return;
+  }
+  document.getElementById('hist-visit-list').innerHTML = items.slice(0,4).map(r => `
+    <div class="hist-item">
+      <div style="font-size:12px;font-weight:500;color:#111827;">诊断：${r.scale_name || '综合评估'}</div>
+      <div style="font-size:11px;color:#6b7280;margin-top:2px;">
+        医生：${r.doctor_name || '主治医生'}　科室：中医科
+        时间：${r.created_at ? r.created_at.substring(0,10) : '-'}
+      </div>
+    </div>`).join('');
+}
+
+/* ═══════════════════ 处方渲染 ═══════════════════ */
+function renderRxList() {
+  document.getElementById('rx-list').innerHTML = DEMO_RX.map((rx, i) => `
+    <div class="rx-row" style="border-bottom:1px solid #f3f4f6; background:${rx.checked?'#fff':'#fafafa'};">
+      <div style="padding:6px 4px 6px 8px; display:flex; align-items:flex-start; gap:4px;">
+        <input type="checkbox" ${rx.checked?'checked':''} style="margin-top:3px; accent-color:#3b82f6;">
+        <span style="background:#dbeafe;color:#1d4ed8;font-size:10px;padding:1px 4px;border-radius:2px;flex-shrink:0;">西</span>
+        <span style="font-size:11px; color:#374151; line-height:1.4; word-break:break-all;">${rx.name}</span>
+      </div>
+      <div style="text-align:center;font-size:12px;color:#374151;">${rx.dose}</div>
+      <div style="text-align:center;font-size:12px;color:#374151;">${rx.route}</div>
+      <div style="text-align:center;font-size:12px;color:#374151;">${rx.freq}</div>
+      <div style="text-align:center;font-size:12px;color:#374151;">${rx.days}天</div>
+      <div style="text-align:center;font-size:12px;color:#374151;">${rx.qty}</div>
+      <div style="text-align:right;font-size:12px;color:#dc2626;font-weight:500;padding-right:6px;">¥${rx.price}</div>
+    </div>`).join('');
+}
+
+function renderDrugCandidates() {
+  document.getElementById('drug-candidates').innerHTML = DEMO_DRUGS.map(d => `
+    <div style="display:flex;align-items:flex-start;gap:6px;padding:8px 0;border-bottom:1px solid #f9fafb;">
+      <input type="checkbox" ${d.checked?'checked':''} style="margin-top:3px;accent-color:#3b82f6;flex-shrink:0;">
+      <span style="background:#dcfce7;color:#166534;font-size:10px;padding:1px 4px;border-radius:2px;flex-shrink:0;">${d.type}</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;color:#111827;font-weight:500;">${d.name}</div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:2px;">${d.spec}　<strong style="color:#dc2626;">${d.price}元/盒</strong></div>
+        <div style="font-size:11px;color:#9ca3af;">${d.stock.toLocaleString()}瓶</div>
+      </div>
+    </div>`).join('');
+}
+
+/* ═══════════════════ Tab 切换 ═══════════════════ */
+function switchDrugTab(btn, tab) {
+  document.querySelectorAll('.drug-tab').forEach(t => {
+    t.style.color = '#6b7280';
+    t.style.borderBottom = '2px solid transparent';
+    t.style.fontWeight = 'normal';
+  });
+  btn.style.color = '#3b82f6';
+  btn.style.borderBottom = '2px solid #3b82f6';
+  btn.style.fontWeight = '600';
+}
+
+function switchHistTab(btn, tab) {
+  document.querySelectorAll('.hist-tab').forEach(t => {
+    t.style.color = '#6b7280';
+    t.style.borderBottom = '2px solid transparent';
+    t.style.fontWeight = 'normal';
+  });
+  btn.style.color = '#3b82f6';
+  btn.style.borderBottom = '2px solid #3b82f6';
+  btn.style.fontWeight = '500';
+  ['hist','diag','pre','ana'].forEach(id => {
+    const el = document.getElementById('tab-'+id);
+    if (el) el.style.display = id === tab ? 'block' : 'none';
+  });
+}
+
+function toggleSection(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+/* ═══════════════════ 其他操作 ═══════════════════ */
+function startVisit() { showToast('接诊已开始，请填写电子病历'); }
+function closeModal() { document.getElementById('queue-modal').style.display = 'none'; }
+</script>
+{% endblock %}

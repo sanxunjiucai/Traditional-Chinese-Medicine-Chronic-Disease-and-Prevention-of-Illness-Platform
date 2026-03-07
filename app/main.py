@@ -72,7 +72,9 @@ app.include_router(tools_router)
 from app.gui.auth_pages import router as auth_router  # noqa: E402
 from app.gui.h5_pages import router as h5_router  # noqa: E402
 from app.gui.admin_pages import router as admin_router  # noqa: E402
+from app.gui.his_pages import router as his_router  # noqa: E402
 
 app.include_router(auth_router)
 app.include_router(h5_router)
 app.include_router(admin_router)
+app.include_router(his_router)

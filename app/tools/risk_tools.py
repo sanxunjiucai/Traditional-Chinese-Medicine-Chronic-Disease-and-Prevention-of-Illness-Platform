@@ -8,7 +8,9 @@ import uuid
 from datetime import date, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from typing import Optional
+
+from fastapi import APIRouter, Body, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy import and_, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,9 +31,14 @@ router = APIRouter(prefix="/risk", tags=["risk"])
 
 # ── 风险分析 ──────────────────────────────────────────────────────────────────
 
+class AnalyzeWithContextRequest(BaseModel):
+    extra_context: str = ""
+
+
 @router.post("/analyze/{archive_id}")
 async def trigger_risk_analysis(
     archive_id: str,
+    body: Optional[AnalyzeWithContextRequest] = Body(default=None),
     db: Annotated[AsyncSession, Depends(get_db)] = None,
     current_user=Depends(require_role(UserRole.ADMIN, UserRole.PROFESSIONAL)),
 ):
@@ -46,7 +53,8 @@ async def trigger_risk_analysis(
     if not archive:
         return fail("NOT_FOUND", "患者档案不存在", status_code=404)
 
-    result = await analyze_patient_risk(db, aid)
+    extra_context = body.extra_context if body else ""
+    result = await analyze_patient_risk(db, aid, extra_context=extra_context)
     alerts = await auto_scan_and_alert(db, aid)
 
     await log_action(
