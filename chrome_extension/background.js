@@ -401,6 +401,26 @@ const TCM_TOOL_DEFS = [
     name: 'web_search',
     description: '搜索网络获取最新医学资讯、药品说明、临床指南等信息',
     input_schema: { type: 'object', properties: { query: { type: 'string', description: '搜索关键词（中文或专业术语）' } }, required: ['query'] }
+  },
+  {
+    name: 'get_patient_brief',
+    description: '获取患者一键AI摘要：汇聚档案、指标、风险、当前方案，AI生成临床简报和行动建议',
+    input_schema: { type: 'object', properties: { patient_id: { type: 'string', description: '患者档案ID' } }, required: ['patient_id'] }
+  },
+  {
+    name: 'get_plan_delta_suggestion',
+    description: '获取方案变化建议：基于当前方案和近30天指标，AI生成具体调整建议',
+    input_schema: { type: 'object', properties: { plan_id: { type: 'string', description: '方案ID' } }, required: ['plan_id'] }
+  },
+  {
+    name: 'get_followup_focus',
+    description: '获取随访重点：基于依从性和近期预警，AI生成本次随访应重点关注的问题',
+    input_schema: { type: 'object', properties: { patient_id: { type: 'string', description: '患者档案ID' } }, required: ['patient_id'] }
+  },
+  {
+    name: 'get_recall_script',
+    description: '生成召回话术：AI根据患者慢病情况和召回原因，生成个性化电话召回脚本',
+    input_schema: { type: 'object', properties: { patient_id: { type: 'string', description: '患者档案ID' } }, required: ['patient_id'] }
   }
 ];
 
@@ -425,6 +445,10 @@ async function executeTool(toolName, input, serverUrl) {
     case 'get_workbench_pending':  return getWorkbenchPending(serverUrl);
     case 'get_patient_feedback':   return getPatientFeedback(serverUrl, input.patient_id, input.limit || 5);
     case 'web_search':             return agentWebSearch(input.query);
+    case 'get_patient_brief':      return get(serverUrl, `/tools/plugin/patient/${input.patient_id}/brief`);
+    case 'get_plan_delta_suggestion': return get(serverUrl, `/tools/plugin/plan/${input.plan_id}/delta-suggestion`);
+    case 'get_followup_focus':     return get(serverUrl, `/tools/plugin/followup/${input.patient_id}/focus`);
+    case 'get_recall_script':      return get(serverUrl, `/tools/plugin/recall/${input.patient_id}/script`);
     default: throw new Error(`未知工具：${toolName}`);
   }
 }
@@ -977,6 +1001,43 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     getServerUrl().then(serverUrl =>
       searchPatientList(serverUrl, message.keyword || ' ', message.pageSize || 50)
         .then(items => sendResponse({ success: true, data: { items } }))
+        .catch(err => sendResponse({ success: false, error: err.message }))
+    );
+    return true;
+  }
+
+  // ── J. AI 驱动型接口（P0-P4）──
+  if (action === 'getPatientBrief') {
+    getServerUrl().then(serverUrl =>
+      get(serverUrl, `/tools/plugin/patient/${message.patient_id}/brief`)
+        .then(data => sendResponse({ success: true, data }))
+        .catch(err => sendResponse({ success: false, error: err.message }))
+    );
+    return true;
+  }
+
+  if (action === 'getPlanDeltaSuggestion') {
+    getServerUrl().then(serverUrl =>
+      get(serverUrl, `/tools/plugin/plan/${message.plan_id}/delta-suggestion`)
+        .then(data => sendResponse({ success: true, data }))
+        .catch(err => sendResponse({ success: false, error: err.message }))
+    );
+    return true;
+  }
+
+  if (action === 'getFollowupFocus') {
+    getServerUrl().then(serverUrl =>
+      get(serverUrl, `/tools/plugin/followup/${message.patient_id}/focus`)
+        .then(data => sendResponse({ success: true, data }))
+        .catch(err => sendResponse({ success: false, error: err.message }))
+    );
+    return true;
+  }
+
+  if (action === 'getRecallScript') {
+    getServerUrl().then(serverUrl =>
+      get(serverUrl, `/tools/plugin/recall/${message.patient_id}/script`)
+        .then(data => sendResponse({ success: true, data }))
         .catch(err => sendResponse({ success: false, error: err.message }))
     );
     return true;

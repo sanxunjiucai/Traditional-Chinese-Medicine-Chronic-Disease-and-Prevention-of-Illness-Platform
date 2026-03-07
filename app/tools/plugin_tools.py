@@ -2223,3 +2223,589 @@ async def get_package_recommendation(
         "disease_count": disease_count,
         "packages": packages,
     })
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# J. AI 驱动型插件接口（P0-P4）
+# ══════════════════════════════════════════════════════════════════════════════
+
+async def _ai_call(system_prompt: str, user_content: str, *, max_tokens: int = 512) -> str | None:
+    """
+    统一 AI 调用：支持 Zhipu/GLM（OpenAI 兼容格式）和 Anthropic Claude。
+    无可用 API 时返回 None。
+    """
+    from app.config import settings
+    api_key = settings.anthropic_api_key
+    base_url = settings.anthropic_base_url
+    model = settings.anthropic_model
+
+    if not api_key:
+        return None
+    try:
+        if base_url:
+            import httpx
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(
+                    f"{base_url}/chat/completions",
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {api_key}",
+                    },
+                    json={
+                        "model": model,
+                        "max_tokens": max_tokens,
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_content},
+                        ],
+                    },
+                )
+                if resp.status_code != 200:
+                    return None
+                data = resp.json()
+                return data["choices"][0]["message"]["content"].strip()
+        else:
+            import anthropic
+            client = anthropic.AsyncAnthropic(api_key=api_key)
+            response = await client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=max_tokens,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_content}],
+            )
+            return response.content[0].text.strip()
+    except Exception:
+        return None
+
+
+# ── P0: 患者一键摘要 ───────────────────────────────────────────────────────────
+
+@router.get("/patient/{patient_id}/brief")
+async def get_patient_brief(
+    patient_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+    current_user=Depends(_PRO),
+):
+    """
+    患者一键摘要（AI 驱动）：
+    汇聚档案 + 近期指标 + 风险标签 + 当前方案，
+    由 AI 生成 2-3 句临床简报 + 3 条关键行动项。
+    无 API KEY 时返回纯结构化数据（无 AI 摘要）。
+    """
+    aid = _parse_uuid(patient_id)
+    if not aid:
+        return fail("VALIDATION_ERROR", "patient_id 格式无效")
+
+    archive = await db.get(PatientArchive, aid)
+    if not archive or archive.is_deleted:
+        return fail("NOT_FOUND", "患者档案不存在", status_code=404)
+
+    user_id = archive.user_id
+    today = date.today()
+    cutoff_30 = today - timedelta(days=30)
+    plan_patient_id = user_id if user_id else archive.id
+
+    ca_res, dis_res, alert_res, plan_res, ind_res = await asyncio.gather(
+        db.execute(
+            select(ConstitutionAssessment)
+            .where(ConstitutionAssessment.user_id == user_id)
+            .order_by(desc(ConstitutionAssessment.scored_at))
+            .limit(1)
+        ) if user_id else asyncio.sleep(0),
+        db.execute(
+            select(ChronicDiseaseRecord)
+            .where(ChronicDiseaseRecord.user_id == user_id, ChronicDiseaseRecord.is_active == True)
+        ) if user_id else asyncio.sleep(0),
+        db.execute(
+            select(AlertEvent)
+            .where(AlertEvent.user_id == user_id, AlertEvent.status == AlertStatus.OPEN)
+            .order_by(desc(AlertEvent.created_at)).limit(5)
+        ) if user_id else asyncio.sleep(0),
+        db.execute(
+            select(GuidanceRecord)
+            .where(
+                GuidanceRecord.patient_id == plan_patient_id,
+                GuidanceRecord.guidance_type == GuidanceType.GUIDANCE,
+                GuidanceRecord.status == GuidanceStatus.PUBLISHED,
+            )
+            .order_by(desc(GuidanceRecord.created_at)).limit(1)
+        ),
+        db.execute(
+            select(HealthIndicator)
+            .where(HealthIndicator.user_id == user_id, HealthIndicator.recorded_at >= cutoff_30)
+            .order_by(desc(HealthIndicator.recorded_at)).limit(10)
+        ) if user_id else asyncio.sleep(0),
+    )
+
+    ca       = ca_res.scalar_one_or_none()    if user_id and hasattr(ca_res, "scalar_one_or_none") else None
+    diseases = list(dis_res.scalars().all())  if user_id and hasattr(dis_res, "scalars") else []
+    alerts   = list(alert_res.scalars().all()) if user_id and hasattr(alert_res, "scalars") else []
+    plan     = plan_res.scalar_one_or_none()
+    indics   = list(ind_res.scalars().all())   if user_id and hasattr(ind_res, "scalars") else []
+
+    age = None
+    if archive.birth_date:
+        age = today.year - archive.birth_date.year - (
+            (today.month, today.day) < (archive.birth_date.month, archive.birth_date.day)
+        )
+
+    const_cn = _BODY_TYPE_CN.get(ca.main_type.value, "") if ca and ca.main_type else ""
+    disease_list = [_DISEASE_CN.get(d.disease_type.value, d.disease_type.value) for d in diseases]
+    alert_items = [
+        {"severity": e.severity.value, "message": e.message, "at": e.created_at.isoformat()[:10]}
+        for e in alerts
+    ]
+
+    indicator_summary: dict[str, dict] = {}
+    for ind in indics:
+        key = ind.indicator_type.value if hasattr(ind.indicator_type, "value") else str(ind.indicator_type)
+        if key not in indicator_summary:
+            vals = ind.values or {}
+            if key == "BLOOD_PRESSURE":
+                display = f"{vals.get('systolic','?')}/{vals.get('diastolic','?')} mmHg"
+            elif key == "BLOOD_GLUCOSE":
+                display = f"{vals.get('value','?')} mmol/L"
+            elif key == "WEIGHT":
+                display = f"{vals.get('value','?')} kg"
+            else:
+                display = str(vals.get("value", str(vals)))
+            indicator_summary[key] = {
+                "type_cn": _INDICATOR_CN.get(key, key),
+                "display": display,
+                "at": ind.recorded_at.isoformat()[:10] if ind.recorded_at else "",
+            }
+
+    plan_info = None
+    if plan:
+        plan_info = {
+            "plan_id": str(plan.id),
+            "title": plan.title,
+            "created_at": plan.created_at.isoformat()[:10],
+            "content_preview": (plan.content or "")[:200],
+        }
+
+    allergy_raw = archive.allergy_history
+    if isinstance(allergy_raw, list):
+        allergy_str = "、".join(str(a) for a in allergy_raw if a) or "无"
+    else:
+        allergy_str = str(allergy_raw) if allergy_raw else "无"
+
+    gender_cn = "男" if archive.gender == "male" else ("女" if archive.gender == "female" else "未知")
+    age_str = f"{age}岁" if age else "年龄未知"
+    patient_text = (
+        f"患者：{archive.name}，{gender_cn}，{age_str}\n"
+        f"中医体质：{const_cn or '未评估'}\n"
+        f"慢病诊断：{'、'.join(disease_list) or '无'}\n"
+        f"当前方案：{plan_info['title'] if plan_info else '无'}\n"
+        f"近期异常预警（{len(alert_items)}条）：{'；'.join(e['message'] for e in alert_items[:3]) if alert_items else '无'}\n"
+        f"过敏史：{allergy_str}"
+    )
+
+    system_brief = (
+        "你是中医慢病管理平台的临床决策助手。\n"
+        "根据患者摘要，生成一份临床简报，格式为JSON：\n"
+        '{"summary": "2-3句话的临床简报", "actions": ["行动建议1", "行动建议2", "行动建议3"]}\n'
+        "summary 说明患者当前主要健康状态和管理重点；actions 每条15字以内，具体可操作。\n"
+        "只输出JSON，不要有任何额外文字或代码块标记。"
+    )
+
+    ai_raw = await _ai_call(system_brief, patient_text, max_tokens=400)
+    ai_brief = None
+    if ai_raw:
+        try:
+            json_match = re.search(r'\{.*\}', ai_raw, re.DOTALL)
+            if json_match:
+                parsed = json.loads(json_match.group())
+                if isinstance(parsed.get("summary"), str) and isinstance(parsed.get("actions"), list):
+                    ai_brief = {
+                        "summary": parsed["summary"].strip(),
+                        "actions": [str(a).strip() for a in parsed["actions"][:3]],
+                    }
+        except Exception:
+            pass
+
+    return ok({
+        "patient": {
+            "patient_id": patient_id,
+            "name": archive.name,
+            "gender": archive.gender,
+            "age": age,
+            "phone": archive.phone,
+            "constitution_cn": const_cn,
+            "diseases": disease_list,
+            "allergy": allergy_str,
+            "archive_type": archive.archive_type.value if archive.archive_type else None,
+        },
+        "current_plan": plan_info,
+        "alerts": alert_items,
+        "indicators": list(indicator_summary.values()),
+        "ai_brief": ai_brief,
+    })
+
+
+# ── P2: 方案变化建议 ───────────────────────────────────────────────────────────
+
+@router.get("/plan/{plan_id}/delta-suggestion")
+async def get_plan_delta_suggestion(
+    plan_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+    current_user=Depends(_PRO),
+):
+    """
+    方案变化建议（AI 驱动）：
+    基于当前方案内容 + 患者近30天指标变化，
+    AI 生成 3-5 条具体的调整建议。
+    """
+    pid = _parse_uuid(plan_id)
+    if not pid:
+        return fail("VALIDATION_ERROR", "plan_id 格式无效")
+
+    plan = await db.get(GuidanceRecord, pid)
+    if not plan:
+        return fail("NOT_FOUND", "方案不存在", status_code=404)
+
+    patient_id = plan.patient_id
+    today = date.today()
+    cutoff = today - timedelta(days=30)
+
+    archive = (await db.execute(
+        select(PatientArchive).where(
+            or_(PatientArchive.user_id == patient_id, PatientArchive.id == patient_id),
+            PatientArchive.is_deleted == False,
+        )
+    )).scalar_one_or_none()
+
+    indicators = []
+    if archive:
+        uid = archive.user_id or archive.id
+        indicators = list((await db.execute(
+            select(HealthIndicator)
+            .where(HealthIndicator.user_id == uid, HealthIndicator.recorded_at >= cutoff)
+            .order_by(desc(HealthIndicator.recorded_at)).limit(15)
+        )).scalars().all())
+
+    patient_name = archive.name if archive else "患者"
+    ind_lines = []
+    for ind in indicators:
+        key = ind.indicator_type.value if hasattr(ind.indicator_type, "value") else str(ind.indicator_type)
+        cn = _INDICATOR_CN.get(key, key)
+        at = ind.recorded_at.isoformat()[:10] if ind.recorded_at else ""
+        vals = ind.values or {}
+        if key == "BLOOD_PRESSURE":
+            val_str = f"{vals.get('systolic','?')}/{vals.get('diastolic','?')} mmHg"
+        elif key == "BLOOD_GLUCOSE":
+            val_str = f"{vals.get('value','?')} mmol/L"
+        elif key == "WEIGHT":
+            val_str = f"{vals.get('value','?')} kg"
+        else:
+            val_str = str(vals.get("value", str(vals)))
+        ind_lines.append(f"{at} {cn}: {val_str}")
+
+    user_text = (
+        f"患者：{patient_name}\n"
+        f"当前方案（摘要）：\n{(plan.content or '')[:800]}\n\n"
+        f"近30天健康指标：\n{chr(10).join(ind_lines) if ind_lines else '无近期指标记录'}"
+    )
+
+    system_delta = (
+        "你是中医慢病管理平台的临床决策助手。\n"
+        "基于患者当前方案和近期指标变化，判断哪些内容需要调整，输出JSON：\n"
+        '{"need_update": true/false, "reason": "判断依据（1句话）", '
+        '"suggestions": [{"field": "调整项目", "content": "具体建议（20字以内）"}]}\n'
+        "suggestions 最多5条，只输出JSON。"
+    )
+
+    ai_raw = await _ai_call(system_delta, user_text, max_tokens=512)
+    ai_result = None
+    if ai_raw:
+        try:
+            json_match = re.search(r'\{.*\}', ai_raw, re.DOTALL)
+            if json_match:
+                parsed = json.loads(json_match.group())
+                if "suggestions" in parsed:
+                    ai_result = {
+                        "need_update": bool(parsed.get("need_update", True)),
+                        "reason": str(parsed.get("reason", "")).strip(),
+                        "suggestions": [
+                            {"field": str(s.get("field", "")).strip(), "content": str(s.get("content", "")).strip()}
+                            for s in parsed["suggestions"][:5]
+                            if isinstance(s, dict)
+                        ],
+                    }
+        except Exception:
+            pass
+
+    if ai_result is None:
+        ai_result = {
+            "need_update": len(indicators) > 0,
+            "reason": "AI 暂不可用，建议人工复核近期指标",
+            "suggestions": [
+                {"field": "指标复核", "content": f"近期有 {len(indicators)} 条指标，建议核对是否在目标范围内"}
+            ] if indicators else [
+                {"field": "方案评估", "content": "建议医生根据患者近况人工评估是否需要调整"}
+            ],
+        }
+
+    return ok({
+        "plan_id": plan_id,
+        "plan_title": plan.title,
+        "patient_name": patient_name,
+        "indicator_count": len(indicators),
+        "delta_suggestion": ai_result,
+    })
+
+
+# ── P3: 随访重点建议 ───────────────────────────────────────────────────────────
+
+@router.get("/followup/{patient_id}/focus")
+async def get_followup_focus(
+    patient_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+    current_user=Depends(_PRO),
+):
+    """
+    随访重点（AI 驱动）：
+    基于患者依从性 + 近期指标 + 当前方案，
+    AI 生成本次随访应重点关注的 3-5 个问题。
+    """
+    aid = _parse_uuid(patient_id)
+    if not aid:
+        return fail("VALIDATION_ERROR", "patient_id 格式无效")
+
+    archive = await db.get(PatientArchive, aid)
+    if not archive or archive.is_deleted:
+        return fail("NOT_FOUND", "患者档案不存在", status_code=404)
+
+    user_id = archive.user_id
+    today = date.today()
+    cutoff_30 = today - timedelta(days=30)
+
+    adherence_text = "无随访记录"
+    if user_id:
+        past_tasks = (await db.execute(
+            select(FollowupTask)
+            .join(FollowupPlan, FollowupTask.plan_id == FollowupPlan.id)
+            .where(
+                FollowupPlan.user_id == user_id,
+                FollowupTask.scheduled_date < today,
+                FollowupTask.scheduled_date >= cutoff_30,
+                FollowupTask.required == True,
+            )
+        )).scalars().all()
+        if past_tasks:
+            done = (await db.execute(
+                select(func.count()).select_from(CheckIn).where(
+                    CheckIn.task_id.in_([t.id for t in past_tasks]),
+                    CheckIn.status == "DONE",
+                )
+            )).scalar() or 0
+            rate = round(done / len(past_tasks) * 100)
+            adherence_text = f"近30天随访完成率 {rate}%（{done}/{len(past_tasks)}）"
+
+    open_alerts = []
+    if user_id:
+        open_alerts = list((await db.execute(
+            select(AlertEvent)
+            .where(AlertEvent.user_id == user_id, AlertEvent.status == AlertStatus.OPEN)
+            .order_by(desc(AlertEvent.created_at)).limit(5)
+        )).scalars().all())
+
+    plan_patient_id = user_id if user_id else archive.id
+    plan = (await db.execute(
+        select(GuidanceRecord)
+        .where(
+            GuidanceRecord.patient_id == plan_patient_id,
+            GuidanceRecord.guidance_type == GuidanceType.GUIDANCE,
+            GuidanceRecord.status == GuidanceStatus.PUBLISHED,
+        )
+        .order_by(desc(GuidanceRecord.created_at)).limit(1)
+    )).scalar_one_or_none()
+
+    diseases = []
+    if user_id:
+        diseases = list((await db.execute(
+            select(ChronicDiseaseRecord)
+            .where(ChronicDiseaseRecord.user_id == user_id, ChronicDiseaseRecord.is_active == True)
+        )).scalars().all())
+
+    disease_str = "、".join(_DISEASE_CN.get(d.disease_type.value, d.disease_type.value) for d in diseases) or "无"
+    alert_str = "；".join(e.message for e in open_alerts) if open_alerts else "无"
+    plan_str = (plan.title + "（" + (plan.content or "")[:100] + "...）") if plan else "无"
+
+    user_text = (
+        f"患者：{archive.name}\n"
+        f"慢病：{disease_str}\n"
+        f"依从性：{adherence_text}\n"
+        f"近期未处置预警：{alert_str}\n"
+        f"当前方案：{plan_str}"
+    )
+
+    system_focus = (
+        "你是中医慢病随访专家。根据患者情况，生成本次随访的重点关注问题，JSON格式：\n"
+        '{"focus_items": [{"question": "具体询问内容（20字以内）", "reason": "关注原因（15字以内）", "priority": "high/medium/low"}]}\n'
+        "输出3-5条，按优先级排序，只输出JSON。"
+    )
+
+    ai_raw = await _ai_call(system_focus, user_text, max_tokens=400)
+    focus_items = None
+    if ai_raw:
+        try:
+            json_match = re.search(r'\{.*\}', ai_raw, re.DOTALL)
+            if json_match:
+                parsed = json.loads(json_match.group())
+                items = parsed.get("focus_items", [])
+                if isinstance(items, list) and items:
+                    focus_items = [
+                        {
+                            "question": str(fi.get("question", "")).strip(),
+                            "reason": str(fi.get("reason", "")).strip(),
+                            "priority": str(fi.get("priority", "medium")).lower(),
+                        }
+                        for fi in items[:5]
+                        if isinstance(fi, dict) and fi.get("question")
+                    ]
+        except Exception:
+            pass
+
+    if not focus_items:
+        focus_items = []
+        if open_alerts:
+            focus_items.append({
+                "question": f"近期{open_alerts[0].message[:20]}是否有改善？",
+                "reason": "存在未处置预警",
+                "priority": "high",
+            })
+        focus_items.append({
+            "question": "近期主要症状有无变化？",
+            "reason": "常规随访问诊",
+            "priority": "medium",
+        })
+        focus_items.append({
+            "question": "饮食、运动、服药情况如何？",
+            "reason": "依从性评估",
+            "priority": "medium",
+        })
+
+    return ok({
+        "patient_id": patient_id,
+        "patient_name": archive.name,
+        "adherence_text": adherence_text,
+        "open_alert_count": len(open_alerts),
+        "focus_items": focus_items,
+    })
+
+
+# ── P4: 召回话术 ───────────────────────────────────────────────────────────────
+
+@router.get("/recall/{patient_id}/script")
+async def get_recall_script(
+    patient_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+    current_user=Depends(_PRO),
+):
+    """
+    召回话术生成（AI 驱动）：
+    基于患者情况，生成个性化的电话召回话术。
+    包含：开场白 + 关注要点 + 预约引导语。
+    """
+    aid = _parse_uuid(patient_id)
+    if not aid:
+        return fail("VALIDATION_ERROR", "patient_id 格式无效")
+
+    archive = await db.get(PatientArchive, aid)
+    if not archive or archive.is_deleted:
+        return fail("NOT_FOUND", "患者档案不存在", status_code=404)
+
+    user_id = archive.user_id
+    today = date.today()
+    cutoff = today - timedelta(days=30)
+
+    recall_reasons = []
+    if user_id:
+        alerts = list((await db.execute(
+            select(AlertEvent)
+            .where(AlertEvent.user_id == user_id, AlertEvent.status == AlertStatus.OPEN)
+            .order_by(desc(AlertEvent.created_at)).limit(3)
+        )).scalars().all())
+        recall_reasons = [e.message for e in alerts]
+
+    diseases = []
+    if user_id:
+        diseases = list((await db.execute(
+            select(ChronicDiseaseRecord)
+            .where(ChronicDiseaseRecord.user_id == user_id, ChronicDiseaseRecord.is_active == True)
+        )).scalars().all())
+
+    disease_str = "、".join(_DISEASE_CN.get(d.disease_type.value, d.disease_type.value) for d in diseases) or "慢病管理"
+
+    adherence_rate = None
+    if user_id:
+        tasks = list((await db.execute(
+            select(FollowupTask)
+            .join(FollowupPlan, FollowupTask.plan_id == FollowupPlan.id)
+            .where(
+                FollowupPlan.user_id == user_id,
+                FollowupTask.scheduled_date < today,
+                FollowupTask.scheduled_date >= cutoff,
+                FollowupTask.required == True,
+            )
+        )).scalars().all())
+        if tasks:
+            done = (await db.execute(
+                select(func.count()).select_from(CheckIn).where(
+                    CheckIn.task_id.in_([t.id for t in tasks]),
+                    CheckIn.status == "DONE",
+                )
+            )).scalar() or 0
+            adherence_rate = round(done / len(tasks) * 100)
+
+    gender_cn = "先生" if archive.gender == "male" else "女士"
+    recall_str = "；".join(recall_reasons[:2]) if recall_reasons else "定期随访复诊"
+    adh_str = f"近期随访完成率 {adherence_rate}%" if adherence_rate is not None else "随访记录不足"
+
+    user_text = (
+        f"患者姓名：{archive.name}\n"
+        f"称谓：{archive.name}{gender_cn}\n"
+        f"慢病情况：{disease_str}\n"
+        f"召回原因：{recall_str}\n"
+        f"依从性：{adh_str}"
+    )
+
+    system_script = (
+        "你是中医慢病管理中心的随访专员。根据患者情况，生成温和专业的电话召回话术，JSON格式：\n"
+        '{"opening": "开场白（30字以内）", "concern_points": ["关注点1", "关注点2", "关注点3"], '
+        '"appointment_guide": "预约引导语（40字以内）", "closing": "结束语（20字以内）"}\n'
+        "语气温和、专业，避免让患者感到恐慌，只输出JSON。"
+    )
+
+    ai_raw = await _ai_call(system_script, user_text, max_tokens=512)
+    script = None
+    if ai_raw:
+        try:
+            json_match = re.search(r'\{.*\}', ai_raw, re.DOTALL)
+            if json_match:
+                parsed = json.loads(json_match.group())
+                if parsed.get("opening"):
+                    script = {
+                        "opening": str(parsed.get("opening", "")).strip(),
+                        "concern_points": [str(p).strip() for p in (parsed.get("concern_points") or [])[:3]],
+                        "appointment_guide": str(parsed.get("appointment_guide", "")).strip(),
+                        "closing": str(parsed.get("closing", "")).strip(),
+                    }
+        except Exception:
+            pass
+
+    if script is None:
+        script = {
+            "opening": f"您好，请问是{archive.name}{gender_cn}吗？我是{disease_str}健康管理中心的随访专员。",
+            "concern_points": recall_reasons[:2] or [f"{disease_str}定期复诊提醒"],
+            "appointment_guide": "方便的话，建议您近期到院复查，医生会根据您的情况调整管理方案。",
+            "closing": "祝您健康，有问题随时联系我们。",
+        }
+
+    return ok({
+        "patient_id": patient_id,
+        "patient_name": archive.name,
+        "recall_reason_count": len(recall_reasons),
+        "script": script,
+    })
