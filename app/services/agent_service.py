@@ -175,6 +175,50 @@ AGENT_TOOLS = [
             },
             "required": ["name"]
         }
+    },
+    {
+        "name": "get_patient_brief",
+        "description": "获取患者AI一键摘要：汇聚档案、近期指标、风险、当前方案，AI自动生成临床简报和3条行动建议。适合快速了解患者整体状况",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "patient_id": {"type": "string", "description": "患者档案ID（十六进制字符串）"}
+            },
+            "required": ["patient_id"]
+        }
+    },
+    {
+        "name": "get_plan_delta_suggestion",
+        "description": "获取方案调整建议：基于患者当前方案和近30天健康指标变化，AI生成具体的调整建议",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "plan_id": {"type": "string", "description": "方案ID（UUID格式）"}
+            },
+            "required": ["plan_id"]
+        }
+    },
+    {
+        "name": "get_followup_focus",
+        "description": "获取本次随访重点：基于患者依从性和近期异常预警，AI生成3-5个本次随访应重点关注的问题",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "patient_id": {"type": "string", "description": "患者档案ID（十六进制字符串）"}
+            },
+            "required": ["patient_id"]
+        }
+    },
+    {
+        "name": "get_recall_script",
+        "description": "生成个性化电话召回话术：基于患者慢病情况和召回原因，AI生成开场白、关注要点和预约引导语",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "patient_id": {"type": "string", "description": "患者档案ID（十六进制字符串）"}
+            },
+            "required": ["patient_id"]
+        }
     }
 ]
 
@@ -678,18 +722,22 @@ async def _exec_create_archive(db: AsyncSession, current_user: Any, args: dict) 
 # ── Agent 辅助函数 ────────────────────────────────────────────────────────────
 
 _TOOL_LABELS: dict[str, str] = {
-    "search_patient":        "搜索患者",
-    "get_alert_list":        "查询预警",
-    "get_followup_overview": "查询随访",
-    "get_stats_overview":    "查询统计",
-    "create_followup_task":  "创建随访计划",
-    "analyze_patient_risk":  "分析患者风险",
-    "generate_tcm_plan":     "生成调理方案",
-    "issue_plan":            "发布调理方案",
-    "ack_alert":             "确认预警",
-    "navigate_to":           "页面跳转",
-    "call_api":              "调用接口",
-    "create_archive":        "新建居民档案",
+    "search_patient":          "搜索患者",
+    "get_alert_list":          "查询预警",
+    "get_followup_overview":   "查询随访",
+    "get_stats_overview":      "查询统计",
+    "create_followup_task":    "创建随访计划",
+    "analyze_patient_risk":    "分析患者风险",
+    "generate_tcm_plan":       "生成调理方案",
+    "issue_plan":              "发布调理方案",
+    "ack_alert":               "确认预警",
+    "navigate_to":             "页面跳转",
+    "call_api":                "调用接口",
+    "create_archive":          "新建居民档案",
+    "get_patient_brief":       "患者AI摘要",
+    "get_plan_delta_suggestion": "方案调整建议",
+    "get_followup_focus":      "随访重点",
+    "get_recall_script":       "召回话术",
 }
 
 
@@ -767,6 +815,42 @@ def _build_fallback_message(result_data: dict | None, executed_steps: list) -> s
     return ""
 
 
+async def _exec_plugin_endpoint(tool_name: str, db: AsyncSession, current_user: Any, args: dict) -> dict:
+    """
+    通用插件 AI 工具执行器：
+    直接调用 plugin_tools.py 中的端点函数，提取 data 字段返回给 Agent。
+    """
+    import json as json_lib
+    from app.tools import plugin_tools
+
+    fn_map = {
+        "get_patient_brief":        plugin_tools.get_patient_brief,
+        "get_plan_delta_suggestion": plugin_tools.get_plan_delta_suggestion,
+        "get_followup_focus":       plugin_tools.get_followup_focus,
+        "get_recall_script":        plugin_tools.get_recall_script,
+    }
+    fn = fn_map.get(tool_name)
+    if fn is None:
+        return {"error": f"未找到插件工具: {tool_name}"}
+
+    try:
+        if tool_name == "get_patient_brief":
+            response = await fn(patient_id=args.get("patient_id", ""), db=db, current_user=current_user)
+        elif tool_name == "get_plan_delta_suggestion":
+            response = await fn(plan_id=args.get("plan_id", ""), db=db, current_user=current_user)
+        elif tool_name == "get_followup_focus":
+            response = await fn(patient_id=args.get("patient_id", ""), db=db, current_user=current_user)
+        elif tool_name == "get_recall_script":
+            response = await fn(patient_id=args.get("patient_id", ""), db=db, current_user=current_user)
+        else:
+            return {"error": f"未知工具: {tool_name}"}
+
+        body = json_lib.loads(response.body)
+        return body.get("data", body)
+    except Exception as e:
+        return {"error": f"插件工具执行失败: {e}"}
+
+
 # ── 工具分发 ─────────────────────────────────────────────────────────────────
 
 
@@ -801,6 +885,15 @@ async def _execute_tool(
         return await _exec_navigate_to(args)
     if name == "create_archive":
         return await _exec_create_archive(db, current_user, args)
+    # ── Plugin AI 工具（调用插件端 AI 驱动接口）────────────────────────────────
+    if name == "get_patient_brief":
+        return await _exec_plugin_endpoint("get_patient_brief", db, current_user, args)
+    if name == "get_plan_delta_suggestion":
+        return await _exec_plugin_endpoint("get_plan_delta_suggestion", db, current_user, args)
+    if name == "get_followup_focus":
+        return await _exec_plugin_endpoint("get_followup_focus", db, current_user, args)
+    if name == "get_recall_script":
+        return await _exec_plugin_endpoint("get_recall_script", db, current_user, args)
     return {"error": f"未知工具: {name}"}
 
 

@@ -1782,6 +1782,119 @@
   100% { background-position:  200% 0; }
 }
 
+/* -- AI 临床简报卡 */
+#tcm-assistant-sidebar .tcm-ai-brief {
+  margin: 8px 8px 0 !important;
+  background: linear-gradient(135deg, rgba(78,122,97,0.07) 0%, rgba(184,136,94,0.05) 100%) !important;
+  border: 1px solid rgba(78,122,97,0.2) !important;
+  border-radius: var(--tcm-radius-sm) !important;
+  overflow: hidden !important;
+}
+#tcm-assistant-sidebar .tcm-ai-brief-header {
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  padding: 6px 8px !important;
+  border-bottom: 1px solid rgba(78,122,97,0.15) !important;
+}
+#tcm-assistant-sidebar .tcm-ai-brief-icon {
+  color: var(--tcm-primary) !important;
+  font-size: 13px !important;
+}
+#tcm-assistant-sidebar .tcm-ai-brief-title {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--tcm-primary) !important;
+  letter-spacing: 0.3px !important;
+}
+#tcm-assistant-sidebar .tcm-brief-summary {
+  font-size: 12px !important;
+  line-height: 1.55 !important;
+  color: var(--tcm-text) !important;
+  padding: 8px 10px 4px !important;
+  margin: 0 !important;
+}
+#tcm-assistant-sidebar .tcm-brief-actions {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+  padding: 4px 10px 8px !important;
+}
+#tcm-assistant-sidebar .tcm-brief-action {
+  font-size: 11px !important;
+  color: var(--tcm-primary-dk) !important;
+  padding: 2px 0 !important;
+  line-height: 1.45 !important;
+}
+#tcm-assistant-sidebar .tcm-brief-action::before {
+  content: '→ ' !important;
+  opacity: 0.6 !important;
+}
+
+/* -- AI 召回话术按钮 */
+#tcm-assistant-sidebar .tcm-ai-action-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  margin-top: 6px !important;
+  padding: 4px 10px !important;
+  background: rgba(78,122,97,0.1) !important;
+  border: 1px solid rgba(78,122,97,0.25) !important;
+  border-radius: 12px !important;
+  font-size: 11px !important;
+  color: var(--tcm-primary) !important;
+  cursor: pointer !important;
+  transition: all var(--tcm-transition) !important;
+}
+#tcm-assistant-sidebar .tcm-ai-action-btn:hover {
+  background: rgba(78,122,97,0.18) !important;
+  border-color: var(--tcm-primary) !important;
+}
+
+/* -- 召回话术展示 */
+#tcm-assistant-sidebar .tcm-recall-script {
+  font-size: 12px !important;
+  line-height: 1.55 !important;
+  padding: 8px !important;
+  margin-top: 8px !important;
+  border-top: 1px solid var(--tcm-border-lt) !important;
+}
+#tcm-assistant-sidebar .tcm-script-title {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: var(--tcm-primary) !important;
+  margin-bottom: 8px !important;
+}
+#tcm-assistant-sidebar .tcm-script-section {
+  margin-bottom: 8px !important;
+}
+#tcm-assistant-sidebar .tcm-script-label {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--tcm-text-muted) !important;
+  margin-bottom: 2px !important;
+}
+#tcm-assistant-sidebar .tcm-script-content {
+  color: var(--tcm-text) !important;
+  background: rgba(78,122,97,0.05) !important;
+  border-left: 2px solid rgba(78,122,97,0.3) !important;
+  padding: 4px 8px !important;
+  border-radius: 0 4px 4px 0 !important;
+}
+#tcm-assistant-sidebar .tcm-script-list {
+  list-style: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+#tcm-assistant-sidebar .tcm-script-list li {
+  padding: 2px 0 !important;
+  color: var(--tcm-text) !important;
+}
+#tcm-assistant-sidebar .tcm-script-list li::before {
+  content: '• ' !important;
+  color: var(--tcm-primary) !important;
+}
+
 /* -- Block A: 关键提醒 */
 #tcm-assistant-sidebar .tcm-alert-item {
   display: flex !important;

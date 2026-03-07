@@ -682,6 +682,15 @@
     if (nameEl) nameEl.textContent = patient?.name || '';
 
     dash.innerHTML = `
+      <!-- AI 临床简报（异步加载） -->
+      <div class="tcm-ai-brief" id="tcm-ai-brief" style="display:none;">
+        <div class="tcm-ai-brief-header">
+          <span class="tcm-ai-brief-icon">✦</span>
+          <span class="tcm-ai-brief-title">AI 临床简报</span>
+        </div>
+        <div id="tcm-ai-brief-body"><div class="tcm-block-skeleton"></div></div>
+      </div>
+
       <!-- 四块决策区 -->
       <div class="tcm-blocks-grid">
 
@@ -766,6 +775,8 @@
       await loadBlockB();
       await loadBlockC();
       await loadBlockD();
+      // 四块加载完成后，异步加载 AI 简报（不阻塞主流程）
+      loadAiBrief();
     })();
 
     // 显示 AI dock
@@ -1476,7 +1487,84 @@
         ${ICONS.bell}
         <span>召回建议：<strong style="color:${recalls > 0 ? '#D95C4A' : '#4E7A61'}">${recalls}</strong> 条待处理</span>
       </div>
+      ${recalls > 0 ? `
+      <button class="tcm-ai-action-btn" id="tcm-recall-script-btn">
+        <span>✦</span> 生成召回话术
+      </button>` : ''}
     `;
+
+    if (recalls > 0) {
+      document.getElementById('tcm-recall-script-btn')?.addEventListener('click', () => {
+        loadRecallScript();
+      });
+    }
+  }
+
+  // ─── AI 简报加载 ───────────────────────────────────────────────────────────
+
+  async function loadAiBrief() {
+    const card = document.getElementById('tcm-ai-brief');
+    const body = document.getElementById('tcm-ai-brief-body');
+    if (!card || !body || !currentPatient?.archive_id) return;
+
+    card.style.display = 'block';
+    const resp = await msg('getPatientBrief', { patient_id: currentPatient.archive_id });
+    if (!resp?.success) { card.style.display = 'none'; return; }
+
+    const d = resp.data;
+    const brief = d.ai_brief;
+    if (!brief) { card.style.display = 'none'; return; }
+
+    const actions = (brief.actions || []).map(a =>
+      `<span class="tcm-brief-action">${esc(a)}</span>`
+    ).join('');
+
+    body.innerHTML = `
+      <p class="tcm-brief-summary">${esc(brief.summary || '')}</p>
+      ${actions ? `<div class="tcm-brief-actions">${actions}</div>` : ''}
+    `;
+  }
+
+  // ─── 召回话术加载 ─────────────────────────────────────────────────────────
+
+  async function loadRecallScript() {
+    const body = document.getElementById('tcm-block-d-body');
+    if (!body || !currentPatient?.archive_id) return;
+
+    const btn = document.getElementById('tcm-recall-script-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '生成中…'; }
+
+    const resp = await msg('getRecallScript', { patient_id: currentPatient.archive_id });
+    if (!resp?.success) {
+      if (btn) { btn.disabled = false; btn.innerHTML = '<span>✦</span> 生成召回话术'; }
+      return;
+    }
+
+    const s = resp.data.script;
+    const scriptDiv = document.createElement('div');
+    scriptDiv.className = 'tcm-recall-script';
+    scriptDiv.innerHTML = `
+      <div class="tcm-script-title">✦ AI 召回话术</div>
+      <div class="tcm-script-section">
+        <div class="tcm-script-label">开场白</div>
+        <div class="tcm-script-content">${esc(s.opening || '')}</div>
+      </div>
+      ${(s.concern_points || []).length ? `
+      <div class="tcm-script-section">
+        <div class="tcm-script-label">关注要点</div>
+        <ul class="tcm-script-list">${s.concern_points.map(p => `<li>${esc(p)}</li>`).join('')}</ul>
+      </div>` : ''}
+      <div class="tcm-script-section">
+        <div class="tcm-script-label">预约引导</div>
+        <div class="tcm-script-content">${esc(s.appointment_guide || '')}</div>
+      </div>
+      <div class="tcm-script-section">
+        <div class="tcm-script-label">结束语</div>
+        <div class="tcm-script-content">${esc(s.closing || '')}</div>
+      </div>
+    `;
+    body.appendChild(scriptDiv);
+    if (btn) btn.remove();
   }
 
   // ─── 加载超时包装 ─────────────────────────────────────────────────────────
@@ -2639,12 +2727,29 @@
 
   function handleChip(chip) {
     const input = document.getElementById('tcm-ai-input');
+    if (chip === 'summary') {
+      // 临床摘要直接调用 brief 端点，快速展示无需 Agent 循环
+      const resp = document.getElementById('tcm-ai-response');
+      if (resp) {
+        resp.style.display = 'block';
+        resp.innerHTML = `<div class="tcm-ai-card"><div class="tcm-ai-card-q">临床摘要</div><div id="tcm-agent-progress"><div class="tcm-thinking"><div class="tcm-dot-wave"><span></span><span></span><span></span></div><span>获取 AI 简报中…</span></div></div></div>`;
+      }
+      msg('getPatientBrief', { patient_id: currentPatient?.archive_id }).then(r => {
+        if (!r?.success || !r.data?.ai_brief) {
+          _appendAgentError('无法生成临床摘要，请稍后重试');
+          return;
+        }
+        const b = r.data.ai_brief;
+        const actions = (b.actions || []).map(a => `• ${a}`).join('\n');
+        _appendAnswer(`【临床简报】\n\n${b.summary}\n\n【建议行动】\n${actions}`);
+      });
+      return;
+    }
     const presets = {
       risk:     '请分析当前患者的风险评估结果，给出中医调理建议',
       plan:     '请查看并汇总当前患者的干预方案状态',
-      followup: '请查询当前患者的随访任务安排',
-      recall:   '请查看当前患者的召回建议',
-      summary:  '请生成当前患者的临床摘要',
+      followup: '请查询当前患者的随访任务安排，并给出本次随访重点',
+      recall:   '请查看当前患者的召回建议，并生成电话话术',
     };
     if (input) { input.value = presets[chip] || ''; input.focus(); }
   }

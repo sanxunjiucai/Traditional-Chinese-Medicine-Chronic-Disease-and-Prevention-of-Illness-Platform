@@ -565,36 +565,29 @@ async def get_patient_risk_tags(
 
 async def _ai_generate_risk_conclusions(patient_summary: str, api_key: str) -> list[dict] | None:
     """
-    调用 Claude Haiku 生成 3-6 条结构化风险结论标签。
+    调用 AI 生成 3-6 条结构化风险结论标签。
+    支持 Zhipu/GLM（OpenAI 兼容）和 Anthropic Claude，通过 _ai_call() 统一调用。
     返回 None 时由规则引擎降级。
     """
-    if not api_key:
+    system_prompt = (
+        "你是中医慢病管理平台的AI风险分析助手。\n"
+        "根据患者数据，生成3-6条精准的风险结论标签，供医生快速决策。\n"
+        "输出格式：严格JSON数组，无任何额外文字或代码块标记。\n"
+        "每条包含三个字段：\n"
+        "- label: 显示文字，简洁精准，8字以内，"
+        "示例：代谢风险中高 / 血压控制欠佳 / 依从性偏低 / 中医痰湿夹瘀\n"
+        "- category: 维度，选自：代谢、心血管、肾脏、血糖、血压、血脂、依从性、中医、体重、营养\n"
+        "- level: 严重程度，high/medium/low 之一\n"
+        "要求：\n"
+        "1. 优先标注 HIGH 严重度指标；\n"
+        "2. 中医体质特征单独一条；\n"
+        "3. 依从性风险单独一条（如有随访数据）；\n"
+        "4. label 须含具体维度+程度描述，不能只写高风险。"
+    )
+    raw = await _ai_call(system_prompt, patient_summary, max_tokens=512)
+    if raw is None:
         return None
     try:
-        import anthropic
-        client = anthropic.AsyncAnthropic(api_key=api_key)
-        system_prompt = (
-            "你是中医慢病管理平台的AI风险分析助手。\n"
-            "根据患者数据，生成3-6条精准的风险结论标签，供医生快速决策。\n"
-            "输出格式：严格JSON数组，无任何额外文字或代码块标记。\n"
-            "每条包含三个字段：\n"
-            "- label: 显示文字，简洁精准，8字以内，"
-            "示例：代谢风险中高 / 血压控制欠佳 / 依从性偏低 / 中医痰湿夹瘀\n"
-            "- category: 维度，选自：代谢、心血管、肾脏、血糖、血压、血脂、依从性、中医、体重、营养\n"
-            "- level: 严重程度，high/medium/low 之一\n"
-            "要求：\n"
-            "1. 优先标注 HIGH 严重度指标；\n"
-            "2. 中医体质特征单独一条；\n"
-            "3. 依从性风险单独一条（如有随访数据）；\n"
-            "4. label 须含具体维度+程度描述，不能只写高风险。"
-        )
-        response = await client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=512,
-            system=system_prompt,
-            messages=[{"role": "user", "content": patient_summary}],
-        )
-        raw = response.content[0].text.strip()
         json_match = re.search(r'\[.*\]', raw, re.DOTALL)
         if not json_match:
             return None
@@ -611,6 +604,7 @@ async def _ai_generate_risk_conclusions(patient_summary: str, api_key: str) -> l
         return valid or None
     except Exception:
         return None
+
 
 
 def _rule_based_risk_conclusions(
