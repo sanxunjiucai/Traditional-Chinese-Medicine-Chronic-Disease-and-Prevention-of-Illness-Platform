@@ -23,10 +23,21 @@
     <option value="PERSONAL">个人模板</option>
   </select>
   <button onclick="loadTemplates()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">查询</button>
+  <select id="sort-by" onchange="loadTemplates()" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+    <option value="created_at">最新创建</option>
+    <option value="used_count">使用最多</option>
+  </select>
   <div class="ml-auto">
     <a href="/gui/admin/guidance/templates/new"
       class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">+ 新建模板</a>
   </div>
+</div>
+
+<!-- 适用场景快捷标签 -->
+<div class="bg-white rounded-xl shadow-sm px-4 py-3 mb-4 flex flex-wrap gap-2 items-center">
+  <span class="text-xs text-gray-500 font-medium mr-1">适用场景：</span>
+  <div id="scene-chips" class="flex flex-wrap gap-2"></div>
+  <button onclick="document.getElementById('q').value='';loadTemplates()" class="px-3 py-1 rounded-full border border-gray-200 text-xs text-gray-400 hover:bg-gray-50">全部</button>
 </div>
 
 <!-- 模板卡片网格 -->
@@ -35,45 +46,104 @@
 
 {% block extra_scripts %}
 <script>
-const CAT_LABELS = {CONSTITUTION:'体质调理',DISEASE:'疾病管理',DIET:'饮食指导',EXERCISE:'运动保健',SEASONAL:'节气养生'};
-const CAT_COLORS = {CONSTITUTION:'bg-green-100 text-green-700',DISEASE:'bg-red-100 text-red-700',DIET:'bg-orange-100 text-orange-700',EXERCISE:'bg-jade-light text-jade',SEASONAL:'bg-teal-100 text-teal-700'};
-const SCOPE_LABELS = {PUBLIC:'公开',DEPT:'科室',PERSONAL:'个人'};
+const CAT_LABELS = {
+  CONSTITUTION:'体质调理', DISEASE:'疾病管理', DIET:'饮食指导',
+  EXERCISE:'运动保健', SEASONAL:'节气养生'
+};
+const CAT_COLORS = {
+  CONSTITUTION:'bg-green-100 text-green-700', DISEASE:'bg-red-100 text-red-700',
+  DIET:'bg-orange-100 text-orange-700', EXERCISE:'bg-jade-light text-jade',
+  SEASONAL:'bg-teal-100 text-teal-700'
+};
+const SCOPE_LABELS = {PUBLIC:'公开', DEPT:'科室', PERSONAL:'个人'};
 
-const demoTemplates = [
-  {id:'1',name:'气虚体质全面调理方案',category:'CONSTITUTION',scope:'PUBLIC',author:'王医生',usedCount:48,desc:'针对气虚体质制定的综合调理方案，涵盖饮食、运动、穴位、情志四个维度。'},
-  {id:'2',name:'高血压生活方式指导',category:'DISEASE',scope:'PUBLIC',author:'李主任',usedCount:92,desc:'高血压患者日常生活管理指南，包含饮食限钠、适量运动、情绪管理等要点。'},
-  {id:'3',name:'春季节气养生方案',category:'SEASONAL',scope:'PUBLIC',author:'张医生',usedCount:156,desc:'春季顺应肝气升发，重在疏肝养肝，适当运动，调节情志。'},
-  {id:'4',name:'痰湿体质化湿方案',category:'CONSTITUTION',scope:'DEPT',author:'陈医生',usedCount:31,desc:'针对痰湿体质，以祛湿化痰为核心，配合清淡饮食和适当运动。'},
-  {id:'5',name:'糖尿病饮食控制指导',category:'DIET',scope:'PUBLIC',author:'王医生',usedCount:67,desc:'糖尿病患者饮食管理要点，包括食物GI值参考、饮食搭配原则。'},
-  {id:'6',name:'太极拳八段锦运动计划',category:'EXERCISE',scope:'PERSONAL',author:'张医生',usedCount:12,desc:'适合中老年人的传统运动方案，含太极拳基础动作和八段锦练习步骤。'},
-];
+const SCENE_CHIPS = ['高血压','糖尿病','气虚质','老年','儿童','女性','减重','睡眠','情绪','节气'];
 
-function loadTemplates() {
-  document.getElementById('template-grid').innerHTML = demoTemplates.map(t => `
-    <div class="bg-white rounded-xl shadow-sm p-5 hover:shadow-md transition-shadow">
-      <div class="flex items-start justify-between mb-3">
-        <span class="px-2 py-0.5 rounded-full text-xs font-medium ${CAT_COLORS[t.category]}">${CAT_LABELS[t.category]}</span>
-        <span class="text-xs text-gray-400">${SCOPE_LABELS[t.scope]}</span>
-      </div>
-      <h3 class="font-semibold text-gray-800 mb-2">${t.name}</h3>
-      <p class="text-xs text-gray-500 mb-3 line-clamp-2">${t.desc}</p>
-      <div class="flex items-center justify-between text-xs text-gray-400 mb-4">
-        <span>by ${t.author}</span>
-        <span>使用 ${t.usedCount} 次</span>
-      </div>
-      <div class="flex gap-2">
-        <button onclick="useTemplate('${t.id}')"
-          class="flex-1 bg-green-600 text-white py-1.5 rounded-lg text-xs hover:bg-green-700">使用模板</button>
-        <a href="/gui/admin/guidance/templates/${t.id}/edit"
-          class="px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50">编辑</a>
-        <button onclick="copyTemplate('${t.id}')"
-          class="px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50">复制</button>
-      </div>
-    </div>`).join('');
+function renderSceneChips() {
+  const wrap = document.getElementById('scene-chips');
+  if (!wrap) return;
+  wrap.innerHTML = SCENE_CHIPS.map(s => `
+    <button onclick="setScene('${s}')" class="px-3 py-1 rounded-full border border-gray-200 text-xs text-gray-600 hover:bg-green-50 hover:border-green-300 hover:text-green-700 transition-colors">${s}</button>
+  `).join('');
 }
 
-function useTemplate(id) { window.location.href = '/gui/admin/guidance'; }
-function copyTemplate(id) { showToast('已复制为个人模板'); }
+function setScene(s) {
+  document.getElementById('q').value = s;
+  loadTemplates();
+}
+
+async function loadTemplates() {
+  const q = document.getElementById('q').value.trim();
+  const categoryFilter = document.getElementById('category-filter').value;
+  const scopeFilter = document.getElementById('scope-filter').value;
+  const sortBy = document.getElementById('sort-by')?.value || 'created_at';
+  const grid = document.getElementById('template-grid');
+  grid.innerHTML = '<div class="col-span-3 text-center py-8 text-gray-400">加载中…</div>';
+
+  try {
+    const params = new URLSearchParams({ page: 1, page_size: 50 });
+    if (q) params.set('keyword', q);
+    if (categoryFilter) params.set('guidance_type', categoryFilter);
+    if (scopeFilter) params.set('scope', scopeFilter);
+
+    const r = await fetch(`/tools/guidance/templates?${params}`);
+    const j = await r.json();
+    let items = j.success ? (j.data?.items || []) : [];
+
+    if (!items.length && !q && !categoryFilter && !scopeFilter) {
+      grid.innerHTML = '<div class="col-span-3 text-center py-12 text-gray-400">暂无模板，点击右上角新建第一个模板</div>';
+      return;
+    }
+
+    if (sortBy === 'used_count') {
+      items = items.slice().sort((a, b) => (b.used_count || 0) - (a.used_count || 0));
+    }
+
+    if (!items.length) {
+      grid.innerHTML = '<div class="col-span-3 text-center py-12 text-gray-400">暂无匹配的指导模板</div>';
+      return;
+    }
+
+    grid.innerHTML = items.map(t => `
+      <div class="bg-white rounded-xl shadow-sm p-5 hover:shadow-md transition-shadow">
+        <div class="flex items-start justify-between mb-3">
+          <span class="px-2 py-0.5 rounded-full text-xs font-medium ${CAT_COLORS[t.guidance_type] || CAT_COLORS[t.category] || 'bg-gray-100 text-gray-600'}">${CAT_LABELS[t.guidance_type] || CAT_LABELS[t.category] || t.guidance_type || '-'}</span>
+          <span class="text-xs text-gray-400">${SCOPE_LABELS[t.scope] || t.scope || ''}</span>
+        </div>
+        <h3 class="font-semibold text-gray-800 mb-2">${t.name}</h3>
+        <p class="text-xs text-gray-500 mb-3 line-clamp-2">${(t.content || t.desc || '').substring(0, 80) || '-'}</p>
+        <div class="flex items-center justify-between text-xs text-gray-400 mb-4">
+          <span>创建于 ${(t.created_at || '').substring(0, 10)}</span>
+          <span class="font-medium ${(t.used_count || 0) > 50 ? 'text-green-600' : ''}">使用 ${t.used_count || 0} 次</span>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="useTemplate('${t.id}')"
+            class="flex-1 bg-green-600 text-white py-1.5 rounded-lg text-xs hover:bg-green-700">使用模板</button>
+          <a href="/gui/admin/guidance/templates/${t.id}/edit"
+            class="px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50">编辑</a>
+          <button onclick="copyTemplate('${t.id}')"
+            class="px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50">复制</button>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    grid.innerHTML = '<div class="col-span-3 text-center py-12 text-gray-400">加载失败，请刷新重试</div>';
+  }
+}
+
+async function copyTemplate(id) {
+  try {
+    const r = await fetch(`/tools/guidance/templates/${id}/copy`, { method: 'POST' });
+    const j = await r.json();
+    if (j.success) showToast('已复制为个人模板');
+    else showToast('复制失败', 'error');
+  } catch(e) { showToast('复制失败', 'error'); }
+}
+
+function useTemplate(id) {
+  window.location.href = `/gui/admin/guidance/new?template_id=${id}`;
+}
+
+renderSceneChips();
 loadTemplates();
 </script>
 {% endblock %}

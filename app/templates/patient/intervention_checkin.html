@@ -1,0 +1,153 @@
+{% extends "_layouts/patient.html" %}
+{% block title %}干预计划执行{% endblock %}
+{% block page_title %}干预计划{% endblock %}
+
+{% block header_left %}
+<a href="javascript:history.back()" style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:12px;background:var(--surface);box-shadow:var(--shadow-xs);text-decoration:none;">
+  <svg width="18" height="18" fill="none" stroke="var(--text-secondary)" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+</a>
+{% endblock %}
+
+{% block extra_css %}
+.card { background:#fff;border-radius:20px;padding:18px;box-shadow:var(--shadow-card);margin-bottom:12px; }
+.rec-row { display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--border); }
+.rec-row:last-child { border-bottom:none; }
+.rec-icon { width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px; }
+.status-badge { font-size:11px;font-weight:500;padding:3px 8px;border-radius:99px; }
+.btn-checkin {
+  display:block;width:100%;padding:14px;border-radius:var(--radius-btn);border:none;
+  background:var(--primary);color:#fff;font-size:16px;font-weight:600;font-family:inherit;
+  cursor:pointer;margin-top:20px;letter-spacing:0.02em;
+}
+.btn-checkin:disabled { background:#c8d9ce;cursor:not-allowed; }
+.note-area {
+  width:100%;padding:12px;border:1.5px solid var(--border);border-radius:14px;font-size:14px;
+  font-family:inherit;color:var(--text);resize:none;outline:none;box-sizing:border-box;
+  transition:border-color 0.15s;
+}
+.note-area:focus { border-color:var(--primary); }
+{% endblock %}
+
+{% block content %}
+<div class="px-4 pt-4 pb-8 space-y-3">
+
+  <!-- 干预信息头部 -->
+  <div id="plan-header" class="card" style="background:linear-gradient(135deg,#4E7A61,#3D6A52);color:#fff;padding:20px;">
+    <p style="font-size:12px;opacity:0.8;margin:0 0 4px;">医生干预计划</p>
+    <h2 id="plan-title" style="font-size:18px;font-weight:700;margin:0 0 8px;">加载中…</h2>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;">
+      <span style="font-size:12px;opacity:0.85;">类型：<span id="plan-type">-</span></span>
+      <span style="font-size:12px;opacity:0.85;">周期：<span id="plan-cycle">-</span></span>
+      <span style="font-size:12px;opacity:0.85;">已执行：<span id="plan-exec-count">0</span> 次</span>
+    </div>
+  </div>
+
+  <!-- 执行要求 -->
+  <div class="card">
+    <p style="font-size:13px;font-weight:600;color:var(--text);margin:0 0 8px;">执行说明</p>
+    <p id="plan-content" style="font-size:13px;color:var(--text-secondary);line-height:1.7;margin:0;">-</p>
+  </div>
+
+  <!-- 执行记录 -->
+  <div class="card">
+    <p style="font-size:13px;font-weight:600;color:var(--text);margin:0 0 12px;">历史执行记录</p>
+    <div id="records-list">
+      <p style="font-size:13px;color:var(--text-muted);text-align:center;padding:16px 0;margin:0;">加载中…</p>
+    </div>
+  </div>
+
+  <!-- 本次打卡 -->
+  <div class="card">
+    <p style="font-size:13px;font-weight:600;color:var(--text);margin:0 0 12px;">本次执行记录</p>
+    <textarea id="note-input" class="note-area" rows="3" placeholder="记录本次执行情况（可选）：感受、完成情况、有无不适…"></textarea>
+    <button id="checkin-btn" class="btn-checkin" onclick="submitCheckin()">✓ 记录本次执行</button>
+    <p id="checkin-msg" style="text-align:center;font-size:13px;color:#4E7A61;margin:10px 0 0;display:none;"></p>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const INTERVENTION_ID = "{{ intervention_id }}";
+const TYPE_MAP = {
+  ACUPUNCTURE:'针灸', TUINA:'推拿', EXERCISE:'运动疗法', DIET:'饮食干预',
+  COMBINED:'综合干预', MEDICATION:'药物干预', HERBAL:'中药调理', OTHER:'其他'
+};
+
+async function loadData() {
+  try {
+    const r = await fetch(`/tools/intervention/interventions/${INTERVENTION_ID}`);
+    const j = await r.json();
+    if (!j.success) return;
+    const d = j.data;
+    document.getElementById('plan-title').textContent = d.title || d.goal || '干预计划';
+    document.getElementById('plan-type').textContent = TYPE_MAP[d.intervention_type] || d.intervention_type || '-';
+    document.getElementById('plan-cycle').textContent = d.frequency || `每${d.frequency_days || '?'}天`;
+    document.getElementById('plan-content').textContent = d.content || d.description || d.goal || '遵医嘱执行';
+  } catch(e) {
+    document.getElementById('plan-title').textContent = '干预计划';
+  }
+
+  try {
+    const r2 = await fetch(`/tools/intervention/interventions/${INTERVENTION_ID}/records`);
+    const j2 = await r2.json();
+    const list = document.getElementById('records-list');
+    const items = j2.data?.items || j2.data || [];
+    document.getElementById('plan-exec-count').textContent = items.length;
+    if (!items.length) {
+      list.innerHTML = `<p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px 0;margin:0;">暂无执行记录</p>`;
+      return;
+    }
+    list.innerHTML = items.slice(0, 10).map(rec => {
+      const dt = rec.executed_at ? rec.executed_at.substring(0, 16).replace('T', ' ') : '-';
+      return `
+        <div class="rec-row">
+          <div class="rec-icon" style="background:#EBF2ED;">✓</div>
+          <div style="flex:1;min-width:0;">
+            <p style="font-size:13px;font-weight:500;color:var(--text);margin:0 0 2px;">${dt}</p>
+            ${rec.note ? `<p style="font-size:12px;color:var(--text-secondary);margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${rec.note}</p>` : ''}
+          </div>
+          <span class="status-badge" style="background:#EBF2ED;color:#4E7A61;">已完成</span>
+        </div>`;
+    }).join('');
+  } catch(e) {
+    document.getElementById('records-list').innerHTML = `<p style="font-size:13px;color:var(--text-muted);text-align:center;padding:12px 0;margin:0;">暂无记录</p>`;
+  }
+}
+
+async function submitCheckin() {
+  const btn = document.getElementById('checkin-btn');
+  const note = document.getElementById('note-input').value.trim();
+  btn.disabled = true;
+  btn.textContent = '提交中…';
+  try {
+    const r = await fetch(`/tools/intervention/interventions/${INTERVENTION_ID}/records`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note, executed_at: new Date().toISOString() })
+    });
+    const j = await r.json();
+    const msg = document.getElementById('checkin-msg');
+    if (j.success) {
+      msg.textContent = '✅ 执行记录已提交，数据已同步至您的健康档案，医生可查看';
+      msg.style.display = 'block';
+      document.getElementById('note-input').value = '';
+      btn.textContent = '✓ 已记录';
+      setTimeout(() => loadData(), 800);
+    } else {
+      btn.disabled = false;
+      btn.textContent = '✓ 记录本次执行';
+      msg.textContent = '提交失败，请稍后重试';
+      msg.style.color = '#D95C4A';
+      msg.style.display = 'block';
+    }
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = '✓ 记录本次执行';
+  }
+}
+
+loadData();
+</script>
+{% endblock %}

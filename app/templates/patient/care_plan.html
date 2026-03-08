@@ -162,8 +162,9 @@ function renderItems() {
     const priorityLabel = item.priority === 'HIGH' ? '重要' : item.priority === 'MEDIUM' ? '建议' : '可选';
     const statusColor = item.status === 'ONGOING' ? '#4E7A61' : item.status === 'PENDING' ? '#B8885E' : '#9A9188';
     const statusLabel = item.status === 'ONGOING' ? '进行中' : item.status === 'PENDING' ? '待执行' : '选做';
+    const href = item.id && !String(item.id).startsWith('demo') ? `href="/h5/plan/${item.id}"` : '';
     return `
-      <div class="plan-item">
+      <a ${href} style="text-decoration:none;display:block;" class="plan-item">
         <div style="display:flex;align-items:flex-start;gap:12px;">
           <div style="width:36px;height:36px;border-radius:12px;background:${c.bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;">
             ${{ diet:'🍵', exercise:'🏃', sleep:'🌙', emotion:'🧘', medicine:'💊', therapy:'🌿', revisit:'📅' }[item.cat] || '📋'}
@@ -184,7 +185,7 @@ function renderItems() {
             </div>
           </div>
         </div>
-      </div>
+      </a>
     `;
   }).join('');
 }

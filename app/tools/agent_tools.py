@@ -40,7 +40,7 @@ async def agent_stream(
     """
     async def generate() -> AsyncIterator[str]:
         try:
-            async for event in run_agent_stream(body.query, db, current_user):
+            async for event in run_agent_stream(body.query, db, current_user, mode="admin"):
                 yield f"data: {json.dumps(event, ensure_ascii=False, default=str)}\n\n"
         except Exception as exc:
             import traceback
@@ -75,7 +75,7 @@ async def agent_execute(
     - execution_id: 审计追溯 ID
     """
     try:
-        result = await run_agent(body.query, db, current_user)
+        result = await run_agent(body.query, db, current_user, mode="admin")
         return ok(result)
     except Exception as exc:
         import traceback

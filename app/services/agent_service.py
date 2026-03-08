@@ -5,7 +5,10 @@ Agent Service: 解析自然语言意图，通过 Claude tool-use 调用平台所
 from __future__ import annotations
 
 import json
+import os
+import re
 import uuid
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import and_, func, select
@@ -18,30 +21,94 @@ from app.models.followup import CheckIn, FollowupPlan, FollowupTask
 from app.models.user import User
 from app.services.audit_service import log_action
 
+# ── 工具函数 ────────────────────────────────────────────────────────────────
+
+def _load_dotenv_values() -> dict:
+    """直接解析 .env 文件，返回键值对（优先于系统环境变量）。"""
+    env_path = Path(".env")
+    values: dict = {}
+    if not env_path.exists():
+        return values
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, _, v = line.partition("=")
+        values[k.strip()] = v.strip().strip('"').strip("'")
+    return values
+
+
+def _get_api_settings() -> tuple[str, str, str]:
+    """
+    获取 AI API 配置，优先读取 .env 文件（避免系统环境变量覆盖导致 URL 错乱）。
+    返回 (api_key, base_url, model)
+    """
+    dot = _load_dotenv_values()
+    api_key  = dot.get("ANTHROPIC_API_KEY")  or settings.anthropic_api_key
+    base_url = dot.get("ANTHROPIC_BASE_URL") or settings.anthropic_base_url
+    model    = dot.get("ANTHROPIC_MODEL")    or settings.anthropic_model
+    return api_key, base_url, model
+
+
+def _chat_endpoint(base_url: str) -> str:
+    """构造 /chat/completions 完整端点。
+    若 base_url 已含版本段（如 /v4、/v1），直接拼接；
+    否则自动补充 /v1（兼容不含版本路径的代理，如 https://xxx.com/claude）。
+    """
+    url = base_url.rstrip("/")
+    if re.search(r"/v\d+$", url):
+        return f"{url}/chat/completions"
+    return f"{url}/v1/chat/completions"
+
+
 # ── 系统提示 ────────────────────────────────────────────────────────────────
 
-_SYSTEM_PROMPT = """你是「治未病平台」的智能医疗助手，可以调用平台所有 API 帮助医生完成操作。
+# 诊中插件助手提示词（侧重患者操作）
+_PLUGIN_SYSTEM_PROMPT = """你是「治未病平台」诊中智能助手，帮助医生在就诊时快速完成患者操作。
 
 你可以：
-- 搜索患者、查看档案
+- 搜索患者、查看/修改档案
 - 新建居民档案（任何类型：普通居民/老年人/儿童/女性/重点关注）
-- 创建/查询随访计划、干预计划、宣教内容
-- 查看预警、统计数据
-- 创建体质评估、健康评估
-- 管理标签、查看审计日志
-- 执行任何平台支持的操作
+- 创建/查询随访计划、干预计划、宣教内容、中医指导
+- 查看预警、处理召回建议
+- 录入健康指标、生成调理方案
+- 管理患者标签
 
 规则：
 - 使用中文回答，语言简洁友好
-- 先调用 call_api 工具执行操作，再根据结果生成回复
+- 先调用工具执行操作，再根据结果生成回复
 - 如果用户意图不明确，先搜索患者确认身份
-- 新建档案时，姓名必填，其他字段若用户未提供则使用合理默认值（archive_type 默认 NORMAL）
+- 新建档案时，姓名必填，其他字段若用户未提供则使用合理默认值
 - 创建任务时使用合理的默认值
 """
 
+# 管理端全局助手提示词（侧重运营和配置）
+_ADMIN_SYSTEM_PROMPT = """你是「治未病平台」管理端智能助手，帮助管理员和医生完成平台所有运营管理操作。
+
+你可以：
+【患者管理】搜索患者、查看/修改/删除档案、管理标签、查看统计
+【随访管理】查看随访计划列表、今日任务、随访规则配置
+【预警管理】查看预警列表、处理预警、查看高危看板、预警规则查询
+【干预/宣教/指导】查看记录列表、创建任务、查看/管理模板
+【评估管理】查看体质评估列表、健康评估列表、量表配置
+【用户管理】查看用户列表、启用/禁用账号
+【统计分析】业务统计、工作量统计、档案统计
+【系统管理】查看审计日志、标签分类管理、活动档案查看
+【页面导航】跳转到任何管理端页面
+
+规则：
+- 使用中文回答，语言专业简洁
+- 先调用工具执行操作，再根据结果生成汇总回复
+- 如果用户意图不明确，先询问确认
+- 创建操作时使用合理的默认值，并告知用户已设置的默认值
+"""
+
+# 兼容旧引用
+_SYSTEM_PROMPT = _ADMIN_SYSTEM_PROMPT
+
 # ── 工具定义（Claude tool schema）───────────────────────────────────────────
 
-AGENT_TOOLS = [
+PLUGIN_TOOLS = [
     {
         "name": "search_patient",
         "description": "按姓名或手机号搜索患者，返回患者档案 ID",
@@ -460,6 +527,164 @@ AGENT_TOOLS = [
         "input_schema": {"type": "object", "properties": {}}
     },
 ]
+
+# 管理端专用工具（在 PLUGIN_TOOLS 基础上追加）
+_ADMIN_ONLY_TOOLS = [
+    {
+        "name": "list_templates",
+        "description": "查看平台模板库（干预/宣教/指导模板），支持按类型筛选",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "type": {"type": "string", "enum": ["intervention", "education", "guidance"], "description": "模板类型"},
+                "keyword": {"type": "string", "description": "关键词搜索"},
+                "limit": {"type": "integer", "description": "返回数量，默认20"}
+            },
+            "required": ["type"]
+        }
+    },
+    {
+        "name": "list_scale_configs",
+        "description": "查看量表配置列表（量表库中已配置的评估量表）",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "keyword": {"type": "string", "description": "量表名称关键词"},
+                "limit": {"type": "integer", "description": "返回数量，默认20"}
+            }
+        }
+    },
+    {
+        "name": "get_scale_records",
+        "description": "查看量表评估记录列表",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "patient_name": {"type": "string", "description": "患者姓名筛选"},
+                "limit": {"type": "integer", "description": "返回数量，默认20"}
+            }
+        }
+    },
+    {
+        "name": "list_alert_rules",
+        "description": "查看预警规则配置列表",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "enabled": {"type": "boolean", "description": "只看启用中的规则"},
+                "limit": {"type": "integer", "description": "返回数量，默认20"}
+            }
+        }
+    },
+    {
+        "name": "list_followup_rules",
+        "description": "查看随访规则配置列表",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "enabled": {"type": "boolean", "description": "只看启用中的规则"},
+                "limit": {"type": "integer", "description": "返回数量，默认20"}
+            }
+        }
+    },
+    {
+        "name": "list_users",
+        "description": "查看平台用户列表，支持按角色和状态筛选",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "role": {"type": "string", "enum": ["ADMIN", "PROFESSIONAL", "PATIENT"], "description": "用户角色"},
+                "keyword": {"type": "string", "description": "姓名/手机号关键词"},
+                "limit": {"type": "integer", "description": "返回数量，默认20"}
+            }
+        }
+    },
+    {
+        "name": "update_user",
+        "description": "修改用户信息或启用/禁用账号",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "user_id": {"type": "string", "description": "用户ID"},
+                "name": {"type": "string", "description": "用户姓名"},
+                "is_active": {"type": "boolean", "description": "是否启用账号"}
+            },
+            "required": ["user_id"]
+        }
+    },
+    {
+        "name": "get_admin_stats",
+        "description": "获取管理端统计总览（档案数、用户数、预警数、随访完成率等）",
+        "input_schema": {"type": "object", "properties": {}}
+    },
+    {
+        "name": "list_constitution_assessments",
+        "description": "查看体质评估记录列表",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "patient_name": {"type": "string", "description": "患者姓名筛选"},
+                "constitution_type": {"type": "string", "description": "体质类型筛选"},
+                "limit": {"type": "integer", "description": "返回数量，默认20"}
+            }
+        }
+    },
+    {
+        "name": "list_health_assessments",
+        "description": "查看健康评估记录列表",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "patient_name": {"type": "string", "description": "患者姓名筛选"},
+                "limit": {"type": "integer", "description": "返回数量，默认20"}
+            }
+        }
+    },
+    {
+        "name": "query_audit_logs",
+        "description": "查询系统操作审计日志",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "action": {"type": "string", "description": "操作类型关键词"},
+                "operator": {"type": "string", "description": "操作人姓名"},
+                "limit": {"type": "integer", "description": "返回数量，默认20"}
+            }
+        }
+    },
+    {
+        "name": "list_label_categories",
+        "description": "查看标签分类和标签列表",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "limit": {"type": "integer", "description": "返回分类数量，默认20"}
+            }
+        }
+    },
+    {
+        "name": "get_archive_stats",
+        "description": "获取档案统计（按类型/地区/疾病分组）",
+        "input_schema": {"type": "object", "properties": {}}
+    },
+    {
+        "name": "list_activity_archives",
+        "description": "查看活动档案列表（健康干预活动）",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "keyword": {"type": "string", "description": "活动名称关键词"},
+                "limit": {"type": "integer", "description": "返回数量，默认20"}
+            }
+        }
+    },
+]
+
+# 管理端工具 = 诊中工具 + 管理专用工具
+ADMIN_TOOLS = PLUGIN_TOOLS + _ADMIN_ONLY_TOOLS
+
+# 向后兼容
+AGENT_TOOLS = ADMIN_TOOLS
 
 _PAGE_URL_MAP = {
     "patients": "/gui/admin/patients",
@@ -1392,6 +1617,7 @@ async def _exec_get_business_stats(db: AsyncSession) -> dict:
 
 
 async def _exec_navigate_to(args: dict) -> dict:
+    page = args.get("page", "alerts")
     qp = args.get("query_params", "").strip()
     url = _PAGE_URL_MAP.get(page, "/gui/admin/alerts")
     if qp:
@@ -1497,6 +1723,21 @@ _TOOL_LABELS: dict[str, str] = {
     "record_health_indicator": "录入健康指标",
     "list_health_indicators":  "查看指标历史",
     "get_business_stats":      "业务统计",
+    # 管理端专用工具标签
+    "list_templates":           "查看模板库",
+    "list_scale_configs":       "查看量表配置",
+    "get_scale_records":        "查看量表记录",
+    "list_alert_rules":         "查看预警规则",
+    "list_followup_rules":      "查看随访规则",
+    "list_users":               "查看用户列表",
+    "update_user":              "修改用户",
+    "get_admin_stats":          "管理统计",
+    "list_constitution_assessments": "查看体质评估",
+    "list_health_assessments":  "查看健康评估",
+    "query_audit_logs":         "查看审计日志",
+    "list_label_categories":    "查看标签分类",
+    "get_archive_stats":        "档案统计",
+    "list_activity_archives":   "查看活动档案",
 }
 
 
@@ -1610,6 +1851,222 @@ async def _exec_plugin_endpoint(tool_name: str, db: AsyncSession, current_user: 
         return {"error": f"插件工具执行失败: {e}"}
 
 
+# ── 管理端专用执行器 ──────────────────────────────────────────────────────────
+
+
+async def _exec_list_templates(db: AsyncSession, args: dict) -> dict:
+    tpl_type = args.get("type", "guidance")
+    keyword = args.get("keyword", "")
+    limit = int(args.get("limit", 20))
+    try:
+        if tpl_type == "guidance":
+            from app.tools.guidance_tools import list_templates
+            r = await list_templates(db=db, keyword=keyword, page=1, page_size=limit)
+        elif tpl_type == "education":
+            from app.tools.education_tools import list_templates
+            r = await list_templates(db=db, keyword=keyword, page=1, page_size=limit)
+        else:  # intervention
+            from app.tools.intervention_tools import list_templates
+            r = await list_templates(db=db, keyword=keyword, page=1, page_size=limit)
+        import json as _j
+        body = _j.loads(r.body)
+        items = body.get("data", {}).get("items", [])
+        return {"type": tpl_type, "count": len(items), "items": items[:limit]}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def _exec_list_scale_configs(db: AsyncSession, args: dict) -> dict:
+    from sqlalchemy import select
+    from app.models.scale import Scale
+    keyword = args.get("keyword", "")
+    limit = int(args.get("limit", 20))
+    try:
+        q = select(Scale).where(Scale.is_active == True)
+        if keyword:
+            q = q.where(Scale.name.ilike(f"%{keyword}%"))
+        q = q.limit(limit)
+        result = await db.execute(q)
+        rows = result.scalars().all()
+        return {"count": len(rows), "items": [{"id": str(r.id), "name": r.name, "category": getattr(r, "category", ""), "question_count": getattr(r, "question_count", 0)} for r in rows]}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def _exec_get_scale_records(db: AsyncSession, args: dict) -> dict:
+    from app.tools.scale_tools import list_records
+    patient_name = args.get("patient_name", "")
+    limit = int(args.get("limit", 20))
+    try:
+        import json as _j
+        r = await list_records(db=db, patient_name=patient_name, page=1, page_size=limit)
+        body = _j.loads(r.body)
+        items = body.get("data", {}).get("items", [])
+        return {"count": len(items), "items": items}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def _exec_list_alert_rules(db: AsyncSession, args: dict) -> dict:
+    from sqlalchemy import select
+    from app.models.alert import AlertRule
+    enabled = args.get("enabled")
+    limit = int(args.get("limit", 20))
+    try:
+        q = select(AlertRule)
+        if enabled is not None:
+            q = q.where(AlertRule.is_active == enabled)
+        q = q.limit(limit)
+        result = await db.execute(q)
+        rows = result.scalars().all()
+        return {"count": len(rows), "items": [{"id": str(r.id), "name": r.name, "disease_type": getattr(r, "disease_type", ""), "is_active": r.is_active} for r in rows]}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def _exec_list_followup_rules(db: AsyncSession, args: dict) -> dict:
+    from app.tools.followup_rule_tools import list_rules
+    enabled = args.get("enabled")
+    limit = int(args.get("limit", 20))
+    try:
+        import json as _j
+        r = await list_rules(db=db, page=1, page_size=limit)
+        body = _j.loads(r.body)
+        items = body.get("data", {}).get("items", [])
+        if enabled is not None:
+            items = [i for i in items if i.get("is_active") == enabled]
+        return {"count": len(items), "items": items}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def _exec_list_users(db: AsyncSession, args: dict) -> dict:
+    from app.tools.admin_tools import list_users
+    role = args.get("role")
+    keyword = args.get("keyword", "")
+    limit = int(args.get("limit", 20))
+    try:
+        import json as _j
+        r = await list_users(db=db, role=role, keyword=keyword, page=1, page_size=limit)
+        body = _j.loads(r.body)
+        items = body.get("data", {}).get("items", [])
+        return {"count": len(items), "items": items}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def _exec_update_user(db: AsyncSession, current_user: Any, args: dict) -> dict:
+    from app.tools.admin_tools import update_user
+    from pydantic import BaseModel as BM
+    user_id = args.get("user_id", "")
+    if not user_id:
+        return {"error": "缺少 user_id"}
+    try:
+        import json as _j
+        class _Req(BM):
+            name: str | None = None
+            is_active: bool | None = None
+        req = _Req(name=args.get("name"), is_active=args.get("is_active"))
+        r = await update_user(user_id=user_id, body=req, db=db, current_user=current_user)
+        body = _j.loads(r.body)
+        return body.get("data", body)
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def _exec_get_admin_stats(db: AsyncSession) -> dict:
+    from app.tools.admin_tools import get_stats_overview
+    try:
+        import json as _j
+        r = await get_stats_overview(db=db)
+        body = _j.loads(r.body)
+        return body.get("data", body)
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def _exec_list_constitution_assessments(db: AsyncSession, args: dict) -> dict:
+    from app.tools.admin_tools import list_assessments
+    patient_name = args.get("patient_name", "")
+    constitution_type = args.get("constitution_type")
+    limit = int(args.get("limit", 20))
+    try:
+        import json as _j
+        r = await list_assessments(db=db, patient_name=patient_name, constitution_type=constitution_type, page=1, page_size=limit)
+        body = _j.loads(r.body)
+        items = body.get("data", {}).get("items", [])
+        return {"count": len(items), "items": items}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def _exec_list_health_assessments(db: AsyncSession, args: dict) -> dict:
+    from app.tools.admin_tools import list_health_assessments
+    patient_name = args.get("patient_name", "")
+    limit = int(args.get("limit", 20))
+    try:
+        import json as _j
+        r = await list_health_assessments(db=db, patient_name=patient_name, page=1, page_size=limit)
+        body = _j.loads(r.body)
+        items = body.get("data", {}).get("items", [])
+        return {"count": len(items), "items": items}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def _exec_query_audit_logs(db: AsyncSession, args: dict) -> dict:
+    from app.tools.audit_tools import list_logs
+    action = args.get("action", "")
+    operator = args.get("operator", "")
+    limit = int(args.get("limit", 20))
+    try:
+        import json as _j
+        r = await list_logs(db=db, action=action, operator_name=operator, page=1, page_size=limit)
+        body = _j.loads(r.body)
+        items = body.get("data", {}).get("items", [])
+        return {"count": len(items), "items": items}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def _exec_list_label_categories(db: AsyncSession, args: dict) -> dict:
+    from app.tools.label_tools import list_categories
+    limit = int(args.get("limit", 20))
+    try:
+        import json as _j
+        r = await list_categories(db=db, page=1, page_size=limit)
+        body = _j.loads(r.body)
+        items = body.get("data", {}).get("items", body.get("data", []))
+        return {"count": len(items) if isinstance(items, list) else 0, "items": items}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def _exec_get_archive_stats(db: AsyncSession) -> dict:
+    from app.tools.archive_tools import get_archive_stats
+    try:
+        import json as _j
+        r = await get_archive_stats(db=db)
+        body = _j.loads(r.body)
+        return body.get("data", body)
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def _exec_list_activity_archives(db: AsyncSession, args: dict) -> dict:
+    from app.tools.activity_tools import list_activity_archives
+    keyword = args.get("keyword", "")
+    limit = int(args.get("limit", 20))
+    try:
+        import json as _j
+        r = await list_activity_archives(db=db, keyword=keyword, page=1, page_size=limit)
+        body = _j.loads(r.body)
+        items = body.get("data", {}).get("items", [])
+        return {"count": len(items), "items": items}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 # ── 工具分发 ─────────────────────────────────────────────────────────────────
 
 
@@ -1693,6 +2150,35 @@ async def _execute_tool(
         return await _exec_plugin_endpoint("get_followup_focus", db, current_user, args)
     if name == "get_recall_script":
         return await _exec_plugin_endpoint("get_recall_script", db, current_user, args)
+    # ── 管理端专用工具 ──────────────────────────────────────────────────────────
+    if name == "list_templates":
+        return await _exec_list_templates(db, args)
+    if name == "list_scale_configs":
+        return await _exec_list_scale_configs(db, args)
+    if name == "get_scale_records":
+        return await _exec_get_scale_records(db, args)
+    if name == "list_alert_rules":
+        return await _exec_list_alert_rules(db, args)
+    if name == "list_followup_rules":
+        return await _exec_list_followup_rules(db, args)
+    if name == "list_users":
+        return await _exec_list_users(db, args)
+    if name == "update_user":
+        return await _exec_update_user(db, current_user, args)
+    if name == "get_admin_stats":
+        return await _exec_get_admin_stats(db)
+    if name == "list_constitution_assessments":
+        return await _exec_list_constitution_assessments(db, args)
+    if name == "list_health_assessments":
+        return await _exec_list_health_assessments(db, args)
+    if name == "query_audit_logs":
+        return await _exec_query_audit_logs(db, args)
+    if name == "list_label_categories":
+        return await _exec_list_label_categories(db, args)
+    if name == "get_archive_stats":
+        return await _exec_get_archive_stats(db)
+    if name == "list_activity_archives":
+        return await _exec_list_activity_archives(db, args)
     return {"error": f"未知工具: {name}"}
 
 
@@ -1721,9 +2207,10 @@ def _safe_parse_args(raw) -> dict:
 
 
 async def run_agent_stream(
-    query: str, db: AsyncSession, current_user: Any
+    query: str, db: AsyncSession, current_user: Any, mode: str = "admin"
 ) -> AsyncIterator[dict]:
     """流式 Agent 执行：逐步 yield 事件 dict，供 SSE 端点使用。
+    mode: 'admin'（管理端，全量工具）| 'plugin'（诊中插件，患者操作工具）
     事件类型：
       thinking  — 正在调用模型
       tool_call — 正在执行工具
@@ -1731,16 +2218,22 @@ async def run_agent_stream(
       done      — 全部完成
       error     — 发生错误
     """
+    tools_list = PLUGIN_TOOLS if mode == "plugin" else ADMIN_TOOLS
+    system_prompt = _PLUGIN_SYSTEM_PROMPT if mode == "plugin" else _ADMIN_SYSTEM_PROMPT
     exec_id = str(uuid.uuid4())
-    if not settings.anthropic_api_key:
+
+    # 优先读 .env 文件，避免系统环境变量覆盖导致 URL/Key 错配
+    _api_key, _base_url, _model = _get_api_settings()
+
+    if not _api_key:
         yield {"type": "error", "message": "AI 助手暂时不可用（API key 未配置）"}
         return
 
     import httpx, json as json_lib
-    base_url = settings.anthropic_base_url or None
-    claude_model = settings.anthropic_model
+    base_url = _base_url or None
+    claude_model = _model
     # OpenAI 格式：system 作为首条消息
-    messages: list = [{"role": "system", "content": _SYSTEM_PROMPT}, {"role": "user", "content": query}]
+    messages: list = [{"role": "system", "content": system_prompt}, {"role": "user", "content": query}]
     result_data: Any = None
     navigate_url: str | None = None
     executed_steps: list = []
@@ -1749,7 +2242,7 @@ async def run_agent_stream(
     # 将 Anthropic tool schema 转换为 OpenAI function calling 格式
     openai_tools = [
         {"type": "function", "function": {"name": t["name"], "description": t["description"], "parameters": t["input_schema"]}}
-        for t in AGENT_TOOLS
+        for t in tools_list
     ]
 
     yield {"type": "thinking"}
@@ -1759,10 +2252,10 @@ async def run_agent_stream(
             async with httpx.AsyncClient(timeout=60.0) as client:
                 for _ in range(4):
                     resp = await client.post(
-                        f"{base_url}/chat/completions",
+                        _chat_endpoint(base_url),
                         headers={
                             "Content-Type": "application/json",
-                            "Authorization": f"Bearer {settings.anthropic_api_key}",
+                            "Authorization": f"Bearer {_api_key}",
                         },
                         json={
                             "model": claude_model,
@@ -1818,7 +2311,7 @@ async def run_agent_stream(
                     final_message = "操作已执行完毕。"
         else:
             import anthropic
-            client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+            client = anthropic.AsyncAnthropic(api_key=_api_key)
             for _ in range(4):
                 response = await client.messages.create(
                     model="claude-haiku-4-5-20251001",
@@ -1888,14 +2381,18 @@ async def run_agent_stream(
 # ── 主入口 ────────────────────────────────────────────────────────────────────
 
 
-async def run_agent(query: str, db: AsyncSession, current_user: Any) -> dict:
+async def run_agent(query: str, db: AsyncSession, current_user: Any, mode: str = "admin") -> dict:
     exec_id = str(uuid.uuid4())
-    if not settings.anthropic_api_key:
+    _api_key, _base_url, _model = _get_api_settings()
+    if not _api_key:
         return {"message": "AI 助手暂时不可用（API key 未正确配置）。", "data": None, "navigate_url": None, "execution_id": exec_id}
-    
+
+    tools_list = PLUGIN_TOOLS if mode == "plugin" else ADMIN_TOOLS
+    system_prompt = _PLUGIN_SYSTEM_PROMPT if mode == "plugin" else _ADMIN_SYSTEM_PROMPT
+
     import httpx, json as json_lib
-    base_url = settings.anthropic_base_url or None
-    claude_model = settings.anthropic_model
+    base_url = _base_url or None
+    claude_model = _model
     messages = [{"role": "user", "content": query}]
     result_data, navigate_url, final_message = None, None, ""
     executed_steps: list = []
@@ -1904,14 +2401,14 @@ async def run_agent(query: str, db: AsyncSession, current_user: Any) -> dict:
         try:
             openai_tools = [
                 {"type": "function", "function": {"name": t["name"], "description": t["description"], "parameters": t["input_schema"]}}
-                for t in AGENT_TOOLS
+                for t in tools_list
             ]
-            messages = [{"role": "system", "content": _SYSTEM_PROMPT}, {"role": "user", "content": query}]
+            messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": query}]
             async with httpx.AsyncClient(timeout=60.0) as client:
                 for _ in range(4):
                     resp = await client.post(
-                        f"{base_url}/chat/completions",
-                        headers={"Content-Type": "application/json", "Authorization": f"Bearer {settings.anthropic_api_key}"},
+                        _chat_endpoint(base_url),
+                        headers={"Content-Type": "application/json", "Authorization": f"Bearer {_api_key}"},
                         json={"model": claude_model, "max_tokens": 4096, "messages": messages, "tools": openai_tools, "tool_choice": "auto"},
                     )
                     data = resp.json()
@@ -1950,7 +2447,7 @@ async def run_agent(query: str, db: AsyncSession, current_user: Any) -> dict:
     else:
         import anthropic
         try:
-            client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+            client = anthropic.AsyncAnthropic(api_key=_api_key)
             for _ in range(4):
                 response = await client.messages.create(model="claude-haiku-4-5-20251001", max_tokens=1024, system=_SYSTEM_PROMPT, tools=AGENT_TOOLS, messages=messages)
                 texts = [b.text for b in response.content if b.type == "text"]

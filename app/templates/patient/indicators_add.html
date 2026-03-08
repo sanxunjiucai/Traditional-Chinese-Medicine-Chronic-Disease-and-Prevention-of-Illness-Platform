@@ -183,7 +183,7 @@ async function submit() {
   if (data.success) {
     const msg = data.data.alerts_created > 0
       ? `✅ 保存成功！检测到 ${data.data.alerts_created} 条预警，请注意查看`
-      : '✅ 保存成功！';
+      : '✅ 保存成功！数据已同步至您的健康档案，医生可查看';
     document.getElementById('success-msg').textContent = msg;
     document.getElementById('success-msg').classList.remove('hidden');
     document.getElementById('error-msg').classList.add('hidden');

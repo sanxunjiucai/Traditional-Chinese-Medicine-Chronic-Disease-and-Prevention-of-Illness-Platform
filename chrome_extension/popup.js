@@ -6,7 +6,7 @@
 (function () {
   'use strict';
 
-  const DEFAULT_SERVER = 'http://localhost:8010';
+  const DEFAULT_SERVER = 'http://localhost:8015';
   const DEFAULT_PARAMS = 'patient_id,pid,id,patientId,patient';
 
   // ── DOM 引用 ──────────────────────────────────────────────────────────────
@@ -27,7 +27,14 @@
 
   // ── 初始化：读取已保存配置 ────────────────────────────────────────────────
   chrome.storage.local.get(['serverUrl', 'paramNames', 'anthropicApiKey', 'braveSearchKey', 'claudeBaseUrl', 'claudeModel'], (result) => {
-    serverInput.value = result.serverUrl || DEFAULT_SERVER;
+    let savedUrl = result.serverUrl || DEFAULT_SERVER;
+    // 自动迁移旧端口到当前默认端口
+    const OLD_PORTS = [':8010', ':8011', ':8012', ':8013', ':8014'];
+    if (OLD_PORTS.some(p => savedUrl.includes(p))) {
+      savedUrl = DEFAULT_SERVER;
+      chrome.storage.local.set({ serverUrl: savedUrl });
+    }
+    serverInput.value = savedUrl;
     paramInput.value  = result.paramNames || DEFAULT_PARAMS;
     if (apiKeyInput)      apiKeyInput.value      = result.anthropicApiKey || '';
     if (searchKeyInput)   searchKeyInput.value   = result.braveSearchKey  || '';

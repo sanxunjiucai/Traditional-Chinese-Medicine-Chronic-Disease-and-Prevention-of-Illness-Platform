@@ -34,7 +34,7 @@
   let drawerLoaderMap     = {};   // drawerLoaderMap[drawerId] = loader fn
   let debounceTimer       = null;
   let confirmPending      = null;  // reserved (unused)
-  let serverUrl           = 'http://localhost:8010';
+  let serverUrl           = 'http://localhost:8015';
 
   // 四诊状态（补充采集抽屉）
   let sizhenState = { tongue_color: null, tongue_coating: null, pulse: [], sleep: null, stool: null, urine: null };
@@ -49,7 +49,7 @@
   function getConfig() {
     return new Promise((resolve) => {
       chrome.storage.local.get(['serverUrl', 'paramNames', 'sidebarCollapsed', 'isDocked', 'panelWidth'], (r) => {
-        const url = r.serverUrl || 'http://localhost:8010';
+        const url = r.serverUrl || 'http://localhost:8015';
         serverUrl = url;
         isDocked   = r.isDocked   !== false;   // 默认 true
         panelWidth = r.panelWidth || 360;

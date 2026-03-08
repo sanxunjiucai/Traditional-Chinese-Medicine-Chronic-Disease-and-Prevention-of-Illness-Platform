@@ -25,10 +25,21 @@
     <option value="PERSONAL">个人</option>
   </select>
   <button onclick="loadTemplates()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">查询</button>
+  <select id="sort-by" onchange="loadTemplates()" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
+    <option value="created_at">最新创建</option>
+    <option value="used_count">使用最多</option>
+  </select>
   <div class="ml-auto">
     <a href="/gui/admin/intervention/templates/new"
       class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">+ 新建模板</a>
   </div>
+</div>
+
+<!-- 适用场景快捷标签 -->
+<div class="bg-white rounded-xl shadow-sm px-4 py-3 mb-4 flex flex-wrap gap-2 items-center">
+  <span class="text-xs text-gray-500 font-medium mr-1">适用场景：</span>
+  <div id="scene-chips" class="flex flex-wrap gap-2"></div>
+  <button onclick="document.getElementById('q').value='';loadTemplates()" class="px-3 py-1 rounded-full border border-gray-200 text-xs text-gray-400 hover:bg-gray-50">全部</button>
 </div>
 
 <!-- 模板卡片网格 -->
@@ -38,138 +49,117 @@
 {% block extra_scripts %}
 <script>
 const TYPE_LABELS = {
-  ACUPUNCTURE: '针灸',
-  MASSAGE: '推拿',
-  HERBAL: '中药',
-  DIET: '食疗',
-  EXERCISE: '运动疗法',
-  BATH: '药浴',
-  COMBINED: '综合干预'
+  ACUPUNCTURE: '针灸', MASSAGE: '推拿', HERBAL: '中药',
+  DIET: '食疗', EXERCISE: '运动疗法', BATH: '药浴', COMBINED: '综合干预',
+  TUINA: '推拿', HERBAL_THERAPY: '中药', MEDICATION: '药物干预', OTHER: '其他'
 };
 const TYPE_COLORS = {
   ACUPUNCTURE: 'bg-purple-100 text-purple-700',
-  MASSAGE: 'bg-jade-light text-jade',
-  HERBAL: 'bg-green-100 text-green-700',
+  MASSAGE: 'bg-jade-light text-jade', TUINA: 'bg-jade-light text-jade',
+  HERBAL: 'bg-green-100 text-green-700', HERBAL_THERAPY: 'bg-green-100 text-green-700',
   DIET: 'bg-orange-100 text-orange-700',
   EXERCISE: 'bg-teal-100 text-teal-700',
-  BATH: 'bg-teal-100 text-teal-700',
-  COMBINED: 'bg-amber-100 text-amber-700'
+  BATH: 'bg-blue-100 text-blue-700',
+  COMBINED: 'bg-amber-100 text-amber-700',
+  MEDICATION: 'bg-red-100 text-red-700',
+  OTHER: 'bg-gray-100 text-gray-600'
 };
 const SCOPE_LABELS = { PUBLIC: '公开', DEPT: '科室', PERSONAL: '个人' };
 
-const demoTemplates = [
-  {
-    id: '1',
-    name: '气虚体质针灸调理方案',
-    type: 'ACUPUNCTURE',
-    scope: 'PUBLIC',
-    author: '王医生',
-    usedCount: 64,
-    applicable: '气虚质、阳虚质',
-    desc: '以足三里、气海、关元为主穴，配合脾俞、肾俞，益气固本，改善气虚体质乏力、易感冒等症状。'
-  },
-  {
-    id: '2',
-    name: '颈椎病推拿综合治疗',
-    type: 'MASSAGE',
-    scope: 'PUBLIC',
-    author: '李主任',
-    usedCount: 118,
-    applicable: '颈椎病、肩周炎',
-    desc: '采用揉、拿、点、按等手法，配合颈椎定点旋转复位，缓解颈部肌肉紧张，改善局部血液循环。'
-  },
-  {
-    id: '3',
-    name: '高血压中药干预方案',
-    type: 'HERBAL',
-    scope: 'PUBLIC',
-    author: '张医生',
-    usedCount: 87,
-    applicable: '高血压、肝阳上亢',
-    desc: '以天麻钩藤饮为基础方，随症加减，配合菊花、决明子代茶饮，平肝潜阳，降压安神。'
-  },
-  {
-    id: '4',
-    name: '糖尿病食疗调控方案',
-    type: 'DIET',
-    scope: 'DEPT',
-    author: '陈医生',
-    usedCount: 43,
-    applicable: '2型糖尿病、脾虚痰湿',
-    desc: '以低GI食物为核心，搭配山药、苦瓜、黑木耳等药食同源食材，控糖同时兼顾脾胃健运。'
-  },
-  {
-    id: '5',
-    name: '八段锦慢病康复计划',
-    type: 'EXERCISE',
-    scope: 'PUBLIC',
-    author: '王医生',
-    usedCount: 152,
-    applicable: '慢性病、老年体弱',
-    desc: '以传统八段锦为主，辅以五禽戏，每日20分钟，强身健体，疏通经络，适合中老年慢性病患者。'
-  },
-  {
-    id: '6',
-    name: '风湿痹痛药浴综合方案',
-    type: 'BATH',
-    scope: 'PERSONAL',
-    author: '张医生',
-    usedCount: 29,
-    applicable: '风湿性关节炎、寒湿痹证',
-    desc: '以透骨草、威灵仙、艾叶、红花等组方，药浴熏洗配合外敷，祛风散寒除湿，缓解关节疼痛。'
-  }
-];
+const SCENE_CHIPS = ['高血压','糖尿病','气虚质','老年','颈椎病','风湿','针灸','推拿','减重','睡眠'];
 
-function loadTemplates() {
-  const q = document.getElementById('q').value.toLowerCase();
+function renderSceneChips() {
+  const wrap = document.getElementById('scene-chips');
+  if (!wrap) return;
+  wrap.innerHTML = SCENE_CHIPS.map(s => `
+    <button onclick="setScene('${s}')" class="px-3 py-1 rounded-full border border-gray-200 text-xs text-gray-600 hover:bg-green-50 hover:border-green-300 hover:text-green-700 transition-colors">${s}</button>
+  `).join('');
+}
+
+function setScene(s) {
+  document.getElementById('q').value = s;
+  loadTemplates();
+}
+
+async function loadTemplates() {
+  const q = document.getElementById('q').value.trim();
   const typeFilter = document.getElementById('type-filter').value;
   const scopeFilter = document.getElementById('scope-filter').value;
-
-  const filtered = demoTemplates.filter(t => {
-    const matchQ = !q || t.name.toLowerCase().includes(q) || t.desc.toLowerCase().includes(q);
-    const matchType = !typeFilter || t.type === typeFilter;
-    const matchScope = !scopeFilter || t.scope === scopeFilter;
-    return matchQ && matchType && matchScope;
-  });
-
+  const sortBy = document.getElementById('sort-by')?.value || 'created_at';
   const grid = document.getElementById('template-grid');
-  if (filtered.length === 0) {
-    grid.innerHTML = '<div class="col-span-3 text-center py-12 text-gray-400">暂无匹配的干预模板</div>';
-    return;
-  }
+  grid.innerHTML = '<div class="col-span-3 text-center py-8 text-gray-400">加载中…</div>';
 
-  grid.innerHTML = filtered.map(t => `
-    <div class="bg-white rounded-xl shadow-sm p-5 hover:shadow-md transition-shadow">
-      <div class="flex items-start justify-between mb-3">
-        <span class="px-2 py-0.5 rounded-full text-xs font-medium ${TYPE_COLORS[t.type]}">${TYPE_LABELS[t.type]}</span>
-        <span class="text-xs text-gray-400">${SCOPE_LABELS[t.scope]}</span>
-      </div>
-      <h3 class="font-semibold text-gray-800 mb-2">${t.name}</h3>
-      <p class="text-xs text-gray-500 mb-2 line-clamp-2">${t.desc}</p>
-      <p class="text-xs text-gray-400 mb-3">适用：${t.applicable}</p>
-      <div class="flex items-center justify-between text-xs text-gray-400 mb-4">
-        <span>by ${t.author}</span>
-        <span>使用 ${t.usedCount} 次</span>
-      </div>
-      <div class="flex gap-2">
-        <button onclick="useTemplate('${t.id}')"
-          class="flex-1 bg-green-600 text-white py-1.5 rounded-lg text-xs hover:bg-green-700">使用模板</button>
-        <a href="/gui/admin/intervention/templates/${t.id}/edit"
-          class="px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50">编辑</a>
-        <button onclick="copyTemplate('${t.id}')"
-          class="px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50">复制</button>
-      </div>
-    </div>`).join('');
+  try {
+    const params = new URLSearchParams({ page: 1, page_size: 50 });
+    if (q) params.set('keyword', q);
+    if (typeFilter) params.set('intervention_type', typeFilter);
+    if (scopeFilter) params.set('scope', scopeFilter);
+
+    const r = await fetch(`/tools/intervention/templates?${params}`);
+    const j = await r.json();
+    let items = j.success ? (j.data?.items || []) : [];
+
+    if (!items.length && !q && !typeFilter && !scopeFilter) {
+      grid.innerHTML = '<div class="col-span-3 text-center py-12 text-gray-400">暂无模板，点击右上角新建第一个模板</div>';
+      return;
+    }
+
+    if (sortBy === 'used_count') {
+      items = items.slice().sort((a, b) => (b.used_count || 0) - (a.used_count || 0));
+    }
+
+    if (!items.length) {
+      grid.innerHTML = '<div class="col-span-3 text-center py-12 text-gray-400">暂无匹配的干预模板</div>';
+      return;
+    }
+
+    grid.innerHTML = items.map(t => {
+      const typeKey = t.intervention_type || t.type || '';
+      const typeLabel = TYPE_LABELS[typeKey] || typeKey || '-';
+      const typeColor = TYPE_COLORS[typeKey] || 'bg-gray-100 text-gray-600';
+      const applicable = t.applicable_conditions || t.applicable || '';
+      return `
+        <div class="bg-white rounded-xl shadow-sm p-5 hover:shadow-md transition-shadow">
+          <div class="flex items-start justify-between mb-3">
+            <span class="px-2 py-0.5 rounded-full text-xs font-medium ${typeColor}">${typeLabel}</span>
+            <span class="text-xs text-gray-400">${SCOPE_LABELS[t.scope] || t.scope || ''}</span>
+          </div>
+          <h3 class="font-semibold text-gray-800 mb-2">${t.name}</h3>
+          <p class="text-xs text-gray-500 mb-2 line-clamp-2">${(t.content || t.desc || '').substring(0, 80) || '-'}</p>
+          ${applicable ? `<p class="text-xs text-gray-400 mb-3">适用：${applicable}</p>` : '<div class="mb-3"></div>'}
+          <div class="flex items-center justify-between text-xs text-gray-400 mb-4">
+            <span>创建于 ${(t.created_at || '').substring(0, 10)}</span>
+            <span class="font-medium ${(t.used_count || 0) > 50 ? 'text-green-600' : ''}">使用 ${t.used_count || 0} 次</span>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="useTemplate('${t.id}')"
+              class="flex-1 bg-green-600 text-white py-1.5 rounded-lg text-xs hover:bg-green-700">使用模板</button>
+            <a href="/gui/admin/intervention/templates/${t.id}/edit"
+              class="px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50">编辑</a>
+            <button onclick="copyTemplate('${t.id}')"
+              class="px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50">复制</button>
+          </div>
+        </div>`;
+    }).join('');
+  } catch(e) {
+    grid.innerHTML = '<div class="col-span-3 text-center py-12 text-gray-400">加载失败，请刷新重试</div>';
+  }
+}
+
+async function copyTemplate(id) {
+  try {
+    const r = await fetch(`/tools/intervention/templates/${id}/copy`, { method: 'POST' });
+    const j = await r.json();
+    if (j.success) showToast('已复制为个人模板');
+    else showToast('复制失败', 'error');
+  } catch(e) { showToast('复制失败', 'error'); }
 }
 
 function useTemplate(id) {
-  window.location.href = '/gui/admin/intervention/new';
+  window.location.href = `/gui/admin/intervention/new?template_id=${id}`;
 }
 
-function copyTemplate(id) {
-  showToast('已复制为个人模板');
-}
-
+renderSceneChips();
 loadTemplates();
 </script>
 {% endblock %}

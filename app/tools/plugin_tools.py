@@ -1741,7 +1741,7 @@ async def get_recall_suggestions(
 
 
 class RecallActionRequest(BaseModel):
-    action: str          # "accept" | "ignore"
+    action: str          # "accept" | "ignore" | "suggest_visit"
     note: str = ""
 
 
@@ -1769,8 +1769,24 @@ async def handle_recall_action(
         alert.status = AlertStatus.ACKED
     elif body.action == "ignore":
         alert.status = AlertStatus.CLOSED
+    elif body.action == "suggest_visit":
+        alert.status = AlertStatus.ACKED
+        # 向患者写入"来诊提醒"通知
+        from app.models.notification import Notification
+        doctor_name = current_user.name if hasattr(current_user, "name") else "您的医生"
+        reason = body.note or "医生建议您近期到院复诊，以便更好地评估您的健康状况。"
+        notif = Notification(
+            archive_id=alert.user_id,
+            sender_id=current_user.id,
+            title=f"{doctor_name}建议您来院复诊",
+            content=reason,
+            notif_type="RECALL_VISIT",
+            status="UNREAD",
+            action_url="/h5/appointment",
+        )
+        db.add(notif)
     else:
-        return fail("VALIDATION_ERROR", f"不支持的 action：{body.action}，仅支持 accept / ignore")
+        return fail("VALIDATION_ERROR", f"不支持的 action：{body.action}，仅支持 accept / ignore / suggest_visit")
 
     if body.note:
         alert.message = alert.message + f"\n[处理备注] {body.note}"
@@ -2096,7 +2112,7 @@ async def plugin_agent_stream(
 
     async def generate() -> AsyncIterator[str]:
         try:
-            async for event in run_agent_stream(query, db, current_user):
+            async for event in run_agent_stream(query, db, current_user, mode="plugin"):
                 yield f"data: {json.dumps(event, ensure_ascii=False, default=str)}\n\n"
         except Exception as exc:
             err = {"type": "error", "message": f"Agent 执行出错：{exc}"}

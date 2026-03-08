@@ -233,3 +233,17 @@ async def h5_plan_detail(
         "patient/plan_detail.html",
         {"request": request, "plan_id": plan_id},
     )
+
+
+# ── 干预执行打卡 ──
+
+@router.get("/h5/intervention/{intervention_id}", response_class=HTMLResponse)
+async def h5_intervention_detail(
+    intervention_id: str, request: Request, access_token: str | None = Cookie(default=None)
+):
+    if not _is_logged_in(access_token):
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        "patient/intervention_checkin.html",
+        {"request": request, "intervention_id": intervention_id},
+    )

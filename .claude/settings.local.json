@@ -25,7 +25,8 @@
       "Bash(tasklist:*)",
       "Bash(xargs ls:*)",
       "Bash(xargs -I{} taskkill //PID {} //F)",
-      "Bash(\"/d/project/中医慢病与治未病平台/.env.example\":*)"
+      "Bash(\"/d/project/中医慢病与治未病平台/.env.example\":*)",
+      "Bash(\"/d/software/Python/python.exe\" -X utf8 -m uvicorn app.main:app --host 0.0.0.0 --port 8010)"
     ]
   }
 }

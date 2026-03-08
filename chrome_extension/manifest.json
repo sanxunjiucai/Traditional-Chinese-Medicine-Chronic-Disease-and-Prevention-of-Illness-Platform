@@ -10,7 +10,7 @@
     "tabs"
   ],
   "host_permissions": [
-    "http://localhost:8010/*",
+    "http://localhost:8015/*",
     "http://*/*",
     "https://*/*"
   ],
