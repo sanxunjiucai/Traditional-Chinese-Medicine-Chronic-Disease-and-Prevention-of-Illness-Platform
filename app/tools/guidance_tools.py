@@ -14,6 +14,7 @@ from app.deps import get_current_user, require_role
 from app.models.enums import GuidanceStatus, GuidanceType, TemplateScope, UserRole
 from app.models.guidance import GuidanceRecord, GuidanceTemplate
 from app.models.user import User
+from app.models.archive import PatientArchive
 from app.tools.response import fail, ok
 
 router = APIRouter(prefix="/guidance", tags=["guidance"])
@@ -297,10 +298,16 @@ async def create_record(
     except ValueError:
         return fail("VALIDATION_ERROR", "参数格式或枚举值无效")
 
-    # 校验患者存在
+    # 校验患者存在：先查 User 表，再查 PatientArchive 表（取其 user_id）
     patient_r = await db.execute(select(User).where(User.id == patient_id))
-    if patient_r.scalar_one_or_none() is None:
-        return fail("NOT_FOUND", "患者不存在", status_code=404)
+    patient_user = patient_r.scalar_one_or_none()
+    if patient_user is None:
+        # 尝试按 PatientArchive.id 查找，取关联的 user_id
+        arch_r = await db.execute(select(PatientArchive).where(PatientArchive.id == patient_id))
+        archive = arch_r.scalar_one_or_none()
+        if archive is None or archive.user_id is None:
+            return fail("NOT_FOUND", "患者不存在或尚无用户账号", status_code=404)
+        patient_id = archive.user_id
 
     template_id = uuid.UUID(template_id_str) if template_id_str else None
 

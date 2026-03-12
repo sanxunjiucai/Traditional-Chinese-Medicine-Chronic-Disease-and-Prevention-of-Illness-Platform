@@ -57,7 +57,18 @@
         <input id="exec-date" type="date" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">执行内容</label>
+        <label class="flex items-center justify-between text-sm font-medium text-gray-700 mb-1">
+          <span>执行内容</span>
+          <button onclick="aiGenerateExecContent()" id="btn-ai-exec"
+            class="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-white"
+            style="background:#4E7A61;">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.346a.5.5 0 01-.73-.649 3 3 0 10-4.25 0 .5.5 0 01-.731.649l-.346-.346z"/>
+            </svg>
+            AI 生成
+          </button>
+        </label>
         <textarea id="exec-content" rows="3" placeholder="本次执行的具体内容..."
           class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-300"></textarea>
       </div>
@@ -245,5 +256,39 @@ function showToast(msg) {
 }
 
 loadList();
+
+// ── AI 生成执行内容 ───────────────────────────────────────────────────────────
+async function aiGenerateExecContent() {
+  const btn = document.getElementById('btn-ai-exec');
+  btn.disabled = true;
+  btn.textContent = '...';
+  const planName = document.getElementById('exec-plan-name').textContent;
+  const date = document.getElementById('exec-date').value;
+  const query = `为中医指导计划「${planName}」生成本次（${date}）的执行记录内容，`
+    + `包括：本次执行的具体调理操作步骤、患者依从情况描述、观察到的体征变化要点，约200字。`;
+  try {
+    const resp = await fetch('/tools/agent/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
+    });
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '', result = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n'); buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try { const ev = JSON.parse(line.slice(6)); if (ev.type === 'done' && ev.data) result = ev.data.plan_markdown || ''; } catch {}
+      }
+    }
+    if (result) { document.getElementById('exec-content').value = result.substring(0, 500); showToast('AI 已生成执行内容'); }
+    else showToast('AI 未能生成内容，请手动填写');
+  } catch (e) { showToast('AI 生成失败'); }
+  finally { btn.disabled = false; btn.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.346a.5.5 0 01-.73-.649 3 3 0 10-4.25 0 .5.5 0 01-.731.649l-.346-.346z"/> </svg> AI 生成'; }
+}
 </script>
 {% endblock %}

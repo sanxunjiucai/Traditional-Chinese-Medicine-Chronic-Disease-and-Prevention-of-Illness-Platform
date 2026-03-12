@@ -6,7 +6,7 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, Query
-from sqlalchemy import and_, func, select
+from sqlalchemy import String, and_, cast, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -445,21 +445,31 @@ async def toggle_task(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user=Depends(_ADMIN_ONLY),
 ):
+    try:
+        task_uuid = uuid.UUID(task_id)
+    except ValueError:
+        return fail("VALIDATION_ERROR", "task_id 格式无效", status_code=400)
+    # SQLite 中 UUID 以带横杠的 TEXT 存储，需按字符串精确匹配
+    task_id_str = str(task_uuid)
     result = await db.execute(
-        select(ScheduledTask).where(ScheduledTask.id == uuid.UUID(task_id))
+        select(ScheduledTask).where(cast(ScheduledTask.id, String) == task_id_str)
     )
     task = result.scalar_one_or_none()
     if task is None:
         return fail("NOT_FOUND", "任务不存在", status_code=404)
 
-    task.status = (
+    new_status = (
         ScheduledTaskStatus.DISABLED
         if task.status == ScheduledTaskStatus.ACTIVE
         else ScheduledTaskStatus.ACTIVE
     )
-    db.add(task)
+    # 用原生 SQL 更新，绕过 SQLAlchemy UUID 类型转换导致的 StaleDataError
+    await db.execute(
+        text("UPDATE scheduled_tasks SET status = :status WHERE id = :id"),
+        {"status": new_status.value, "id": task_id_str},
+    )
     await db.commit()
-    return ok({"task_id": task_id, "status": task.status.value})
+    return ok({"task_id": task_id, "status": new_status.value})
 
 
 @router.post("/tasks/{task_id}/run")
@@ -471,8 +481,13 @@ async def run_task_now(
     """手动立即执行一次（模拟执行，记录运行计数）。"""
     from datetime import datetime, timezone
 
+    try:
+        task_uuid = uuid.UUID(task_id)
+    except ValueError:
+        return fail("VALIDATION_ERROR", "task_id 格式无效", status_code=400)
+    task_id_str = str(task_uuid)
     result = await db.execute(
-        select(ScheduledTask).where(ScheduledTask.id == uuid.UUID(task_id))
+        select(ScheduledTask).where(cast(ScheduledTask.id, String) == task_id_str)
     )
     task = result.scalar_one_or_none()
     if task is None:
@@ -481,6 +496,11 @@ async def run_task_now(
     task.run_count += 1
     task.last_run_at = datetime.now(timezone.utc)
     task.last_result = "手动触发执行成功"
-    db.add(task)
+    new_run_count = task.run_count
+    # 用原生 SQL 更新，绕过 SQLite UUID 格式不一致问题
+    await db.execute(
+        text("UPDATE scheduled_tasks SET run_count = :rc, last_run_at = :lr, last_result = :res WHERE id = :id"),
+        {"rc": new_run_count, "lr": task.last_run_at.isoformat(), "res": task.last_result, "id": task_id_str},
+    )
     await db.commit()
-    return ok({"task_id": task_id, "run_count": task.run_count})
+    return ok({"task_id": task_id, "run_count": new_run_count})

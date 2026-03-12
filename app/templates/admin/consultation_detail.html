@@ -81,6 +81,15 @@
               class="px-5 py-2 bg-green-600 text-white rounded-xl text-sm hover:bg-green-700 font-medium flex-shrink-0">
               发送回复
             </button>
+            <button onclick="aiGenerateReply()" id="btn-ai-reply"
+              class="px-3 py-2 rounded-xl text-xs font-medium text-white flex-shrink-0 flex items-center gap-1"
+              style="background:#4E7A61;">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.346a.5.5 0 01-.73-.649 3 3 0 10-4.25 0 .5.5 0 01-.731.649l-.346-.346z"/>
+              </svg>
+              AI回复
+            </button>
             <button onclick="insertTemplate()"
               class="px-5 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm hover:bg-gray-50 flex-shrink-0">
               常用语
@@ -271,5 +280,54 @@ document.getElementById('reply-input').addEventListener('keydown', e => {
 });
 
 loadConsultation();
+
+// ── AI 智能生成咨询回复 ───────────────────────────────────────────────────────
+async function aiGenerateReply() {
+  const btn = document.getElementById('btn-ai-reply');
+  btn.disabled = true;
+  btn.innerHTML = `<svg class="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="3" stroke-dasharray="60" stroke-dashoffset="20"/></svg> 生成中...`;
+
+  // 获取咨询内容
+  const msgEls = document.querySelectorAll('.message-content');
+  const lastMsg = msgEls[msgEls.length - 1]?.textContent?.trim() || '';
+  const patientNameEl = document.querySelector('#patient-name, [id*="patient-name"]');
+  const patientName = patientNameEl?.textContent?.trim() || '患者';
+
+  const query = `患者${patientName}的咨询内容：「${lastMsg.substring(0, 300)}」。`
+    + `请以专业中医医生的身份，给出温暖专业的回复，包括：`
+    + `1）简要答复患者问题 2）针对性的中医调理建议 3）必要的注意事项和随访建议。`
+    + `回复语气亲切专业，约150字。`;
+
+  let fullText = '';
+  try {
+    const resp = await fetch('/tools/agent/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n'); buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try { const ev = JSON.parse(line.slice(6)); if (ev.type === 'done' && ev.data) fullText = ev.data.plan_markdown || ''; } catch {}
+      }
+    }
+    if (fullText) {
+      document.getElementById('reply-input').value = fullText.substring(0, 600);
+      showToast('✅ AI 已生成回复草稿，请确认后发送');
+    } else showToast('AI 未能生成回复，请手动填写');
+  } catch (e) { showToast('AI 生成失败：' + e.message); }
+  finally {
+    btn.disabled = false;
+    btn.innerHTML = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.346a.5.5 0 01-.73-.649 3 3 0 10-4.25 0 .5.5 0 01-.731.649l-.346-.346z"/> </svg> AI回复`;
+  }
+}
 </script>
 {% endblock %}

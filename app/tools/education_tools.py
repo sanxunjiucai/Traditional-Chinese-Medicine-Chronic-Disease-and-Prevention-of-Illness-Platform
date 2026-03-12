@@ -59,9 +59,14 @@ def _record_dict(r: EducationRecord, include_deliveries: bool = False) -> dict:
         "created_by": str(r.created_by) if r.created_by else None,
         "created_at": r.created_at.isoformat(),
     }
-    if include_deliveries:
-        d["content"] = r.content
-        d["deliveries"] = [_delivery_dict(dv) for dv in (r.deliveries or [])]
+    return d
+
+
+def _record_dict_with_deliveries(r: EducationRecord, deliveries: list) -> dict:
+    """带投递记录的详情字典，避免触发 ORM lazy load。"""
+    d = _record_dict(r)
+    d["content"] = r.content
+    d["deliveries"] = [_delivery_dict(dv) for dv in deliveries]
     return d
 
 
@@ -352,10 +357,8 @@ async def get_record(
             .order_by(EducationDelivery.delivered_at.desc())
         )
         deliveries = dv_result.scalars().all()
-        # 手动挂载（避免 lazy load）
-        record.deliveries = deliveries
 
-        return ok(_record_dict(record, include_deliveries=True))
+        return ok(_record_dict_with_deliveries(record, deliveries))
     except Exception:
         # 演示模式降级
         for mock in _MOCK_RECORDS:

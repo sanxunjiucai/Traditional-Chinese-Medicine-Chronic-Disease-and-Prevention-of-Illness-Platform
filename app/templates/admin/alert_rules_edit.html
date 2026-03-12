@@ -160,7 +160,18 @@
         </div>
       </div>
       <div>
-        <label class="block text-sm text-gray-600 mb-1">通知消息模板</label>
+        <label class="flex items-center justify-between text-sm text-gray-600 mb-1">
+          <span>通知消息模板</span>
+          <button onclick="aiGenerateNotifyTemplate()" id="btn-ai-notify"
+            class="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-white"
+            style="background:#4E7A61;">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.346a.5.5 0 01-.73-.649 3 3 0 10-4.25 0 .5.5 0 01-.731.649l-.346-.346z"/>
+            </svg>
+            AI 生成
+          </button>
+        </label>
         <textarea id="notify-template" rows="3"
           placeholder="如：患者{患者姓名}（{档案号}）{指标名称}异常，当前值{当前值}，请及时处置。"
           class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono text-xs focus:outline-none focus:ring-2 focus:ring-red-300"></textarea>
@@ -294,5 +305,36 @@ function saveRule(active) {
 }
 
 updateThresholdUI();
+
+// ── AI 生成通知消息模板 ───────────────────────────────────────────────────────
+async function aiGenerateNotifyTemplate() {
+  const btn = document.getElementById('btn-ai-notify');
+  btn.disabled = true; btn.textContent = '...';
+  const ruleName = document.getElementById('rule-name')?.value || '预警规则';
+  const ruleType = document.querySelector('#rule-type')?.value || '';
+  const query = `为预警规则「${ruleName}」生成一条专业简洁的通知消息模板（含变量占位符），`
+    + `变量格式：{患者姓名} {档案号} {指标名称} {当前值} {触发时间}。`
+    + `要求：1）内容清晰说明预警原因 2）包含紧迫性提示 3）引导下一步处置行动 4）不超过100字。`;
+  let result = '';
+  try {
+    const resp = await fetch('/tools/agent/stream', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
+    });
+    const reader = resp.body.getReader(); const decoder = new TextDecoder(); let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read(); if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n'); buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try { const ev = JSON.parse(line.slice(6)); if (ev.type === 'done' && ev.data) result = ev.data.plan_markdown || ''; } catch {}
+      }
+    }
+    if (result) { document.getElementById('notify-template').value = result.substring(0, 200); showToast('AI 已生成通知模板'); }
+    else showToast('AI 未能生成模板，请手动填写');
+  } catch (e) { showToast('AI 生成失败'); }
+  finally { btn.disabled = false; btn.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.346a.5.5 0 01-.73-.649 3 3 0 10-4.25 0 .5.5 0 01-.731.649l-.346-.346z"/> </svg> AI 生成'; }
+}
 </script>
 {% endblock %}

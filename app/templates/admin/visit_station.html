@@ -617,8 +617,30 @@ async function selectPatient(a) {
   showTab('lab');
   // C7. 历史版本
   loadPlanVersions();
-  // 延迟触发后台自动扫描
-  setTimeout(autoTriggerRiskScan, 2000);
+  // 自动触发 AI 风险分析（延迟1.5s等档案数据加载）
+  setTimeout(() => { autoStartAnalysisAndPlan(); }, 1500);
+}
+
+// 选择患者后自动触发 AI 分析 → 分析完成后自动生成方案
+async function autoStartAnalysisAndPlan() {
+  if (!selectedPatient) return;
+  // 显示"自动分析中"提示
+  const idleEl = document.getElementById('risk-idle');
+  idleEl.innerHTML = `
+    <div class="inline-block animate-spin w-6 h-6 border-4 rounded-full mb-2"
+      style="border-color:#EBF2ED;border-top-color:#4E7A61;"></div>
+    <p class="text-sm text-gray-500">正在自动分析患者风险...</p>`;
+  idleEl.classList.remove('hidden');
+
+  // 触发风险分析
+  await triggerAnalysis();
+
+  // 分析完成后自动生成方案（如果 btn-gen-plan 可用）
+  const genBtn = document.getElementById('btn-gen-plan');
+  if (genBtn && !genBtn.disabled) {
+    showToast('风险分析完成，正在自动生成调理方案...');
+    setTimeout(() => { generateAIPlan(); }, 800);
+  }
 }
 
 // ── B. 患者档案资料（plugin/patient/profile）────────────────────────────────

@@ -28,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.deps import require_role
+from app.services.notification_service import push_to_patient
 from app.models.alert import AlertEvent
 from app.models.archive import PatientArchive
 from app.models.constitution import ConstitutionAssessment
@@ -648,8 +649,11 @@ def _rule_based_risk_conclusions(
             elif rate < 80:
                 results.append({"label": "管理依从性中风险", "category": "依从性", "level": "medium"})
 
-    # BMI
-    if hp and hp.bmi and hp.bmi >= 28:
+    # BMI（从身高体重计算）
+    _bmi = None
+    if hp and hp.height_cm and hp.weight_kg and hp.height_cm > 0:
+        _bmi = hp.weight_kg / (hp.height_cm / 100) ** 2
+    if _bmi and _bmi >= 28:
         results.append({"label": "超重/肥胖风险", "category": "体重", "level": "medium"})
 
     # 中医体质
@@ -764,6 +768,11 @@ async def get_patient_risk_conclusions(
         else (archive.allergy_history or "无")
     )
 
+    bmi_str = "未知"
+    if hp and hp.height_cm and hp.weight_kg and hp.height_cm > 0:
+        bmi_val = hp.weight_kg / (hp.height_cm / 100) ** 2
+        bmi_str = f"{bmi_val:.1f}"
+
     patient_summary = (
         f"患者信息摘要：\n"
         f"- 体质：{const_str or '未评估'}\n"
@@ -771,7 +780,7 @@ async def get_patient_risk_conclusions(
         f"- 并发症：{'；'.join(compl_parts) or '无'}\n"
         f"- 近期异常预警：{chr(10).join(alert_lines) if alert_lines else '无'}\n"
         f"- 依从性：{adherence_text or '无随访记录'}\n"
-        f"- BMI：{str(hp.bmi) if hp and hp.bmi else '未知'}\n"
+        f"- BMI：{bmi_str}\n"
         f"- 过敏史：{allergy_str}"
     )
 
@@ -955,7 +964,7 @@ async def get_current_plan(
         .where(
             GuidanceRecord.patient_id == pid_filter,
             GuidanceRecord.guidance_type == GuidanceType.GUIDANCE,
-            GuidanceRecord.status == GuidanceStatus.PUBLISHED,
+            GuidanceRecord.status.in_([GuidanceStatus.PUBLISHED, GuidanceStatus.DISTRIBUTED]),
         )
         .order_by(desc(GuidanceRecord.created_at))
         .limit(1)
@@ -1176,6 +1185,31 @@ async def publish_plan(
     plan.status = GuidanceStatus.PUBLISHED
     db.add(plan)
     await db.commit()
+
+    # 推送通知给患者
+    try:
+        archive = (await db.execute(
+            select(PatientArchive).where(
+                or_(
+                    PatientArchive.user_id == plan.patient_id,
+                    PatientArchive.id == plan.patient_id,
+                )
+            ).limit(1)
+        )).scalar_one_or_none()
+        if archive:
+            await push_to_patient(
+                db=db,
+                archive_id=archive.id,
+                title=f"医生为您制定了调理方案：{plan.title}",
+                content=(plan.content or '')[:200],
+                notif_type="PLAN_ISSUED",
+                action_url="/h5/notifications",
+                sender_id=current_user.id,
+            )
+            await db.commit()
+    except Exception as _ne:
+        import logging as _log
+        _log.getLogger(__name__).warning("publish_plan 通知推送失败: %s", _ne)
 
     return ok({
         "plan_id": plan_id,
@@ -1439,6 +1473,32 @@ async def distribute_plan(
 
     await db.commit()
 
+    # 推送通知给患者（patient_h5 分发时）
+    if "patient_h5" in body.targets:
+        try:
+            _archive = (await db.execute(
+                select(PatientArchive).where(
+                    or_(
+                        PatientArchive.user_id == plan.patient_id,
+                        PatientArchive.id == plan.patient_id,
+                    )
+                ).limit(1)
+            )).scalar_one_or_none()
+            if _archive:
+                await push_to_patient(
+                    db=db,
+                    archive_id=_archive.id,
+                    title=f"医生为您制定了调理方案：{plan.title}",
+                    content=(plan.content or '')[:200],
+                    notif_type="PLAN_ISSUED",
+                    action_url="/h5/notifications",
+                    sender_id=current_user.id,
+                )
+                await db.commit()
+        except Exception as _ne:
+            import logging as _log
+            _log.getLogger(__name__).warning("distribute_plan 通知推送失败: %s", _ne)
+
     # 自动生成随访计划
     followup_plan_id = None
     followup_created = False
@@ -1574,6 +1634,43 @@ async def get_template(
         "tags": t.tags,
         "content": t.content,
         "created_at": t.created_at.isoformat(),
+    })
+
+
+class SaveTemplateRequest(BaseModel):
+    name: str
+    content: str
+    guidance_type: str = "GUIDANCE"
+
+
+@router.post("/template")
+async def save_template(
+    body: SaveTemplateRequest,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+    current_user=Depends(_PRO),
+):
+    """将当前编辑内容另存为个人模板"""
+    from app.models.enums import GuidanceType, TemplateScope
+    try:
+        gtype = GuidanceType(body.guidance_type)
+    except ValueError:
+        gtype = GuidanceType.GUIDANCE
+
+    tpl = GuidanceTemplate(
+        name=body.name,
+        guidance_type=gtype,
+        scope=TemplateScope.PERSONAL,
+        content=body.content,
+        is_active=True,
+        created_by=current_user.id,
+    )
+    db.add(tpl)
+    await db.commit()
+    await db.refresh(tpl)
+    return ok({
+        "template_id": str(tpl.id),
+        "name": tpl.name,
+        "guidance_type": tpl.guidance_type.value,
     })
 
 
@@ -2336,7 +2433,7 @@ async def get_patient_brief(
             .where(
                 GuidanceRecord.patient_id == plan_patient_id,
                 GuidanceRecord.guidance_type == GuidanceType.GUIDANCE,
-                GuidanceRecord.status == GuidanceStatus.PUBLISHED,
+                GuidanceRecord.status.in_([GuidanceStatus.PUBLISHED, GuidanceStatus.DISTRIBUTED]),
             )
             .order_by(desc(GuidanceRecord.created_at)).limit(1)
         ),
@@ -2433,6 +2530,30 @@ async def get_patient_brief(
                     }
         except Exception:
             pass
+
+    # AI 调用失败或解析异常时，用结构化数据生成规则兜底简报
+    if ai_brief is None:
+        summary_parts = []
+        if disease_list:
+            summary_parts.append(f"慢病：{'、'.join(disease_list[:2])}")
+        if const_cn:
+            summary_parts.append(f"体质{const_cn}")
+        if alert_items:
+            summary_parts.append(f"存在{len(alert_items)}条预警")
+        if plan_info:
+            summary_parts.append(f"执行方案《{plan_info['title'][:10]}》")
+        if summary_parts:
+            fallback_actions = []
+            if alert_items:
+                fallback_actions.append("跟进预警事项")
+            if not plan_info:
+                fallback_actions.append("制定健康管理方案")
+            if indics:
+                fallback_actions.append("复核近期监测指标")
+            ai_brief = {
+                "summary": archive.name + "：" + "，".join(summary_parts) + "。",
+                "actions": fallback_actions[:3] or ["完善患者健康档案"],
+            }
 
     return ok({
         "patient": {
@@ -2626,7 +2747,7 @@ async def get_followup_focus(
         .where(
             GuidanceRecord.patient_id == plan_patient_id,
             GuidanceRecord.guidance_type == GuidanceType.GUIDANCE,
-            GuidanceRecord.status == GuidanceStatus.PUBLISHED,
+            GuidanceRecord.status.in_([GuidanceStatus.PUBLISHED, GuidanceStatus.DISTRIBUTED]),
         )
         .order_by(desc(GuidanceRecord.created_at)).limit(1)
     )).scalar_one_or_none()

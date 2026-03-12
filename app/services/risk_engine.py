@@ -23,6 +23,44 @@ from app.models.clinical import ClinicalDocument
 from app.models.constitution import ConstitutionAssessment
 from app.models.health import ChronicDiseaseRecord
 
+
+async def _llm_call(system: str, user: str, max_tokens: int = 512) -> str:
+    """统一大模型调用：GLM（OpenAI 兼容）或 Claude 官方 SDK。"""
+    api_key  = settings.anthropic_api_key
+    base_url = settings.anthropic_base_url
+    model    = settings.anthropic_model or "glm-4-air"
+
+    if base_url:
+        import httpx
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"{base_url.rstrip('/')}/chat/completions",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {api_key}",
+                },
+                json={
+                    "model": model,
+                    "max_tokens": max_tokens,
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user",   "content": user},
+                    ],
+                },
+            )
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"].strip()
+    else:
+        import anthropic
+        client = anthropic.AsyncAnthropic(api_key=api_key)
+        response = await client.messages.create(
+            model=model or "claude-haiku-4-5-20251001",
+            max_tokens=max_tokens,
+            system=system,
+            messages=[{"role": "user", "content": user}],
+        )
+        return response.content[0].text.strip()
+
 # ── 体质中文名称映射 ─────────────────────────────────────────────────────────
 
 _BODY_TYPE_CN = {
@@ -335,8 +373,6 @@ async def _ai_analyze(
     extra_context: str = "",
 ) -> dict:
     """调用大模型进行风险分析"""
-    import anthropic
-
     constitution_str = f"{constitution['main_type']}（{constitution['completed_at']}）" if constitution else "暂无"
     diseases_str = "、".join(diseases) if diseases else "无"
 
@@ -365,13 +401,11 @@ async def _ai_analyze(
   "raw_summary": "简要分析（100字以内）"
 }}"""
 
-    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-    response = await client.messages.create(
-        model="claude-haiku-4-5-20251001",
+    text = await _llm_call(
+        system="你是一位中医治未病专家，请严格按 JSON 格式输出，不要有任何其他文字。",
+        user=prompt,
         max_tokens=512,
-        messages=[{"role": "user", "content": prompt}],
     )
-    text = response.content[0].text.strip()
 
     # 提取 JSON
     try:
@@ -482,13 +516,12 @@ async def generate_tcm_plan(
 语言简洁实用，适合患者阅读。"""
 
     try:
-        client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-        response = await client.messages.create(
-            model="claude-haiku-4-5-20251001",
+        client2 = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)  # noqa: F841 kept for reference
+        return await _llm_call(
+            system="你是中医治未病专家，请用 Markdown 格式生成调理方案。",
+            user=prompt,
             max_tokens=1500,
-            messages=[{"role": "user", "content": prompt}],
         )
-        return response.content[0].text.strip()
     except Exception:
         # AI 调用失败时降级为规则引擎方案
         constitution_mock = {"main_type": risk_result.get("constitution", "").replace("体质类型：", "")}

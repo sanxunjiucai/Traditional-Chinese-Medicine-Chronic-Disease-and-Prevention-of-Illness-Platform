@@ -6,6 +6,29 @@
 
 'use strict';
 
+// ─── 创建登录模态框 ─────────────────────────────────────────────────────────
+function createLoginModal() {
+  const modal = document.createElement('div');
+  modal.id = 'login-modal';
+  modal.innerHTML = `
+    <div class="login-box">
+      <h2 style="margin:0 0 20px;color:#2D2A24;font-size:18px;text-align:center">登录诊中助手</h2>
+      <input type="text" id="login-phone" placeholder="账号 (如 admin@tcm)" style="width:100%;padding:10px;margin-bottom:12px;border:1px solid #D8D2C8;border-radius:6px;font-size:14px">
+      <input type="password" id="login-password" placeholder="密码" style="width:100%;padding:10px;margin-bottom:8px;border:1px solid #D8D2C8;border-radius:6px;font-size:14px">
+      <div id="login-error" style="color:#D32F2F;font-size:12px;min-height:18px;margin-bottom:8px"></div>
+      <button id="login-btn" style="width:100%;padding:10px;background:#4E7A61;color:white;border:none;border-radius:6px;font-size:14px;cursor:pointer">登录</button>
+    </div>
+  `;
+  const style = document.createElement('style');
+  style.textContent = `
+    #login-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:9999; }
+    .login-box { background:#F5F2EC; padding:24px; border-radius:12px; width:320px; box-shadow:0 4px 12px rgba(0,0,0,0.15); }
+    #login-btn:hover { background:#3d6150; }
+  `;
+  document.head.appendChild(style);
+  document.body.appendChild(modal);
+}
+
 // ─── 存储抽象（替代 chrome.storage.local）───────────────────────────────────
 
 const storage = {
@@ -57,9 +80,11 @@ let currentRisk = null;
 let isPinned = false;
 let chatAbortCtrl = null;
 let pendingImage = null;     // { data: base64, mediaType: 'image/jpeg' }
+let isLoggedIn = false;
 
 // ─── DOM 引用 ────────────────────────────────────────────────────────────────
 
+let loginModal, loginPhone, loginPassword, loginBtn, loginError;
 const searchInput   = document.getElementById('search-input');
 const searchBtn     = document.getElementById('search-btn');
 const searchResult  = document.getElementById('search-result');
@@ -105,9 +130,51 @@ async function init() {
 
   if (isPinned) pinBtn.classList.add('pinned');
   window.electronAPI.setAlwaysOnTop(isPinned);
+
+  // 检查登录状态
+  isLoggedIn = await checkLogin();
+  if (!isLoggedIn) {
+    showLoginModal();
+  }
+}
+
+function showLoginModal() {
+  loginModal.style.display = 'flex';
+  loginPhone.value = '';
+  loginPassword.value = '';
+  loginError.textContent = '';
+}
+
+function hideLoginModal() {
+  loginModal.style.display = 'none';
 }
 
 // ─── 页签切换 ────────────────────────────────────────────────────────────────
+
+loginBtn.addEventListener('click', doLogin);
+loginPassword.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+async function doLogin() {
+  const phone = loginPhone.value.trim();
+  const password = loginPassword.value.trim();
+  if (!phone || !password) {
+    loginError.textContent = '请输入账号和密码';
+    return;
+  }
+  loginBtn.disabled = true;
+  loginBtn.textContent = '登录中...';
+  loginError.textContent = '';
+  try {
+    await loginApi(phone, password);
+    isLoggedIn = true;
+    hideLoginModal();
+  } catch (err) {
+    loginError.textContent = err.message;
+  } finally {
+    loginBtn.disabled = false;
+    loginBtn.textContent = '登录';
+  }
+}
 
 document.querySelectorAll('.nav-tab').forEach(tab => {
   tab.addEventListener('click', () => {
@@ -177,6 +244,30 @@ async function getCurrentPlan(patient_id) {
 
 async function triggerAnalyze(archive_id) {
   return apiFetch(`/tools/risk/analyze/${archive_id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+}
+
+async function loginApi(phone, password) {
+  const url = serverUrl.replace(/\/$/, '') + '/tools/auth/login';
+  const resp = await fetch(url, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone, password }),
+  });
+  const body = await resp.json();
+  if (!resp.ok || body.success === false) {
+    throw new Error(body?.error?.message || body?.detail || '登录失败');
+  }
+  return body.data || body;
+}
+
+async function checkLogin() {
+  try {
+    await apiFetch('/tools/profile/me');
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // ─── 患者搜索 ────────────────────────────────────────────────────────────────
@@ -670,4 +761,5 @@ openPlatformBtn.addEventListener('click', () => {
 
 // ─── 启动 ────────────────────────────────────────────────────────────────────
 
+createLoginModal();
 init().catch(console.error);

@@ -165,6 +165,10 @@ async function getTemplate(serverUrl, template_id) {
   return get(serverUrl, `/tools/plugin/template/${template_id}`);
 }
 
+async function saveTemplate(serverUrl, body) {
+  return post(serverUrl, '/tools/plugin/template', body);
+}
+
 // ─── E. 随访 ─────────────────────────────────────────────────────────────────
 
 async function createFollowupPlan(serverUrl, body) {
@@ -542,13 +546,17 @@ async function callClaude(messages, systemPrompt, apiKey, claudeBaseUrl, claudeM
 
 // ─── Agent via Local Server (SSE) ─────────────────────────────────────────
 
-async function runAgentViaServer(tabId, userMessage, patientCtx, serverUrl, imageData) {
+async function runAgentViaServer(tabId, userMessage, patientCtx, serverUrl, imageData, voiceTranscript) {
   sendProgress(tabId, { type: 'thinking' });
 
   // 若有图片，先提示（SSE 端点暂不传图片，直接附在 query 里说明）
   let query = userMessage || '请分析';
   if (imageData) {
     query += '\n（注：用户附带了一张图片，请根据上下文理解）';
+  }
+  // 将诊室录音转写追加为额外数据源
+  if (voiceTranscript && voiceTranscript.trim()) {
+    query += `\n\n【诊室实时录音转写】\n以下内容来自诊室实时录音，包含医患对话，请结合患者档案综合分析：\n${voiceTranscript.trim()}`;
   }
 
   const url = `${serverUrl}/tools/plugin/agent/stream`;
@@ -599,13 +607,16 @@ async function runAgentViaServer(tabId, userMessage, patientCtx, serverUrl, imag
           sendProgress(tabId, { type: 'thinking' });
           break;
         case 'tool_call':
-          sendProgress(tabId, { type: 'tool_call', toolName: evt.tool, toolInput: evt.input });
+          sendProgress(tabId, { type: 'tool_call', toolName: evt.tool, toolInput: evt.input, label: evt.label });
           break;
         case 'tool_result':
-          sendProgress(tabId, { type: 'tool_done', toolName: evt.tool });
+          sendProgress(tabId, { type: 'tool_done', toolName: evt.tool, label: evt.label, summary: evt.summary, status: evt.status });
+          break;
+        case 'text_chunk':
+          sendProgress(tabId, { type: 'text_chunk', text: evt.text });
           break;
         case 'done':
-          sendProgress(tabId, { type: 'done', text: evt.message || '' });
+          sendProgress(tabId, { type: 'done', text: evt.message || '', data: evt.data, navigateUrl: evt.navigate_url });
           break;
         case 'error':
           sendProgress(tabId, { type: 'error', text: evt.message || 'Agent 出错' });
@@ -868,6 +879,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (action === 'saveTemplate') {
+    getServerUrl().then(serverUrl =>
+      saveTemplate(serverUrl, message.body)
+        .then(data => sendResponse({ success: true, data }))
+        .catch(err => sendResponse({ success: false, error: err.message }))
+    );
+    return true;
+  }
+
   // ── E ──
   if (action === 'createFollowupPlan') {
     getServerUrl().then(serverUrl =>
@@ -1049,7 +1069,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ started: true });
     getServerUrl().then(serverUrl => {
       // 始终走后端 SSE 代理（服务器已配置智谱 AI）
-      runAgentViaServer(tabId, message.message, message.patientContext, serverUrl, message.imageData);
+      runAgentViaServer(tabId, message.message, message.patientContext, serverUrl, message.imageData, message.voiceTranscript);
     });
     return true;
   }

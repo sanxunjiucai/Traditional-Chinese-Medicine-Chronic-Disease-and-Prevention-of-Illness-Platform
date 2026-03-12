@@ -26,9 +26,11 @@ class Settings(BaseSettings):
     # CORS：生产环境应通过 .env 设置 CORS_ORIGINS 为具体域名列表
     # 例：CORS_ORIGINS=["https://yourdomain.com","https://api.yourdomain.com"]
     cors_origins: list[str] = [
+        "http://localhost:8015",
         "http://localhost:8010",
         "http://localhost:8000",
         "http://localhost:3000",
+        "http://127.0.0.1:8015",
         "http://127.0.0.1:8010",
     ]
 

@@ -349,41 +349,46 @@ async def generate_plan(
     if not settings.anthropic_api_key:
         return {"error": "API key 未配置"}
 
-    import os
     import httpx
 
-    base_url = os.environ.get("ANTHROPIC_BASE_URL")
-    messages = [{"role": "user", "content": f"用户指令：{query}\n\n上下文：{json.dumps(context, ensure_ascii=False)}"}]
+    base_url = settings.anthropic_base_url
+    model    = settings.anthropic_model or "glm-4-air"
+    user_msg = f"用户指令：{query}\n\n上下文：{json.dumps(context, ensure_ascii=False)}\n\n请严格按 JSON 格式输出，不要其他文字。"
 
     try:
         if base_url:
+            # OpenAI 兼容格式（GLM 等）
             async with httpx.AsyncClient(timeout=30.0) as client:
                 resp = await client.post(
-                    f"{base_url}/v1/messages",
+                    f"{base_url.rstrip('/')}/chat/completions",
                     headers={
                         "Content-Type": "application/json",
-                        "x-api-key": settings.anthropic_api_key,
-                        "anthropic-version": "2023-06-01",
+                        "Authorization": f"Bearer {settings.anthropic_api_key}",
                     },
                     json={
-                        "model": "claude-haiku-4-5-20251001",
+                        "model": model,
                         "max_tokens": 2048,
-                        "system": _PLANNER_PROMPT,
-                        "tools": ASSISTANT_TOOLS,
-                        "messages": messages,
+                        "messages": [
+                            {"role": "system", "content": _PLANNER_PROMPT},
+                            {"role": "user",   "content": user_msg},
+                        ],
                     },
                 )
-                data = resp.json()
-                tools = [b for b in data.get("content", []) if b.get("type") == "tool_use"]
-                if tools:
-                    return tools[0]["input"]
-                return {"error": "未能生成计划"}
+                resp.raise_for_status()
+                content = resp.json()["choices"][0]["message"]["content"].strip()
+                try:
+                    start = content.find("{")
+                    end = content.rfind("}") + 1
+                    return json.loads(content[start:end])
+                except Exception:
+                    return {"error": "未能解析计划 JSON"}
         else:
+            # Anthropic 官方 SDK（Claude）
             import anthropic
-
+            messages = [{"role": "user", "content": user_msg}]
             client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
             response = await client.messages.create(
-                model="claude-haiku-4-5-20251001",
+                model=model or "claude-haiku-4-5-20251001",
                 max_tokens=2048,
                 system=_PLANNER_PROMPT,
                 tools=ASSISTANT_TOOLS,

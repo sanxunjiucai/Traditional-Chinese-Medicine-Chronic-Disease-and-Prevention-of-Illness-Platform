@@ -89,7 +89,18 @@
           class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8DDD0]">
       </div>
       <div>
-        <label class="block text-sm text-gray-600 mb-1">宣教内容 <span class="text-red-500">*</span></label>
+        <label class="flex items-center justify-between text-sm text-gray-600 mb-1">
+          <span>宣教内容 <span class="text-red-500">*</span></span>
+          <button onclick="aiGenerateEduContent()" id="btn-ai-edu"
+            class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-white disabled:opacity-40"
+            style="background:#4E7A61;">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.346a.5.5 0 01-.73-.649 3 3 0 10-4.25 0 .5.5 0 01-.731.649l-.346-.346z"/>
+            </svg>
+            <span id="btn-ai-edu-text">AI 生成宣教内容</span>
+          </button>
+        </label>
         <textarea id="edu-content" rows="8" placeholder="输入宣教内容，支持换行...&#10;&#10;例如：&#10;一、体质特点&#10;气虚体质人群常见气短懒言、疲倦乏力...&#10;&#10;二、日常建议&#10;1. 饮食：宜食黄芪、山药、红枣..."
           class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8DDD0]"></textarea>
       </div>
@@ -201,6 +212,55 @@ function saveEducation(send) {
   if (!title) { showToast('请填写宣教主题'); return; }
   showToast(send ? '宣教内容发送成功' : '草稿保存成功');
   if (send) window.location.href = '/gui/admin/health-education';
+}
+
+// ── AI 生成宣教内容 ───────────────────────────────────────────────────────────
+async function aiGenerateEduContent() {
+  const btn = document.getElementById('btn-ai-edu');
+  const btnText = document.getElementById('btn-ai-edu-text');
+  btn.disabled = true;
+  btnText.textContent = '生成中...';
+
+  const eduType = document.getElementById('edu-type').value;
+  const title = document.getElementById('edu-title').value.trim();
+  const patientName = document.getElementById('sel-name')?.textContent || '';
+  const TYPE_CN = {
+    CONSTITUTION:'体质宣教', DISEASE:'疾病知识', DIET:'饮食指导',
+    EXERCISE:'运动健康', SEASONAL:'节气养生'
+  };
+  const query = `为${patientName ? '患者' + patientName : '慢病患者'}生成一篇${TYPE_CN[eduType]||'健康宣教'}文章`
+    + (title ? `，主题：${title}` : '')
+    + `。要求：内容通俗易懂，面向患者，包含：一、概述 二、主要知识点（3-5点） 三、日常建议 四、注意事项。`
+    + `内容不少于400字，语言亲切友好。`;
+
+  let fullText = '';
+  try {
+    const resp = await fetch('/tools/agent/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n'); buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try { const ev = JSON.parse(line.slice(6)); if (ev.type === 'done' && ev.data) fullText = ev.data.plan_markdown || ''; } catch {}
+      }
+    }
+    if (fullText) {
+      document.getElementById('edu-content').value = fullText;
+      if (!title) document.getElementById('edu-title').value = (TYPE_CN[eduType]||'健康宣教') + '指南';
+      showToast('✅ AI 已生成宣教内容草稿，请检查修改后发送');
+    } else showToast('AI 未能生成内容，请手动填写或重试');
+  } catch (e) { showToast('AI 生成失败：' + e.message); }
+  finally { btn.disabled = false; btnText.textContent = 'AI 生成宣教内容'; }
 }
 </script>
 {% endblock %}

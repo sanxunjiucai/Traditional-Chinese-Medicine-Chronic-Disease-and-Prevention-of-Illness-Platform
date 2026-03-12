@@ -67,19 +67,43 @@ _RISK_RULES = [
 # ── AI 调用（降级为规则引擎） ──────────────────────────────────────────────────
 
 async def _call_llm(prompt: str, system: str = "") -> str:
-    """调用 Claude API；无 API KEY 时返回空字符串触发规则引擎降级。"""
+    """调用大模型；无 API KEY 时返回空字符串触发规则引擎降级。"""
     if not settings.anthropic_api_key:
         return ""
+    base_url = settings.anthropic_base_url
+    model    = settings.anthropic_model or "glm-4-air"
+    sys_msg  = system or "你是一名专业的中医预防保健医师助手，请用 JSON 格式回复。"
     try:
-        import anthropic
-        client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-        msg = await client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=2048,
-            system=system or "你是一名专业的中医预防保健医师助手，请用 JSON 格式回复。",
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return msg.content[0].text if msg.content else ""
+        if base_url:
+            import httpx
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(
+                    f"{base_url.rstrip('/')}/chat/completions",
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {settings.anthropic_api_key}",
+                    },
+                    json={
+                        "model": model,
+                        "max_tokens": 2048,
+                        "messages": [
+                            {"role": "system", "content": sys_msg},
+                            {"role": "user",   "content": prompt},
+                        ],
+                    },
+                )
+                resp.raise_for_status()
+                return resp.json()["choices"][0]["message"]["content"].strip()
+        else:
+            import anthropic
+            client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+            msg = await client.messages.create(
+                model=model or "claude-haiku-4-5-20251001",
+                max_tokens=2048,
+                system=sys_msg,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return msg.content[0].text if msg.content else ""
     except Exception:
         return ""
 

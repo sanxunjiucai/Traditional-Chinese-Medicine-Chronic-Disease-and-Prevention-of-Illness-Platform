@@ -305,25 +305,6 @@
   height: 14px !important;
 }
 
-#tcm-assistant-sidebar .tcm-recall-badge {
-  position: absolute !important;
-  top: -4px !important;
-  right: -4px !important;
-  background: var(--tcm-danger) !important;
-  color: #fff !important;
-  font-size: 10px !important;
-  font-weight: 700 !important;
-  min-width: 13px !important;
-  height: 13px !important;
-  border-radius: 999px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 0 2px !important;
-  line-height: 1 !important;
-  border: 1.5px solid var(--tcm-surface) !important;
-}
-
 /* ── 内联 SVG 图标通用样式 ── */
 #tcm-assistant-sidebar .tcm-icon {
   display: inline-block !important;
@@ -713,6 +694,17 @@
   border-color: var(--tcm-primary-md) !important;
   background: var(--tcm-primary-lt) !important;
   color: var(--tcm-primary) !important;
+}
+
+#tcm-assistant-sidebar .tcm-btn-ghost {
+  background: transparent !important;
+  color: var(--tcm-text-muted) !important;
+  border: 1px solid var(--tcm-border-lt) !important;
+}
+#tcm-assistant-sidebar .tcm-btn-ghost:hover {
+  color: var(--tcm-text-2) !important;
+  border-color: var(--tcm-border) !important;
+  background: var(--tcm-bg) !important;
 }
 
 #tcm-assistant-sidebar .tcm-btn-success {
@@ -1338,67 +1330,6 @@
   padding: 12px !important;
 }
 
-/* ── 召回建议卡片 ── */
-#tcm-assistant-sidebar .tcm-recall-list {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 8px !important;
-}
-
-#tcm-assistant-sidebar .tcm-recall-card {
-  background: var(--tcm-surface) !important;
-  border: 1px solid var(--tcm-border-lt) !important;
-  border-radius: var(--tcm-radius-sm) !important;
-  padding: 10px 12px !important;
-  box-shadow: var(--tcm-shadow-xs) !important;
-}
-
-#tcm-assistant-sidebar .tcm-recall-header {
-  display: flex !important;
-  align-items: center !important;
-  gap: 6px !important;
-  margin-bottom: 6px !important;
-  flex-wrap: wrap !important;
-}
-
-#tcm-assistant-sidebar .tcm-recall-sev {
-  font-size: 13px !important;
-  font-weight: 700 !important;
-}
-
-#tcm-assistant-sidebar .tcm-recall-status {
-  font-size: 12px !important;
-  color: var(--tcm-text-muted) !important;
-  background: var(--tcm-border-lt) !important;
-  padding: 1px 6px !important;
-  border-radius: 99px !important;
-}
-
-#tcm-assistant-sidebar .tcm-recall-date {
-  font-size: 12px !important;
-  color: var(--tcm-text-muted) !important;
-  margin-left: auto !important;
-}
-
-#tcm-assistant-sidebar .tcm-recall-reason,
-#tcm-assistant-sidebar .tcm-recall-evidence,
-#tcm-assistant-sidebar .tcm-recall-recommend {
-  font-size: 13px !important;
-  color: var(--tcm-text-2) !important;
-  line-height: 1.5 !important;
-  margin-bottom: 4px !important;
-}
-
-#tcm-assistant-sidebar .tcm-recall-actions {
-  margin-top: 8px !important;
-  padding-top: 8px !important;
-  border-top: 1px dashed var(--tcm-border-lt) !important;
-}
-
-#tcm-assistant-sidebar .tcm-recall-note-row {
-  margin-bottom: 6px !important;
-}
-
 /* ── 工作台患者卡片 ── */
 #tcm-assistant-sidebar .tcm-wb-section {
   background: var(--tcm-surface) !important;
@@ -1831,7 +1762,7 @@
   opacity: 0.6 !important;
 }
 
-/* -- AI 召回话术按钮 */
+/* -- AI 操作按钮 */
 #tcm-assistant-sidebar .tcm-ai-action-btn {
   display: inline-flex !important;
   align-items: center !important;
@@ -1849,50 +1780,6 @@
 #tcm-assistant-sidebar .tcm-ai-action-btn:hover {
   background: rgba(78,122,97,0.18) !important;
   border-color: var(--tcm-primary) !important;
-}
-
-/* -- 召回话术展示 */
-#tcm-assistant-sidebar .tcm-recall-script {
-  font-size: 12px !important;
-  line-height: 1.55 !important;
-  padding: 8px !important;
-  margin-top: 8px !important;
-  border-top: 1px solid var(--tcm-border-lt) !important;
-}
-#tcm-assistant-sidebar .tcm-script-title {
-  font-size: 12px !important;
-  font-weight: 600 !important;
-  color: var(--tcm-primary) !important;
-  margin-bottom: 8px !important;
-}
-#tcm-assistant-sidebar .tcm-script-section {
-  margin-bottom: 8px !important;
-}
-#tcm-assistant-sidebar .tcm-script-label {
-  font-size: 11px !important;
-  font-weight: 600 !important;
-  color: var(--tcm-text-muted) !important;
-  margin-bottom: 2px !important;
-}
-#tcm-assistant-sidebar .tcm-script-content {
-  color: var(--tcm-text) !important;
-  background: rgba(78,122,97,0.05) !important;
-  border-left: 2px solid rgba(78,122,97,0.3) !important;
-  padding: 4px 8px !important;
-  border-radius: 0 4px 4px 0 !important;
-}
-#tcm-assistant-sidebar .tcm-script-list {
-  list-style: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-#tcm-assistant-sidebar .tcm-script-list li {
-  padding: 2px 0 !important;
-  color: var(--tcm-text) !important;
-}
-#tcm-assistant-sidebar .tcm-script-list li::before {
-  content: '• ' !important;
-  color: var(--tcm-primary) !important;
 }
 
 /* -- Block A: 关键提醒 */
@@ -2060,54 +1947,189 @@
 #tcm-assistant-sidebar .tcm-d-warn { color: var(--tcm-danger) !important; }
 #tcm-assistant-sidebar .tcm-d-warn svg { color: var(--tcm-danger) !important; }
 
-/* -- AI Dock */
+/* -- AI Dock 容器：绝对浮层，不占 flex 布局空间 */
 #tcm-assistant-sidebar .tcm-ai-dock {
-  flex-shrink: 0 !important;
-  border-top: 1px solid var(--tcm-border-lt) !important;
-  background: var(--tcm-surface) !important;
-  padding: 7px 10px 8px !important;
+  position: absolute !important;
+  inset: 0 !important;
+  pointer-events: none !important;
+  z-index: 30 !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+/* -- 折叠态：右侧悬浮小矩形 */
+#tcm-assistant-sidebar .tcm-ai-fab {
+  position: absolute !important;
+  right: 0 !important;
+  bottom: 40% !important;
+  transform: translateY(50%) !important;
+  pointer-events: auto !important;
+  width: 26px !important;
+  height: 68px !important;
+  border-radius: 8px 0 0 8px !important;
+  border: none !important;
+  background: var(--tcm-primary) !important;
+  color: #fff !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 6px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  cursor: pointer !important;
+  box-shadow: -2px 2px 10px rgba(0,0,0,.18) !important;
+  transition: background var(--tcm-transition), width var(--tcm-transition) !important;
+  overflow: hidden !important;
+  font-family: inherit !important;
 }
+#tcm-assistant-sidebar .tcm-ai-fab.tcm-ai-fab--hidden {
+  display: none !important;
+}
+#tcm-assistant-sidebar .tcm-ai-fab:hover {
+  background: var(--tcm-primary-h) !important;
+  width: 30px !important;
+}
+#tcm-assistant-sidebar .tcm-ai-fab svg {
+  width: 13px !important;
+  height: 13px !important;
+  flex-shrink: 0 !important;
+}
+#tcm-assistant-sidebar .tcm-ai-fab-label {
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  letter-spacing: 1px !important;
+  writing-mode: vertical-rl !important;
+  text-orientation: mixed !important;
+  line-height: 1 !important;
+  opacity: 0.85 !important;
+}
+
+/* -- 展开态：从底部升起的面板 */
+#tcm-assistant-sidebar .tcm-ai-panel {
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 340px !important;
+  pointer-events: auto !important;
+  flex-direction: column !important;
+  background: var(--tcm-surface) !important;
+  border-top: 1px solid var(--tcm-border-lt) !important;
+  box-shadow: 0 -4px 16px rgba(0,0,0,.10) !important;
+  overflow: hidden !important;
+}
+
+/* 标题条 */
+#tcm-assistant-sidebar .tcm-ai-panel-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 7px 12px !important;
+  border-bottom: 1px solid var(--tcm-border-lt) !important;
+  flex-shrink: 0 !important;
+  background: var(--tcm-bg) !important;
+}
+#tcm-assistant-sidebar .tcm-ai-panel-title {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: var(--tcm-text-2) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+}
+#tcm-assistant-sidebar .tcm-ai-panel-title svg {
+  width: 13px !important;
+  height: 13px !important;
+  color: var(--tcm-primary) !important;
+}
+#tcm-assistant-sidebar .tcm-ai-panel-close {
+  width: 22px !important;
+  height: 22px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: none !important;
+  border: none !important;
+  cursor: pointer !important;
+  color: var(--tcm-text-muted) !important;
+  font-size: 16px !important;
+  line-height: 1 !important;
+  border-radius: 4px !important;
+  transition: background var(--tcm-transition) !important;
+}
+#tcm-assistant-sidebar .tcm-ai-panel-close:hover {
+  background: var(--tcm-border-lt) !important;
+  color: var(--tcm-text) !important;
+}
+
+/* 对话展示区（上半，可滚动） */
+#tcm-assistant-sidebar .tcm-ai-chat-area {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  padding: 8px 12px !important;
+  min-height: 0 !important;
+}
+#tcm-assistant-sidebar .tcm-ai-chat-area::-webkit-scrollbar { width: 3px !important; }
+#tcm-assistant-sidebar .tcm-ai-chat-area::-webkit-scrollbar-thumb {
+  background: var(--tcm-border) !important;
+  border-radius: 3px !important;
+}
+
+/* 附件预览条 */
+#tcm-assistant-sidebar #tcm-ai-img-preview-row {
+  padding: 4px 12px !important;
+  flex-shrink: 0 !important;
+}
+
+/* chips 行 */
 #tcm-assistant-sidebar .tcm-ai-chips {
   display: flex !important;
   gap: 4px !important;
   flex-wrap: wrap !important;
+  padding: 5px 12px !important;
+  border-top: 1px solid var(--tcm-border-lt) !important;
+  flex-shrink: 0 !important;
 }
 #tcm-assistant-sidebar .tcm-chip {
   background: var(--tcm-primary-lt) !important;
   color: var(--tcm-primary) !important;
   border: 1px solid var(--tcm-primary-md) !important;
   border-radius: 99px !important;
-  font-size: 12px !important;
+  font-size: 11px !important;
   font-weight: 600 !important;
-  padding: 3px 8px !important;
+  padding: 2px 8px !important;
   cursor: pointer !important;
   transition: background var(--tcm-transition), color var(--tcm-transition) !important;
   font-family: inherit !important;
-  line-height: 1.4 !important;
+  line-height: 1.5 !important;
 }
 #tcm-assistant-sidebar .tcm-chip:hover {
   background: var(--tcm-primary) !important;
   color: #fff !important;
 }
+
+/* 输入行（下半，单行） */
 #tcm-assistant-sidebar .tcm-ai-input-row {
   display: flex !important;
+  align-items: center !important;
   gap: 5px !important;
-  align-items: flex-end !important;
+  padding: 7px 10px !important;
+  border-top: 1px solid var(--tcm-border-lt) !important;
+  flex-shrink: 0 !important;
+  background: var(--tcm-bg) !important;
 }
 #tcm-assistant-sidebar .tcm-ai-input {
   flex: 1 !important;
-  min-height: 64px !important;
-  max-height: 160px !important;
+  height: 32px !important;
+  min-height: unset !important;
+  max-height: unset !important;
   border: 1.5px solid var(--tcm-border) !important;
-  border-radius: var(--tcm-radius-xs) !important;
-  padding: 10px 12px !important;
-  font-size: 13px !important;
-  line-height: 1.5 !important;
+  border-radius: 99px !important;
+  padding: 0 12px !important;
+  font-size: 12px !important;
+  line-height: 32px !important;
   color: var(--tcm-text) !important;
-  background: var(--tcm-bg) !important;
+  background: var(--tcm-surface) !important;
   font-family: inherit !important;
   outline: none !important;
   resize: none !important;
@@ -2117,13 +2139,13 @@
   border-color: var(--tcm-primary) !important;
 }
 #tcm-assistant-sidebar .tcm-ai-send-btn {
-  width: 36px !important;
-  height: 36px !important;
+  width: 32px !important;
+  height: 32px !important;
   flex-shrink: 0 !important;
   background: var(--tcm-primary) !important;
   color: #fff !important;
   border: none !important;
-  border-radius: var(--tcm-radius-xs) !important;
+  border-radius: 50% !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -2132,15 +2154,8 @@
 }
 #tcm-assistant-sidebar .tcm-ai-send-btn:hover { background: var(--tcm-primary-h) !important; }
 #tcm-assistant-sidebar .tcm-ai-send-btn svg {
-  width: 13px !important;
-  height: 13px !important;
-}
-#tcm-assistant-sidebar .tcm-ai-response {
-  background: var(--tcm-primary-lt) !important;
-  border-radius: var(--tcm-radius-xs) !important;
-  padding: 8px !important;
-  max-height: 100px !important;
-  overflow-y: auto !important;
+  width: 12px !important;
+  height: 12px !important;
 }
 #tcm-assistant-sidebar .tcm-ai-card-q {
   font-size: 12px !important;
@@ -2267,15 +2282,15 @@
    AI Dock — Agent 交互 UI
    ══════════════════════════════════════════════════════════════════ */
 
-/* 麦克风 & 图片上传按钮 */
+/* 上传按钮（单行输入行内） */
 #tcm-assistant-sidebar .tcm-ai-tool-btn {
-  width: 30px !important;
-  height: 30px !important;
+  width: 32px !important;
+  height: 32px !important;
   flex-shrink: 0 !important;
   background: var(--tcm-surface) !important;
   color: var(--tcm-text-muted) !important;
   border: 1.5px solid var(--tcm-border) !important;
-  border-radius: var(--tcm-radius-xs) !important;
+  border-radius: 50% !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -2323,9 +2338,9 @@
 }
 #tcm-assistant-sidebar .tcm-ai-img-rm:hover { color: var(--tcm-danger) !important; }
 
-/* AI 响应区：扩大 max-height，支持长回答 */
+/* AI 响应区（旧 max-height 覆盖，现由 tcm-ai-chat-area flex:1 控制） */
 #tcm-assistant-sidebar .tcm-ai-response {
-  max-height: 260px !important;
+  max-height: unset !important;
 }
 
 /* Agent 思考动画 */
@@ -2355,182 +2370,352 @@
   40%           { transform: scale(1);   opacity: 1;   }
 }
 
-/* Agent 工具调用步骤条 */
-#tcm-assistant-sidebar .tcm-agent-step {
+/* ── Agent 步骤卡片 ─────────────────────────────────────────────────────── */
+#tcm-assistant-sidebar .tcm-step {
   display: flex !important;
-  align-items: center !important;
-  gap: 5px !important;
-  padding: 3px 2px !important;
+  align-items: flex-start !important;
+  gap: 7px !important;
+  padding: 5px 8px !important;
+  margin: 3px 0 !important;
+  background: var(--tcm-surface) !important;
+  border: 1px solid var(--tcm-border) !important;
+  border-left: 3px solid var(--tcm-border) !important;
+  border-radius: 6px !important;
   font-size: 12px !important;
   color: var(--tcm-text-muted) !important;
-  border-left: 2px solid var(--tcm-border) !important;
-  padding-left: 7px !important;
-  margin: 2px 0 !important;
+  transition: border-color 0.2s, background 0.2s !important;
 }
-#tcm-assistant-sidebar .tcm-agent-step.tcm-step-calling {
-  color: var(--tcm-accent) !important;
+#tcm-assistant-sidebar .tcm-step.tcm-step-calling {
   border-left-color: var(--tcm-accent) !important;
+  color: var(--tcm-accent) !important;
+  background: rgba(184, 136, 94, 0.06) !important;
 }
-#tcm-assistant-sidebar .tcm-agent-step.tcm-step-done {
-  color: var(--tcm-primary) !important;
+#tcm-assistant-sidebar .tcm-step.tcm-step-done {
   border-left-color: var(--tcm-primary) !important;
+  color: var(--tcm-text-muted) !important;
 }
-#tcm-assistant-sidebar .tcm-agent-step.tcm-step-error {
-  color: var(--tcm-danger) !important;
+#tcm-assistant-sidebar .tcm-step.tcm-step-error {
   border-left-color: var(--tcm-danger) !important;
+  color: var(--tcm-danger) !important;
+  background: rgba(220, 53, 69, 0.05) !important;
 }
-#tcm-assistant-sidebar .tcm-agent-step-icon {
-  font-size: 12px !important;
+#tcm-assistant-sidebar .tcm-step-icon {
+  font-size: 13px !important;
   flex-shrink: 0 !important;
+  margin-top: 1px !important;
+}
+#tcm-assistant-sidebar .tcm-step-body {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  min-width: 0 !important;
+}
+#tcm-assistant-sidebar .tcm-step-label {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  line-height: 1.4 !important;
+}
+#tcm-assistant-sidebar .tcm-step-summary {
+  font-size: 11px !important;
+  color: var(--tcm-text-muted) !important;
+  line-height: 1.4 !important;
+  opacity: 0.85 !important;
+}
+#tcm-assistant-sidebar .tcm-step.tcm-step-done .tcm-step-label {
+  color: var(--tcm-text-muted) !important;
 }
 
-/* Agent 最终回答 */
-#tcm-assistant-sidebar .tcm-agent-answer {
-  font-size: 11.5px !important;
+/* ── 流式文字输出区 ────────────────────────────────────────────────────── */
+#tcm-assistant-sidebar .tcm-agent-stream {
+  font-size: 13px !important;
+  line-height: 1.7 !important;
+  color: var(--tcm-text) !important;
+  padding: 6px 2px 2px !important;
+  word-break: break-word !important;
+}
+
+/* 流式光标 */
+#tcm-assistant-sidebar .tcm-stream-cursor {
+  display: inline-block !important;
+  width: 2px !important;
+  height: 13px !important;
+  background: var(--tcm-primary) !important;
+  border-radius: 1px !important;
+  margin-left: 1px !important;
+  vertical-align: middle !important;
+  animation: tcmCursorBlink 0.8s step-end infinite !important;
+}
+@keyframes tcmCursorBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* ── Markdown 渲染样式 ────────────────────────────────────────────────── */
+#tcm-assistant-sidebar .tcm-md-h {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: var(--tcm-text) !important;
+  margin: 10px 0 4px !important;
+  line-height: 1.3 !important;
+}
+#tcm-assistant-sidebar .tcm-md-h3 {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--tcm-primary) !important;
+  margin: 8px 0 3px !important;
+  line-height: 1.3 !important;
+}
+#tcm-assistant-sidebar .tcm-md-p {
+  font-size: 13px !important;
+  color: var(--tcm-text) !important;
+  line-height: 1.7 !important;
+  margin: 0 !important;
+}
+#tcm-assistant-sidebar .tcm-md-gap {
+  height: 6px !important;
+}
+#tcm-assistant-sidebar .tcm-md-hr {
+  border: none !important;
+  border-top: 1px solid var(--tcm-border) !important;
+  margin: 8px 0 !important;
+}
+#tcm-assistant-sidebar .tcm-md-ul {
+  margin: 3px 0 3px 4px !important;
+  padding: 0 !important;
+  list-style: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+}
+#tcm-assistant-sidebar .tcm-md-ul li {
+  font-size: 13px !important;
+  color: var(--tcm-text) !important;
   line-height: 1.6 !important;
+  padding-left: 12px !important;
+  position: relative !important;
+}
+#tcm-assistant-sidebar .tcm-md-ul li::before {
+  content: '·' !important;
+  position: absolute !important;
+  left: 2px !important;
+  color: var(--tcm-primary) !important;
+  font-size: 16px !important;
+  line-height: 1.3 !important;
+}
+#tcm-assistant-sidebar .tcm-md-code {
+  font-family: 'SFMono-Regular', Consolas, monospace !important;
+  font-size: 11.5px !important;
+  background: rgba(0,0,0,0.06) !important;
+  padding: 1px 4px !important;
+  border-radius: 3px !important;
+  color: var(--tcm-text) !important;
+}
+#tcm-assistant-sidebar .tcm-md-strong { font-weight: 700 !important; }
+#tcm-assistant-sidebar .tcm-md-em { font-style: italic !important; }
+
+/* ── 操作栏（TTS + 复制）─────────────────────────────────────────────── */
+#tcm-assistant-sidebar .tcm-agent-bar {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  margin-top: 6px !important;
+  padding-top: 6px !important;
+  border-top: 1px solid var(--tcm-border) !important;
+}
+#tcm-assistant-sidebar .tcm-tts-btn,
+#tcm-assistant-sidebar .tcm-copy-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  font-size: 11.5px !important;
+  color: var(--tcm-text-muted) !important;
+  background: none !important;
+  border: 1px solid transparent !important;
+  cursor: pointer !important;
+  padding: 3px 7px !important;
+  border-radius: 5px !important;
+  transition: color var(--tcm-transition), background var(--tcm-transition), border-color var(--tcm-transition) !important;
+}
+#tcm-assistant-sidebar .tcm-tts-btn:hover,
+#tcm-assistant-sidebar .tcm-copy-btn:hover {
+  color: var(--tcm-primary) !important;
+  background: var(--tcm-primary-lt) !important;
+  border-color: var(--tcm-primary) !important;
+}
+#tcm-assistant-sidebar .tcm-tts-btn svg,
+#tcm-assistant-sidebar .tcm-copy-btn svg {
+  width: 12px !important;
+  height: 12px !important;
+}
+#tcm-assistant-sidebar .tcm-copy-btn.copied {
+  color: var(--tcm-primary) !important;
+  border-color: var(--tcm-primary) !important;
+}
+
+/* Agent 旧版最终回答（保留兼容） */
+#tcm-assistant-sidebar .tcm-agent-answer {
+  font-size: 13px !important;
+  line-height: 1.7 !important;
   color: var(--tcm-text) !important;
   white-space: pre-wrap !important;
   padding: 4px 2px !important;
 }
 #tcm-assistant-sidebar .tcm-agent-answer strong { font-weight: 700 !important; }
 
-/* TTS 朗读按钮 */
-#tcm-assistant-sidebar .tcm-tts-btn {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 3px !important;
-  font-size: 12px !important;
-  color: var(--tcm-text-muted) !important;
-  background: none !important;
-  border: none !important;
-  cursor: pointer !important;
-  padding: 2px 4px !important;
-  border-radius: 4px !important;
-  margin-top: 4px !important;
-  transition: color var(--tcm-transition), background var(--tcm-transition) !important;
-}
-#tcm-assistant-sidebar .tcm-tts-btn:hover {
-  color: var(--tcm-primary) !important;
-  background: var(--tcm-primary-lt) !important;
-}
-#tcm-assistant-sidebar .tcm-tts-btn svg {
-  width: 11px !important;
-  height: 11px !important;
-}
-
 /* Agent 错误提示 */
 #tcm-assistant-sidebar .tcm-agent-error {
   font-size: 13px !important;
   color: var(--tcm-danger) !important;
-  padding: 4px 2px !important;
+  background: rgba(220, 53, 69, 0.06) !important;
+  border: 1px solid rgba(220, 53, 69, 0.2) !important;
+  border-radius: 6px !important;
+  padding: 6px 8px !important;
   display: flex !important;
   align-items: center !important;
-  gap: 4px !important;
+  gap: 6px !important;
 }
 
-/* ── 预览抽屉 Tab 切换 ────────────────────────────────────────────────── */
-#tcm-assistant-sidebar .tcm-tab-bar {
+/* ── 方案正文视图（新闻文章风格） ─────────────────────────────────────── */
+
+/* 容器不加额外 padding，复用 drawer-body 的 12px */
+#tcm-assistant-sidebar .tcm-pv {
   display: flex !important;
-  border-bottom: 1px solid var(--tcm-border) !important;
-  margin-bottom: 10px !important;
-  gap: 2px !important;
-}
-#tcm-assistant-sidebar .tcm-tab {
-  flex: 1 !important;
-  padding: 6px 4px !important;
-  font-size: 13px !important;
-  background: none !important;
-  border: none !important;
-  border-bottom: 2px solid transparent !important;
-  color: var(--tcm-text-muted) !important;
-  cursor: pointer !important;
-  text-align: center !important;
-  transition: color var(--tcm-transition), border-color var(--tcm-transition) !important;
-}
-#tcm-assistant-sidebar .tcm-tab:hover {
-  color: var(--tcm-primary) !important;
-}
-#tcm-assistant-sidebar .tcm-tab.tcm-tab-active {
-  color: var(--tcm-primary) !important;
-  border-bottom-color: var(--tcm-primary) !important;
-  font-weight: 600 !important;
+  flex-direction: column !important;
 }
 
-/* 预览抽屉内容面板 */
-#tcm-assistant-sidebar .tcm-preview-label {
-  font-size: 13px !important;
+/* 大标题 */
+#tcm-assistant-sidebar .tcm-pv-title {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  color: var(--tcm-text) !important;
+  line-height: 1.3 !important;
+  margin: 0 0 4px !important;
+  padding: 0 !important;
+}
+
+/* meta 一行：状态徽章 · 日期 · 证候 · 随访 */
+#tcm-assistant-sidebar .tcm-pv-meta {
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 3px !important;
+  margin-bottom: 5px !important;
+}
+#tcm-assistant-sidebar .tcm-pv-status {
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  padding: 1px 6px !important;
+  border-radius: 99px !important;
+  letter-spacing: 0.2px !important;
+}
+#tcm-assistant-sidebar .tcm-pv-meta-sep {
+  color: var(--tcm-border) !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
+}
+#tcm-assistant-sidebar .tcm-pv-meta-item {
+  font-size: 11px !important;
   color: var(--tcm-text-muted) !important;
+}
+
+/* 模块 chips */
+#tcm-assistant-sidebar .tcm-pv-tags {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 4px !important;
+  margin-bottom: 5px !important;
+}
+#tcm-assistant-sidebar .tcm-pv-tag {
+  font-size: 10px !important;
+  background: var(--tcm-primary-lt) !important;
+  color: var(--tcm-primary) !important;
+  padding: 1px 7px !important;
+  border-radius: 99px !important;
+  font-weight: 500 !important;
+}
+
+/* 分割线 */
+#tcm-assistant-sidebar hr.tcm-pv-rule {
+  border: none !important;
+  border-top: 1px solid var(--tcm-border-lt) !important;
+  margin: 0 0 6px !important;
+}
+
+/* 正文区 */
+#tcm-assistant-sidebar .tcm-pv-body {
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+  color: var(--tcm-text-2) !important;
   margin-bottom: 6px !important;
 }
-#tcm-assistant-sidebar .tcm-preview-textarea {
-  width: 100% !important;
-  font-size: 13px !important;
-  resize: vertical !important;
-  box-sizing: border-box !important;
+#tcm-assistant-sidebar .tcm-pv-para {
+  margin: 0 0 9px !important;
 }
-#tcm-assistant-sidebar .tcm-preview-h5-content {
-  font-size: 14px !important;
-  line-height: 1.6 !important;
-  white-space: pre-wrap !important;
-  background: var(--tcm-bg-alt) !important;
-  border-radius: 6px !important;
-  padding: 8px !important;
-}
-#tcm-assistant-sidebar .tcm-mgmt-field {
-  display: flex !important;
-  gap: 6px !important;
-  font-size: 14px !important;
-  padding: 3px 0 !important;
-  border-bottom: 1px solid var(--tcm-border) !important;
-}
-#tcm-assistant-sidebar .tcm-mgmt-key {
-  color: var(--tcm-text-muted) !important;
-  min-width: 60px !important;
-}
-#tcm-assistant-sidebar .tcm-change-list {
-  list-style: none !important;
-  padding: 0 !important;
-  margin: 0 !important;
-}
-#tcm-assistant-sidebar .tcm-change-list li {
-  font-size: 14px !important;
-  padding: 4px 0 4px 16px !important;
-  position: relative !important;
-  color: var(--tcm-text) !important;
-  border-bottom: 1px solid var(--tcm-border) !important;
-}
-#tcm-assistant-sidebar .tcm-change-list li::before {
-  content: '→' !important;
-  position: absolute !important;
-  left: 0 !important;
-  color: var(--tcm-primary) !important;
+#tcm-assistant-sidebar .tcm-pv-para:last-child {
+  margin-bottom: 0 !important;
 }
 
-/* 预览底部操作栏 */
-#tcm-assistant-sidebar .tcm-preview-actions {
+/* 章节标题段落：上方多留一点间距，下方紧贴内容 */
+#tcm-assistant-sidebar .tcm-pv-para-h {
+  margin: 8px 0 2px !important;
+}
+#tcm-assistant-sidebar .tcm-pv-para-h:first-child {
+  margin-top: 0 !important;
+}
+
+/* 章节标题文字：不 display:block，内联加粗即可 */
+#tcm-assistant-sidebar .tcm-pv-h {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: var(--tcm-text) !important;
+  background: var(--tcm-bg-alt) !important;
+  border-radius: 3px !important;
+  padding: 1px 5px !important;
+}
+
+/* 列表项：小圆点 */
+#tcm-assistant-sidebar .tcm-pv-li {
+  display: block !important;
+  padding-left: 12px !important;
+  position: relative !important;
+}
+#tcm-assistant-sidebar .tcm-pv-li::before {
+  content: '' !important;
+  position: absolute !important;
+  left: 3px !important;
+  top: 6px !important;
+  width: 4px !important;
+  height: 4px !important;
+  border-radius: 50% !important;
+  background: var(--tcm-primary-md) !important;
+}
+
+/* 底部操作栏 */
+#tcm-assistant-sidebar .tcm-pv-footer {
   display: flex !important;
   gap: 6px !important;
   align-items: center !important;
-  margin-top: 10px !important;
-  padding-top: 8px !important;
-  border-top: 1px solid var(--tcm-border) !important;
-  flex-wrap: wrap !important;
+  padding: 8px 0 4px !important;
+  border-top: 1px solid var(--tcm-border-lt) !important;
+  position: sticky !important;
+  bottom: 0 !important;
+  background: var(--tcm-surface) !important;
 }
+#tcm-assistant-sidebar .tcm-pv-active {
+  font-size: 11px !important;
+  color: var(--tcm-primary) !important;
+  font-weight: 600 !important;
+  margin-left: auto !important;
+}
+
+/* 分发按钮 */
 #tcm-assistant-sidebar .tcm-btn-distribute {
   background: linear-gradient(135deg, #4E7A61, #2B6CB0) !important;
   color: #fff !important;
   border: none !important;
 }
-#tcm-assistant-sidebar .tcm-distributed-badge {
-  font-size: 13px !important;
-  color: #4E7A61 !important;
-  font-weight: 600 !important;
-}
-#tcm-assistant-sidebar .tcm-state-btn-preview {
-  background: var(--tcm-primary-lt) !important;
-  color: var(--tcm-primary) !important;
-  border-color: var(--tcm-primary) !important;
-}
+
+
 
 /* 分发结果卡片 */
 #tcm-assistant-sidebar .tcm-distribute-result {
@@ -3304,4 +3489,229 @@
 #tcm-assistant-sidebar .tcm-b-supplement-tip {
   font-size: 10px !important;
   color: var(--tcm-text-muted) !important;
+}
+
+/* ============================================================
+   实时录音面板 v2 — 顶部醒目条 + 声波动效
+   ============================================================ */
+
+/* 面板容器：紧贴标题栏下方 */
+#tcm-assistant-sidebar .tcm-voice-panel {
+  flex-shrink: 0 !important;
+  border-bottom: 1px solid var(--tcm-border-lt) !important;
+}
+
+/* ── 主录音条 ── */
+#tcm-assistant-sidebar .tcm-voice-bar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 8px 12px !important;
+  background: #F0F4F1 !important;
+  cursor: default !important;
+  gap: 8px !important;
+  transition: background 0.25s !important;
+  min-height: 54px !important;
+}
+/* 录音激活时整条变色 */
+#tcm-assistant-sidebar .tcm-voice-bar.tcm-voice-active {
+  background: #EEF6F1 !important;
+}
+
+/* ── 左侧区域：图标 + 声波 + 状态文字 ── */
+#tcm-assistant-sidebar .tcm-voice-bar-left {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+/* 麦克风图标容器 */
+#tcm-assistant-sidebar .tcm-voice-mic {
+  width: 32px !important;
+  height: 32px !important;
+  flex-shrink: 0 !important;
+  border-radius: 50% !important;
+  background: #E0EBE5 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: background 0.25s !important;
+}
+#tcm-assistant-sidebar .tcm-voice-mic svg {
+  width: 16px !important;
+  height: 16px !important;
+  color: var(--tcm-primary) !important;
+  transition: color 0.25s !important;
+}
+/* 录音中：绿色呼吸脉冲 */
+#tcm-assistant-sidebar .tcm-voice-mic.tcm-mic-on {
+  background: #D1FAE5 !important;
+  animation: tcm-mic-pulse 1.8s ease-in-out infinite !important;
+}
+#tcm-assistant-sidebar .tcm-voice-mic.tcm-mic-on svg {
+  color: #16a34a !important;
+}
+@keyframes tcm-mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(22,163,74,0.30); }
+  50%       { box-shadow: 0 0 0 5px rgba(22,163,74,0); }
+}
+
+/* ── 声波动效（5根柱） ── */
+#tcm-assistant-sidebar .tcm-voice-wave {
+  display: flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+  height: 20px !important;
+  flex-shrink: 0 !important;
+}
+#tcm-assistant-sidebar .tcm-wave-bar {
+  display: block !important;
+  width: 3px !important;
+  border-radius: 2px !important;
+  background: #CBD5C8 !important;
+  height: 4px !important;
+  transition: background 0.25s !important;
+}
+/* 激活时跑动画 */
+#tcm-assistant-sidebar .tcm-voice-wave.tcm-wave-on .tcm-wave-bar {
+  background: #16a34a !important;
+  animation: tcm-wave-bounce 0.9s ease-in-out infinite !important;
+}
+#tcm-assistant-sidebar .tcm-voice-wave.tcm-wave-on .tcm-wave-bar:nth-child(1) {
+  animation-delay: 0.00s !important; height: 6px !important;
+}
+#tcm-assistant-sidebar .tcm-voice-wave.tcm-wave-on .tcm-wave-bar:nth-child(2) {
+  animation-delay: 0.15s !important; height: 12px !important;
+}
+#tcm-assistant-sidebar .tcm-voice-wave.tcm-wave-on .tcm-wave-bar:nth-child(3) {
+  animation-delay: 0.30s !important; height: 18px !important;
+}
+#tcm-assistant-sidebar .tcm-voice-wave.tcm-wave-on .tcm-wave-bar:nth-child(4) {
+  animation-delay: 0.15s !important; height: 12px !important;
+}
+#tcm-assistant-sidebar .tcm-voice-wave.tcm-wave-on .tcm-wave-bar:nth-child(5) {
+  animation-delay: 0.00s !important; height: 6px !important;
+}
+@keyframes tcm-wave-bounce {
+  0%, 100% { transform: scaleY(0.35); opacity: 0.7; }
+  50%       { transform: scaleY(1);    opacity: 1;   }
+}
+
+/* ── 状态文字 ── */
+#tcm-assistant-sidebar .tcm-voice-state {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1px !important;
+  min-width: 0 !important;
+}
+#tcm-assistant-sidebar .tcm-voice-state-label {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: var(--tcm-text-2) !important;
+  line-height: 1.3 !important;
+}
+#tcm-assistant-sidebar .tcm-voice-bar.tcm-voice-active .tcm-voice-state-label {
+  color: #16a34a !important;
+}
+#tcm-assistant-sidebar .tcm-voice-state-sub {
+  font-size: 10px !important;
+  color: var(--tcm-text-muted) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  line-height: 1.3 !important;
+  cursor: pointer !important;
+  transition: color var(--tcm-transition) !important;
+}
+#tcm-assistant-sidebar .tcm-voice-state-sub:hover {
+  color: var(--tcm-primary) !important;
+}
+
+/* ── 右侧：字数 + 操作按钮 ── */
+#tcm-assistant-sidebar .tcm-voice-bar-right {
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  flex-shrink: 0 !important;
+}
+#tcm-assistant-sidebar .tcm-voice-count {
+  font-size: 11px !important;
+  color: var(--tcm-text-muted) !important;
+  font-variant-numeric: tabular-nums !important;
+  min-width: 28px !important;
+  text-align: right !important;
+}
+#tcm-assistant-sidebar .tcm-voice-clear-btn {
+  font-size: 11px !important;
+  padding: 3px 7px !important;
+  border-radius: 99px !important;
+  border: 1px solid var(--tcm-border) !important;
+  background: var(--tcm-surface) !important;
+  color: var(--tcm-text-muted) !important;
+  cursor: pointer !important;
+  font-family: inherit !important;
+  line-height: 1.5 !important;
+  transition: all var(--tcm-transition) !important;
+}
+#tcm-assistant-sidebar .tcm-voice-clear-btn:hover {
+  border-color: var(--tcm-danger) !important;
+  color: var(--tcm-danger) !important;
+}
+/* 开始录音按钮（绿色） */
+#tcm-assistant-sidebar .tcm-voice-toggle-btn {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  padding: 4px 10px !important;
+  border-radius: 99px !important;
+  border: none !important;
+  background: var(--tcm-primary) !important;
+  color: #fff !important;
+  cursor: pointer !important;
+  font-family: inherit !important;
+  line-height: 1.5 !important;
+  white-space: nowrap !important;
+  transition: background var(--tcm-transition) !important;
+}
+#tcm-assistant-sidebar .tcm-voice-toggle-btn:hover {
+  background: var(--tcm-primary-h) !important;
+}
+/* 暂停按钮（琥珀色） */
+#tcm-assistant-sidebar .tcm-voice-toggle-btn.tcm-voice-stop {
+  background: #D97706 !important;
+}
+#tcm-assistant-sidebar .tcm-voice-toggle-btn.tcm-voice-stop:hover {
+  background: #B45309 !important;
+}
+
+/* ── 转写文字区 ── */
+#tcm-assistant-sidebar .tcm-voice-body {
+  max-height: 120px !important;
+  overflow-y: auto !important;
+  padding: 6px 12px 8px !important;
+  background: var(--tcm-surface-warm) !important;
+  border-top: 1px solid var(--tcm-border-lt) !important;
+}
+#tcm-assistant-sidebar .tcm-voice-body::-webkit-scrollbar {
+  width: 3px !important;
+}
+#tcm-assistant-sidebar .tcm-voice-body::-webkit-scrollbar-thumb {
+  background: var(--tcm-border) !important;
+  border-radius: 3px !important;
+}
+#tcm-assistant-sidebar .tcm-voice-transcript {
+  font-size: 12px !important;
+  line-height: 1.8 !important;
+  color: var(--tcm-text) !important;
+  word-break: break-all !important;
+}
+/* 每条已确认转写行 */
+#tcm-assistant-sidebar .tcm-voice-line {
+  margin-bottom: 0 !important;
+}
+/* 实时未确认文字（灰色斜体，追加在末尾） */
+#tcm-assistant-sidebar .tcm-voice-interim {
+  color: var(--tcm-text-muted) !important;
+  font-style: italic !important;
 }

@@ -2368,6 +2368,19 @@ async def run_agent_stream(
     except Exception:
         pass
 
+    # 逐词流式推送最终回答（让前端渐进渲染）
+    if final_message:
+        import asyncio as _asyncio
+        words = final_message.split(' ')
+        chunk = ''
+        for i, word in enumerate(words):
+            chunk += word + ' '
+            # 每积攒约 10 个字符或到末尾就推送一次
+            if len(chunk) >= 10 or i == len(words) - 1:
+                yield {"type": "text_chunk", "text": chunk}
+                chunk = ''
+                await _asyncio.sleep(0.02)
+
     yield {
         "type": "done",
         "message": final_message,

@@ -5,408 +5,102 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>治未病·诊中助手</title>
   <style>
-    /* ─── 基础重置 ─────────────────────────────────────────────── */
+    /* ─── Base reset ──────────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; overflow: hidden; font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; }
-    body { background: #F7F5F0; color: #2D2A24; display: flex; flex-direction: column; }
-
-    /* ─── 自定义标题栏（无系统标题栏）──────────────────────────── */
-    #titlebar {
-      height: 38px; min-height: 38px;
-      background: #3A5F4A;
-      display: flex; align-items: center;
-      -webkit-app-region: drag;     /* 可拖拽区域 */
-      user-select: none;
-      padding: 0 8px 0 12px;
-      gap: 8px;
-    }
-    #titlebar .logo {
-      display: flex; align-items: center; gap: 6px;
-      color: #E8F5EE; font-size: 13px; font-weight: 600; flex: 1;
-    }
-    #titlebar .logo svg { width: 18px; height: 18px; color: #A3D4B5; flex-shrink: 0; }
-    #titlebar .tb-btns {
-      display: flex; gap: 4px;
-      -webkit-app-region: no-drag; /* 按钮不拖拽 */
-    }
-    .tb-btn {
-      width: 28px; height: 28px; border: none; border-radius: 6px;
-      background: transparent; color: #A3D4B5;
-      cursor: pointer; display: flex; align-items: center; justify-content: center;
-      transition: background 0.15s;
-    }
-    .tb-btn:hover { background: rgba(255,255,255,0.15); color: #E8F5EE; }
-    .tb-btn.active { background: rgba(255,255,255,0.2); color: #fff; }
-    .tb-btn svg { width: 15px; height: 15px; }
-    #pin-btn.pinned { color: #FFD580; }
-
-    /* ─── 页签导航 ──────────────────────────────────────────────── */
-    #nav {
-      display: flex; background: #EDE9E2; border-bottom: 1px solid #D8D2C8;
-      flex-shrink: 0;
-    }
-    .nav-tab {
-      flex: 1; padding: 8px 4px; font-size: 12px; font-weight: 500;
-      color: #7A7268; border: none; background: transparent; cursor: pointer;
-      border-bottom: 2px solid transparent; transition: all 0.15s;
-      display: flex; align-items: center; justify-content: center; gap: 4px;
-    }
-    .nav-tab svg { width: 13px; height: 13px; }
-    .nav-tab:hover { color: #4E7A61; background: rgba(78,122,97,0.06); }
-    .nav-tab.active { color: #4E7A61; border-bottom-color: #4E7A61; background: #F7F5F0; font-weight: 600; }
-
-    /* ─── 主内容区 ──────────────────────────────────────────────── */
-    #pages { flex: 1; overflow: hidden; position: relative; }
-    .page { position: absolute; inset: 0; overflow-y: auto; display: none; padding: 12px; }
-    .page.active { display: block; }
-
-    /* ─── 患者搜索页 ────────────────────────────────────────────── */
-    .search-bar {
-      display: flex; gap: 8px; margin-bottom: 12px;
-    }
-    .search-bar input {
-      flex: 1; height: 36px; border: 1.5px solid #D8D2C8; border-radius: 8px;
-      padding: 0 12px; font-size: 13px; background: #fff; color: #2D2A24;
-      outline: none; transition: border-color 0.15s;
-    }
-    .search-bar input:focus { border-color: #4E7A61; }
-    .search-bar input::placeholder { color: #A89F94; }
-    .btn {
-      height: 36px; padding: 0 14px; border: none; border-radius: 8px;
-      font-size: 13px; font-weight: 500; cursor: pointer; display: inline-flex;
-      align-items: center; gap: 6px; transition: all 0.15s; white-space: nowrap;
-    }
-    .btn-primary { background: #4E7A61; color: #fff; }
-    .btn-primary:hover { background: #3A5F4A; }
-    .btn-primary:disabled { background: #9A9188; cursor: not-allowed; }
-    .btn-sm { height: 28px; padding: 0 10px; font-size: 12px; border-radius: 6px; }
-    .btn-ghost { background: transparent; color: #4E7A61; border: 1.5px solid #4E7A61; }
-    .btn-ghost:hover { background: rgba(78,122,97,0.08); }
-
-    /* ─── 患者卡片列表 ──────────────────────────────────────────── */
-    .patient-list { display: flex; flex-direction: column; gap: 8px; }
-    .patient-card {
-      background: #fff; border-radius: 10px; padding: 12px;
-      border: 1.5px solid #E8E2D8; cursor: pointer; transition: all 0.15s;
-    }
-    .patient-card:hover { border-color: #4E7A61; box-shadow: 0 2px 8px rgba(78,122,97,0.12); }
-    .patient-card.selected { border-color: #4E7A61; background: #F0F7F3; }
-    .pc-name { font-size: 14px; font-weight: 600; color: #2D2A24; }
-    .pc-meta { font-size: 12px; color: #7A7268; margin-top: 3px; }
-    .pc-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-    .tag { font-size: 11px; padding: 2px 7px; border-radius: 10px; background: #EDE9E2; color: #5C554A; }
-    .tag.risk-high   { background: #FEE2D8; color: #9B2020; }
-    .tag.risk-medium { background: #FEF3C7; color: #92400E; }
-    .tag.risk-low    { background: #D1FAE5; color: #065F46; }
-
-    /* ─── 风险分析面板 ──────────────────────────────────────────── */
-    .analysis-header {
-      display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
-    }
-    .patient-name-big { font-size: 16px; font-weight: 700; color: #2D2A24; flex: 1; }
-    .badge {
-      font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 10px;
-      white-space: nowrap;
-    }
-    .badge-high   { background: #FEE2D8; color: #9B2020; border: 1px solid #FECACA; }
-    .badge-medium { background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
-    .badge-low    { background: #D1FAE5; color: #065F46; border: 1px solid #A7F3D0; }
-    .badge-unknown{ background: #EDE9E2; color: #5C554A; border: 1px solid #D8D2C8; }
-
-    .section-card {
-      background: #fff; border-radius: 10px; padding: 12px;
-      border: 1px solid #E8E2D8; margin-bottom: 10px;
-    }
-    .section-title {
-      font-size: 12px; font-weight: 600; color: #7A7268; margin-bottom: 8px;
-      display: flex; align-items: center; gap: 5px; text-transform: uppercase; letter-spacing: 0.5px;
-    }
-    .section-title svg { width: 13px; height: 13px; }
-    .ai-summary {
-      font-size: 13px; line-height: 1.65; color: #3A3530;
-      white-space: pre-wrap; word-break: break-word;
-    }
-    .evidence-item {
-      display: flex; justify-content: space-between; align-items: flex-start;
-      padding: 7px 0; border-bottom: 1px solid #F0EBE2; font-size: 12px;
-      gap: 8px;
-    }
-    .evidence-item:last-child { border-bottom: none; }
-    .ev-label { color: #5C554A; flex-shrink: 0; }
-    .ev-value { font-weight: 600; text-align: right; }
-    .ev-high   { color: #9B2020; }
-    .ev-medium { color: #92400E; }
-    .ev-low    { color: #065F46; }
-
-    .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .metric-item { background: #F7F5F0; border-radius: 8px; padding: 8px 10px; }
-    .metric-label { font-size: 11px; color: #7A7268; }
-    .metric-value { font-size: 15px; font-weight: 700; color: #2D2A24; margin-top: 2px; }
-    .metric-unit  { font-size: 11px; color: #9A9188; margin-left: 2px; }
-
-    /* ─── AI 对话区 ──────────────────────────────────────────────── */
-    #chat-page { display: none; flex-direction: column; padding: 0; overflow: hidden; }
-    #chat-page.active { display: flex; }
-    .chat-messages {
-      flex: 1; overflow-y: auto; padding: 12px; display: flex;
-      flex-direction: column; gap: 10px;
-    }
-    .chat-bubble {
-      max-width: 88%; padding: 10px 13px; border-radius: 12px;
-      font-size: 13px; line-height: 1.6; word-break: break-word;
-    }
-    .chat-bubble.user {
-      background: #4E7A61; color: #fff; align-self: flex-end;
-      border-bottom-right-radius: 4px;
-    }
-    .chat-bubble.ai {
-      background: #fff; color: #2D2A24; align-self: flex-start;
-      border: 1px solid #E8E2D8; border-bottom-left-radius: 4px;
-    }
-    .chat-bubble.ai.thinking {
-      color: #9A9188; font-style: italic;
-    }
-    .chat-bubble.tool-call {
-      background: #F0F7F3; color: #2B5A3F; border: 1px solid #A7D4B8;
-      font-size: 11px; padding: 6px 10px; align-self: flex-start;
-      border-radius: 8px; max-width: 100%;
-    }
-    .chat-input-area {
-      border-top: 1px solid #E8E2D8; padding: 10px 12px;
-      background: #fff; flex-shrink: 0;
-    }
-    .chat-context {
-      font-size: 11px; color: #7A7268; margin-bottom: 6px;
-      padding: 4px 8px; background: #F0F7F3; border-radius: 6px;
-      display: flex; align-items: center; gap: 5px;
-    }
-    .chat-context svg { width: 11px; height: 11px; color: #4E7A61; flex-shrink: 0; }
-    .chat-row { display: flex; gap: 8px; }
-    .chat-row textarea {
-      flex: 1; border: 1.5px solid #D8D2C8; border-radius: 8px; padding: 8px 10px;
-      font-size: 13px; resize: none; height: 72px; font-family: inherit;
-      background: #FAFAF8; outline: none; transition: border-color 0.15s;
-      line-height: 1.5;
-    }
-    .chat-row textarea:focus { border-color: #4E7A61; }
-    .chat-row textarea::placeholder { color: #A89F94; }
-    .chat-send-col { display: flex; flex-direction: column; gap: 6px; justify-content: flex-end; }
-    .btn-send {
-      width: 38px; height: 38px; padding: 0; border: none;
-      background: #4E7A61; color: #fff; border-radius: 8px;
-      cursor: pointer; display: flex; align-items: center; justify-content: center;
-      transition: background 0.15s;
-    }
-    .btn-send:hover { background: #3A5F4A; }
-    .btn-send:disabled { background: #9A9188; cursor: not-allowed; }
-    .btn-send svg { width: 16px; height: 16px; }
-    .btn-img { width: 38px; height: 38px; padding: 0; border: 1.5px solid #D8D2C8;
-      background: #fff; color: #7A7268; border-radius: 8px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
-    .btn-img:hover { border-color: #4E7A61; color: #4E7A61; }
-    .btn-img svg { width: 15px; height: 15px; }
-    .chat-hint { font-size: 11px; color: #A89F94; margin-top: 5px; }
-
-    /* ─── 设置页 ──────────────────────────────────────────────────── */
-    .setting-group { margin-bottom: 16px; }
-    .setting-label {
-      font-size: 12px; font-weight: 600; color: #5C554A; margin-bottom: 5px;
-      display: block;
-    }
-    .setting-input {
-      width: 100%; height: 36px; border: 1.5px solid #D8D2C8; border-radius: 8px;
-      padding: 0 10px; font-size: 13px; background: #fff; color: #2D2A24; outline: none;
-      transition: border-color 0.15s;
-    }
-    .setting-input:focus { border-color: #4E7A61; }
-    .setting-desc { font-size: 11px; color: #9A9188; margin-top: 4px; }
-    .setting-section-title {
-      font-size: 12px; font-weight: 700; color: #3A5F4A; margin: 16px 0 10px;
-      padding-bottom: 5px; border-bottom: 1px solid #E8E2D8;
-      text-transform: uppercase; letter-spacing: 0.5px;
-    }
-    .save-result { font-size: 12px; margin-top: 8px; min-height: 18px; }
-    .save-result.ok   { color: #065F46; }
-    .save-result.fail { color: #9B2020; }
-
-    /* ─── 通用加载/空状态 ────────────────────────────────────────── */
-    .loading-wrap {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      padding: 40px 20px; gap: 12px; color: #7A7268;
-    }
-    .spinner {
-      width: 28px; height: 28px; border: 3px solid #E8E2D8;
-      border-top-color: #4E7A61; border-radius: 50%; animation: spin 0.7s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .empty-state {
-      text-align: center; padding: 40px 20px; color: #9A9188; font-size: 13px;
-    }
-    .empty-state svg { width: 40px; height: 40px; color: #C8C0B4; margin: 0 auto 10px; display: block; }
-    .err-msg { font-size: 12px; color: #9B2020; padding: 8px 12px; background: #FEE2D8; border-radius: 8px; }
-    .ok-msg  { font-size: 12px; color: #065F46; padding: 8px 12px; background: #D1FAE5; border-radius: 8px; }
-
-    /* ─── 方案区 ──────────────────────────────────────────────────── */
-    .plan-card {
-      background: #fff; border-radius: 10px; padding: 12px;
-      border: 1.5px solid #E8E2D8; margin-bottom: 8px;
-    }
-    .plan-card:hover { border-color: #4E7A61; }
-    .plan-title { font-size: 13px; font-weight: 600; color: #2D2A24; }
-    .plan-meta  { font-size: 11px; color: #9A9188; margin-top: 3px; }
-    .plan-status {
-      display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px;
-      margin-top: 5px;
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: #F5F2EC;
+      font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      color: #2D2A24;
     }
 
-    /* ─── 滚动条 ──────────────────────────────────────────────────── */
-    ::-webkit-scrollbar { width: 5px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #D8D2C8; border-radius: 10px; }
-    ::-webkit-scrollbar-thumb:hover { background: #B8B0A4; }
+    /* ─── Loading indicator (shown before sidebar injects) ────────────── */
+    #tcm-loading {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      height: 100vh; gap: 12px; color: #7A7268; font-size: 13px;
+      /* hidden via JS once sidebar is ready */
+    }
+    #tcm-loading .spin {
+      width: 24px; height: 24px;
+      border: 2.5px solid #E8E2D8;
+      border-top-color: #4E7A61;
+      border-radius: 50%;
+      animation: _spin 0.7s linear infinite;
+    }
+    @keyframes _spin { to { transform: rotate(360deg); } }
 
-    /* ─── Markdown 渲染 ──────────────────────────────────────────── */
-    .md-content { font-size: 13px; line-height: 1.7; color: #3A3530; }
-    .md-content h1,.md-content h2,.md-content h3 { font-weight: 700; color: #2D2A24; margin: 10px 0 5px; }
-    .md-content h1 { font-size: 15px; }
-    .md-content h2 { font-size: 14px; }
-    .md-content h3 { font-size: 13px; }
-    .md-content p { margin: 5px 0; }
-    .md-content ul,.md-content ol { padding-left: 18px; margin: 5px 0; }
-    .md-content li { margin: 3px 0; }
-    .md-content strong { font-weight: 700; color: #2D2A24; }
-    .md-content code { background: #F0EBE2; padding: 1px 5px; border-radius: 4px; font-size: 12px; font-family: monospace; }
-    .md-content blockquote { border-left: 3px solid #4E7A61; padding-left: 10px; color: #5C554A; margin: 8px 0; }
-    .md-content hr { border: none; border-top: 1px solid #E8E2D8; margin: 10px 0; }
+    /* ─── Electron-specific sidebar overrides ─────────────────────────── */
+    /*
+     * content.js appends #tcm-assistant-sidebar to document.body as a
+     * fixed-position overlay covering the right side of a browser window.
+     * In Electron the sidebar IS the window, so we expand it to fill
+     * the entire viewport.
+     */
+    #tcm-assistant-sidebar {
+      position: fixed !important;
+      inset: 0 !important;          /* top/right/bottom/left = 0 */
+      width: 100% !important;
+      height: 100% !important;
+      max-width: none !important;
+      min-width: unset !important;
+      transform: translateX(0) !important;
+      border-radius: 0 !important;
+      border-left: none !important;
+      box-shadow: none !important;
+      z-index: 1 !important;
+    }
+
+    /* Always show expanded — no collapse transition in a dedicated window */
+    #tcm-assistant-sidebar.tcm-collapsed {
+      transform: none !important;
+      width: 100% !important;
+    }
+
+    /* Hide the collapse-to-tab handle (not meaningful as a window) */
+    .tcm-resize-handle,
+    .tcm-collapsed-tab {
+      display: none !important;
+    }
+
+    /* Make the sidebar header act as the drag region for the frameless window */
+    .tcm-header {
+      -webkit-app-region: drag !important;
+      /* Slightly taller on desktop for easier dragging */
+      min-height: 44px !important;
+    }
+
+    /* Interactive elements inside the header must NOT be drag targets */
+    .tcm-header button,
+    .tcm-header input,
+    .tcm-header a,
+    .tcm-header-right,
+    .tcm-header-patient-name {
+      -webkit-app-region: no-drag !important;
+    }
+
+    /* Scrollbar styling to match the sidebar theme */
+    ::-webkit-scrollbar            { width: 5px; }
+    ::-webkit-scrollbar-track      { background: transparent; }
+    ::-webkit-scrollbar-thumb      { background: #D8D2C8; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover{ background: #B8B0A4; }
   </style>
 </head>
 <body>
 
-<!-- ── 自定义标题栏 ────────────────────────────────────────────────── -->
-<div id="titlebar">
-  <div class="logo">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M12 22V12"/><path d="M12 12C12 7 8 3 3 3c0 5 3 9 9 9z"/>
-      <path d="M12 12c0-5 4-9 9-9c-1 5-4 9-9 9z"/>
-    </svg>
-    <span>治未病·诊中助手</span>
-  </div>
-  <div class="tb-btns">
-    <button class="tb-btn" id="pin-btn" title="置顶">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V6h1a2 2 0 000-4H8a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24V17z"/>
-      </svg>
-    </button>
-    <button class="tb-btn" id="mini-btn" title="最小化">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    </button>
-    <button class="tb-btn" id="close-btn" title="隐藏到托盘">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </button>
-  </div>
+<!-- Shown until content.js injects the sidebar -->
+<div id="tcm-loading">
+  <div class="spin"></div>
+  <span>正在启动诊中助手…</span>
 </div>
 
-<!-- ── 页签导航 ─────────────────────────────────────────────────────── -->
-<div id="nav">
-  <button class="nav-tab active" data-tab="search">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-    患者搜索
-  </button>
-  <button class="nav-tab" data-tab="chat">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-    AI 对话
-  </button>
-  <button class="nav-tab" data-tab="settings">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-    设置
-  </button>
-</div>
+<!--
+  chrome-shim.js MUST load synchronously here so that window.chrome is
+  available when background.js and content.js are injected by main.js
+  (via webContents.executeJavaScript) after the did-finish-load event.
+-->
+<script src="chrome-shim.js"></script>
 
-<!-- ── 主内容区 ─────────────────────────────────────────────────────── -->
-<div id="pages">
-
-  <!-- 患者搜索 + 分析 -->
-  <div class="page active" id="search-page">
-    <div class="search-bar">
-      <input type="text" id="search-input" placeholder="输入患者姓名、手机号或档案号…" autocomplete="off"/>
-      <button class="btn btn-primary" id="search-btn">搜索</button>
-    </div>
-    <div id="search-result"></div>
-    <div id="analysis-panel" style="display:none"></div>
-  </div>
-
-  <!-- AI 对话 -->
-  <div class="page" id="chat-page">
-    <div class="chat-messages" id="chat-messages">
-      <div class="chat-bubble ai">
-        你好！我是治未病·诊中助手。<br>
-        你可以问我患者的风险情况、方案建议、随访安排，或者搜索医学资讯。<br>
-        <span style="color:#9A9188;font-size:11px">先在「患者搜索」选定患者，AI 会结合患者档案回答。</span>
-      </div>
-    </div>
-    <div class="chat-input-area">
-      <div class="chat-context" id="chat-context" style="display:none">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-        <span id="chat-context-text">当前患者：—</span>
-      </div>
-      <div class="chat-row">
-        <textarea id="chat-input" placeholder="输入问题，Ctrl+Enter 发送…"></textarea>
-        <div class="chat-send-col">
-          <label class="btn-img" title="上传图片">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-            <input type="file" id="img-input" accept="image/*" style="display:none">
-          </label>
-          <button class="btn-send" id="chat-send-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          </button>
-        </div>
-      </div>
-      <div class="chat-hint">Ctrl+Enter 发送 · 支持图片上传（检验单、舌象等）</div>
-    </div>
-  </div>
-
-  <!-- 设置 -->
-  <div class="page" id="settings-page">
-    <div class="setting-section-title">服务连接</div>
-    <div class="setting-group">
-      <label class="setting-label">后端服务地址</label>
-      <input class="setting-input" id="set-server" type="text" placeholder="http://localhost:8015"/>
-      <div class="setting-desc">治未病平台服务器地址（需先启动 FastAPI 服务并登录）</div>
-    </div>
-
-    <div class="setting-section-title">AI 模型配置</div>
-    <div class="setting-group">
-      <label class="setting-label">API Key</label>
-      <input class="setting-input" id="set-apikey" type="password" placeholder="你的 API 密钥（置空则走后端默认配置）"/>
-      <div class="setting-desc">留空则由后端服务代理 AI 请求（推荐）</div>
-    </div>
-    <div class="setting-group">
-      <label class="setting-label">Base URL</label>
-      <input class="setting-input" id="set-baseurl" type="text" placeholder="https://open.bigmodel.cn/api/paas/v4"/>
-      <div class="setting-desc">GLM：https://open.bigmodel.cn/api/paas/v4 · Claude 官方留空</div>
-    </div>
-    <div class="setting-group">
-      <label class="setting-label">模型名称</label>
-      <input class="setting-input" id="set-model" type="text" placeholder="glm-4-air"/>
-      <div class="setting-desc">GLM：glm-4-air · Claude：claude-3-5-sonnet-20241022</div>
-    </div>
-
-    <div class="setting-section-title">患者参数识别</div>
-    <div class="setting-group">
-      <label class="setting-label">参数名（逗号分隔）</label>
-      <input class="setting-input" id="set-params" type="text" placeholder="patient_id,pid,id,patientId,patient"/>
-      <div class="setting-desc">用于从 URL 自动识别患者 ID 的参数名列表</div>
-    </div>
-
-    <button class="btn btn-primary" id="save-settings-btn" style="width:100%;justify-content:center">保存配置</button>
-    <div class="save-result" id="save-result"></div>
-    <div style="margin-top:10px">
-      <button class="btn btn-ghost btn-sm" id="open-platform-btn">打开治未病平台 ↗</button>
-    </div>
-  </div>
-
-</div>
-
-<script src="app.js"></script>
 </body>
 </html>

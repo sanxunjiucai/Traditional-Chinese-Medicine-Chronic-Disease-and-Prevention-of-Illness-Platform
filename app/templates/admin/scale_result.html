@@ -55,6 +55,28 @@
     <div id="r-details" class="space-y-3 text-sm"></div>
   </div>
 
+  <!-- AI 中医解读 -->
+  <div class="bg-white rounded-xl shadow-sm p-5">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="font-semibold text-gray-700">AI 中医辨证解读</h3>
+      <button onclick="aiInterpretScale()" id="btn-ai-scale"
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
+        style="background:#4E7A61;">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.346a.5.5 0 01-.73-.649 3 3 0 10-4.25 0 .5.5 0 01-.731.649l-.346-.346z"/>
+        </svg>
+        <span id="btn-ai-scale-text">AI 解读量表结果</span>
+      </button>
+    </div>
+    <div id="ai-scale-idle" class="py-4 text-center text-gray-400 text-sm">点击「AI 解读量表结果」获取中医辨证分析与个性化调理建议</div>
+    <div id="ai-scale-loading" class="hidden py-4 flex items-center justify-center gap-2 text-sm text-gray-500">
+      <div class="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style="border-color:#EBF2ED;border-top-color:#4E7A61;"></div>
+      AI 正在进行中医辨证分析...
+    </div>
+    <div id="ai-scale-result" class="hidden prose prose-sm max-w-none text-gray-700 leading-relaxed text-sm whitespace-pre-wrap bg-green-50 rounded-lg p-4"></div>
+  </div>
+
   <!-- 操作按钮 -->
   <div class="flex gap-3 justify-between">
     <a href="/gui/admin/scale-records"
@@ -123,5 +145,66 @@ document.getElementById('r-details').innerHTML = demo.answers.map((a, i) => `
       </div>
     </div>
   </div>`).join('');
+
+// ── AI 中医辨证解读量表结果 ───────────────────────────────────────────────────
+async function aiInterpretScale() {
+  const btn = document.getElementById('btn-ai-scale');
+  const btnText = document.getElementById('btn-ai-scale-text');
+  btn.disabled = true;
+  btnText.textContent = '解读中...';
+  document.getElementById('ai-scale-idle').classList.add('hidden');
+  document.getElementById('ai-scale-loading').classList.remove('hidden');
+  document.getElementById('ai-scale-result').classList.add('hidden');
+
+  const query = `患者完成${demo.scale}（RECORD_ID: ${RECORD_ID}），总分${demo.score}分（满分${demo.max}分），`
+    + `评估分层：${demo.level}，风险提示：${demo.risk}。`
+    + `请从中医角度进行辨证分析：1）该评分反映的中医证型及病机分析 2）与患者体质的关联 `
+    + `3）中医调理思路（方向性建议） 4）生活起居调护要点 5）预后评估与随访建议。`
+    + `请用通俗易懂的语言，便于医生向患者解释。`;
+
+  let fullText = '';
+  try {
+    const resp = await fetch('/tools/agent/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const ev = JSON.parse(line.slice(6));
+          if (ev.type === 'done' && ev.data) fullText = ev.data.plan_markdown || ev.data.result || '';
+        } catch {}
+      }
+    }
+
+    document.getElementById('ai-scale-loading').classList.add('hidden');
+    if (fullText) {
+      document.getElementById('ai-scale-result').textContent = fullText;
+      document.getElementById('ai-scale-result').classList.remove('hidden');
+    } else {
+      document.getElementById('ai-scale-idle').textContent = 'AI 暂未返回解读结果，请稍后重试';
+      document.getElementById('ai-scale-idle').classList.remove('hidden');
+    }
+  } catch (e) {
+    document.getElementById('ai-scale-loading').classList.add('hidden');
+    document.getElementById('ai-scale-idle').textContent = 'AI 解读失败：' + e.message;
+    document.getElementById('ai-scale-idle').classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btnText.textContent = 'AI 解读量表结果';
+  }
+}
 </script>
 {% endblock %}

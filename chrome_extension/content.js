@@ -40,6 +40,12 @@
   let sizhenState = { tongue_color: null, tongue_coating: null, pulse: [], sleep: null, stool: null, urine: null };
   let _sizhenTimer = null;
 
+  // 实时录音状态
+  let _voiceTranscript  = '';     // 已确认的累积转写文本
+  let _voiceRecognition = null;   // SpeechRecognition 实例
+  let _voiceActive      = false;  // 是否正在录音
+  let _voiceInterimEl   = null;   // 未确认文字的 DOM 元素
+
   // IDE 化状态
   let isDocked    = true;   // 吸附模式 vs 浮动模式
   let panelWidth  = 360;    // 面板宽度（px）
@@ -84,6 +90,15 @@
       .replace(/&/g, '&amp;').replace(/</g, '&lt;')
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
+
+  const ARCHIVE_TYPE_CN = {
+    NORMAL: '普通档案', CHILD: '儿童档案', FEMALE: '女性档案',
+    ELDERLY: '老年档案', KEY_FOCUS: '重点人群',
+  };
+  const GUIDANCE_TYPE_CN = {
+    GUIDANCE: '中医指导', INTERVENTION: '健康干预', EDUCATION: '健康宣教',
+    LIFESTYLE: '生活方式', MEDICATION: '用药指导', DIET: '饮食指导', EXERCISE: '运动指导',
+  };
 
   function getRiskBadge(level) {
     const l = (level || '').toUpperCase();
@@ -137,6 +152,7 @@
     chevronDown:  `<svg class="tcm-block-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>`,
     mic:          `<svg class="tcm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="9" y1="22" x2="15" y2="22"/></svg>`,
     image:        `<svg class="tcm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>`,
+    attach:       `<svg class="tcm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>`,
     volume:       `<svg class="tcm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg>`,
     workbench:    `<svg class="tcm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`,
     patients:     `<svg class="tcm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="18" cy="8" r="2.5"/><path d="M21 20c0-2.8-1.8-5-4-5.5"/></svg>`,
@@ -152,7 +168,6 @@
     update_plan:             '更新方案内容',
     get_followup_tasks:      '查询随访任务',
     create_followup:         '创建随访任务',
-    get_recall_suggestions:  '查询召回建议',
     get_templates:           '获取方案模板',
     search_patients:         '搜索患者',
     get_workbench_info:      '获取工作台信息',
@@ -167,8 +182,8 @@
   const PLAN_STATES = {
     DRAFT:       { label: '草稿',   color: '#9A9188', icon: ICONS.pen },
     CONFIRMED:   { label: '已确认', color: '#2B6CB0', icon: ICONS.checkCircle },
-    DISTRIBUTED: { label: '已分发', color: '#4E7A61', icon: ICONS.bolt },
-    PUBLISHED:   { label: '已发布', color: '#4E7A61', icon: ICONS.checkCircle },
+    DISTRIBUTED: { label: '当前方案', color: '#4E7A61', icon: ICONS.bolt },
+    PUBLISHED:   { label: '当前方案', color: '#4E7A61', icon: ICONS.checkCircle },
     ISSUED:      { label: '已下达', color: '#2B6CB0', icon: ICONS.clipboard },
     IN_PROGRESS: { label: '进行中', color: '#B8885E', icon: ICONS.clock },
     FOLLOWED_UP: { label: '已随访', color: '#6B46C1', icon: ICONS.phone },
@@ -205,9 +220,48 @@
           </div>
           <div class="tcm-header-right">
             <button class="tcm-icon-btn" id="tcm-patients-btn" title="患者列表">${ICONS.patients}</button>
-            <button class="tcm-icon-btn" id="tcm-workbench-btn" title="工作台">${ICONS.workbench}<span class="tcm-recall-badge" id="tcm-recall-badge"></span></button>
+            <button class="tcm-icon-btn" id="tcm-workbench-btn" title="工作台">${ICONS.workbench}</button>
             <button class="tcm-icon-btn" id="tcm-dock-toggle-btn" title="弹出为浮窗">${ICONS.undock}</button>
             <button class="tcm-collapse-btn" id="tcm-collapse-btn" title="收起">${ICONS.chevronRight}</button>
+          </div>
+        </div>
+
+        <!-- 实时录音区：顶部常驻，独立数据源 -->
+        <div class="tcm-voice-panel" id="tcm-voice-panel">
+          <!-- 主录音条（整条可点击） -->
+          <div class="tcm-voice-bar" id="tcm-voice-bar">
+            <div class="tcm-voice-bar-left">
+              <!-- 麦克风图标 / 录音指示灯 -->
+              <div class="tcm-voice-mic" id="tcm-voice-mic">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                  <line x1="12" y1="19" x2="12" y2="23"/>
+                  <line x1="8" y1="23" x2="16" y2="23"/>
+                </svg>
+              </div>
+              <!-- 声波动效（录音中显示） -->
+              <div class="tcm-voice-wave" id="tcm-voice-wave">
+                <span class="tcm-wave-bar"></span>
+                <span class="tcm-wave-bar"></span>
+                <span class="tcm-wave-bar"></span>
+                <span class="tcm-wave-bar"></span>
+                <span class="tcm-wave-bar"></span>
+              </div>
+              <!-- 状态文字 -->
+              <div class="tcm-voice-state">
+                <span class="tcm-voice-state-label" id="tcm-voice-state-label">实时录音</span>
+                <span class="tcm-voice-state-sub" id="tcm-voice-state-sub">点击开始，医患对话自动转写</span>
+              </div>
+            </div>
+            <div class="tcm-voice-bar-right">
+              <span class="tcm-voice-count" id="tcm-voice-count"></span>
+              <button class="tcm-voice-toggle-btn" id="tcm-voice-toggle-btn">开始</button>
+            </div>
+          </div>
+          <!-- 转写文字滚动区 -->
+          <div class="tcm-voice-body" id="tcm-voice-body" style="display:none;">
+            <div class="tcm-voice-transcript" id="tcm-voice-transcript"></div>
           </div>
         </div>
 
@@ -216,30 +270,58 @@
           <div class="tcm-idle" id="tcm-idle-state">
             <div class="tcm-idle-icon">${ICONS.search}</div>
             <p>等待检测患者信息…</p>
-            <p class="tcm-hint">请在HIS系统中打开含患者ID参数的页面</p>
+            <p class="tcm-hint" id="tcm-idle-hint">请在HIS系统中打开含患者ID参数的页面</p>
+            <button class="tcm-btn tcm-btn-ghost tcm-idle-login-btn" id="tcm-idle-login-btn" style="display:none;margin-top:12px;font-size:12px;">
+              ${ICONS.user}&nbsp;选择患者
+            </button>
+            <!-- Electron 内置登录表单 -->
+            <div id="tcm-electron-login" style="display:none;width:100%;margin-top:16px;">
+              <div style="font-size:13px;font-weight:600;color:var(--tcm-text);margin-bottom:12px;text-align:center;">登录治未病平台</div>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <input type="text" id="tcm-login-phone" class="tcm-input" placeholder="手机号 / 账号" autocomplete="username" style="font-size:13px;" />
+                <input type="password" id="tcm-login-password" class="tcm-input" placeholder="密码" autocomplete="current-password" style="font-size:13px;" />
+                <button class="tcm-btn tcm-btn-primary" id="tcm-login-submit" style="margin-top:4px;font-size:13px;">登录</button>
+                <div id="tcm-login-error" style="display:none;font-size:12px;color:var(--tcm-danger,#E53E3E);text-align:center;"></div>
+              </div>
+            </div>
           </div>
         </div>
 
         <!-- 底部 AI Dock -->
         <div class="tcm-ai-dock" id="tcm-ai-dock" style="display:none;">
-          <div class="tcm-ai-chips" id="tcm-ai-chips">
-            <button class="tcm-chip" data-chip="risk">查风险</button>
-            <button class="tcm-chip" data-chip="plan">方案</button>
-            <button class="tcm-chip" data-chip="followup">随访</button>
-            <button class="tcm-chip" data-chip="recall">召回</button>
-            <button class="tcm-chip" data-chip="summary">临床摘要</button>
-          </div>
-          <div class="tcm-ai-input-row">
-            <textarea class="tcm-ai-input" id="tcm-ai-input" rows="3" placeholder="输入指令，如：生成方案草稿…\nShift+Enter 换行，Enter 发送"></textarea>
-            <div style="display:flex;flex-direction:column;gap:4px;align-items:center;">
+          <!-- 折叠态：右侧悬浮小矩形 -->
+          <button class="tcm-ai-fab tcm-ai-fab--hidden" id="tcm-ai-fab" title="展开 AI 助手">
+            ${ICONS.sparkle}<span class="tcm-ai-fab-label">AI</span>
+          </button>
+          <!-- 展开态：340px 浮窗 -->
+          <div class="tcm-ai-panel" id="tcm-ai-panel" style="display:none;">
+            <!-- 标题条 -->
+            <div class="tcm-ai-panel-header">
+              <span class="tcm-ai-panel-title">${ICONS.sparkle} AI 助手</span>
+              <button class="tcm-ai-panel-close" id="tcm-ai-panel-close" title="收起">×</button>
+            </div>
+            <!-- 对话展示区（可滚动） -->
+            <div class="tcm-ai-chat-area" id="tcm-ai-response"></div>
+            <!-- 附件/图片预览条 -->
+            <div id="tcm-ai-img-preview-row" style="display:none;"></div>
+            <!-- 快捷指令 chips -->
+            <div class="tcm-ai-chips" id="tcm-ai-chips">
+              <button class="tcm-chip" data-chip="risk">查风险</button>
+              <button class="tcm-chip" data-chip="plan">方案</button>
+              <button class="tcm-chip" data-chip="followup">随访</button>
+              <button class="tcm-chip" data-chip="summary">临床摘要</button>
+            </div>
+            <!-- 输入行（单行） -->
+            <div class="tcm-ai-input-row">
+              <input class="tcm-ai-input" id="tcm-ai-input" type="text"
+                placeholder="输入指令，Enter 发送…" autocomplete="off" />
+              <button class="tcm-ai-tool-btn" id="tcm-ai-img-btn" title="上传图片/文件">${ICONS.attach}</button>
+              <input type="file" id="tcm-ai-img-input"
+                accept="image/*,application/pdf,text/*,.doc,.docx,.xls,.xlsx,.csv"
+                style="display:none;" />
               <button class="tcm-ai-send-btn" id="tcm-ai-send-btn" title="发送（Enter）">${ICONS.send}</button>
-              <button class="tcm-ai-tool-btn" id="tcm-ai-mic-btn" title="语音输入">${ICONS.mic}</button>
-              <button class="tcm-ai-tool-btn" id="tcm-ai-img-btn" title="上传图片（OCR）">${ICONS.image}</button>
-              <input type="file" id="tcm-ai-img-input" accept="image/*" style="display:none;" />
             </div>
           </div>
-          <div id="tcm-ai-img-preview-row" style="display:none;"></div>
-          <div class="tcm-ai-response" id="tcm-ai-response" style="display:none;"></div>
         </div>
       </div>
 
@@ -252,13 +334,13 @@
       <!-- 抽屉层（overlay 方式，叠在 inner 上方） -->
       ${makeDrawerHtml('tcm-drawer-clinical',  '关键提醒')}
       ${makeDrawerHtml('tcm-drawer-evidence',  '风险证据链')}
-      ${makeDrawerHtml('tcm-drawer-plan',      '方案管理')}
+      ${makeDrawerHtml('tcm-drawer-plan',      '干预方案')}
       ${makeDrawerHtml('tcm-drawer-preview',   '方案预览与分发')}
       ${makeDrawerHtml('tcm-drawer-supplement', '补充采集信息')}
       ${makeDrawerHtml('tcm-drawer-followup',  '随访管理')}
-      ${makeDrawerHtml('tcm-drawer-recall',    '召回建议')}
       ${makeDrawerHtml('tcm-drawer-workbench', '工作台')}
       ${makeDrawerHtml('tcm-drawer-patients',  '患者列表')}
+      ${makeDrawerHtml('tcm-drawer-transcript', '录音全文')}
 
     `;
 
@@ -331,6 +413,8 @@
 
   // ─── 吸附/浮动模式 ─────────────────────────────────────────────────────────
   function applyBodyMargin() {
+    // Electron 桌面版：侧边栏即整个窗口，无需给 body 预留边距
+    if (window.__ELECTRON__) return;
     // 通过 inline style 设置过渡，避免污染 HIS 页全局 body CSS
     document.body.style.transition = 'margin-right 0.25s ease';
     if (isDocked && !isCollapsed) {
@@ -507,7 +591,7 @@
       listEl.innerHTML = list.slice(0, 40).map(p => `
         <div class="tcm-pl-card" data-archive-id="${esc(p.patient_id||p.archive_id)}" data-name="${esc(p.name)}">
           <div class="tcm-pl-name">${esc(p.name)}
-            ${p.archive_type ? `<span class="tcm-pl-type">${esc(p.archive_type)}</span>` : ''}
+            ${p.archive_type ? `<span class="tcm-pl-type">${esc(ARCHIVE_TYPE_CN[p.archive_type] || p.archive_type)}</span>` : ''}
             ${(p.patient_id||p.archive_id) === currentPatient?.archive_id ? '<span class="tcm-pl-current">当前</span>' : ''}
           </div>
           <div class="tcm-pl-meta">
@@ -583,17 +667,115 @@
     // AI dock send
     document.getElementById('tcm-ai-send-btn').addEventListener('click', handleAiSend);
     document.getElementById('tcm-ai-input').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAiSend(); }
+      if (e.key === 'Enter') { e.preventDefault(); handleAiSend(); }
     });
 
-    // AI dock mic
-    document.getElementById('tcm-ai-mic-btn').addEventListener('click', startVoiceInput);
-
-    // AI dock image upload
+    // AI dock image/file upload
     document.getElementById('tcm-ai-img-btn').addEventListener('click', () => {
       document.getElementById('tcm-ai-img-input').click();
     });
     document.getElementById('tcm-ai-img-input').addEventListener('change', handleImageUpload);
+
+    // AI dock FAB 展开 / 收起
+    document.getElementById('tcm-ai-fab').addEventListener('click', () => {
+      document.getElementById('tcm-ai-fab').classList.add('tcm-ai-fab--hidden');
+      document.getElementById('tcm-ai-panel').style.display = 'flex';
+      document.getElementById('tcm-ai-input').focus();
+    });
+    document.getElementById('tcm-ai-panel-close').addEventListener('click', () => {
+      document.getElementById('tcm-ai-panel').style.display = 'none';
+      document.getElementById('tcm-ai-fab').classList.remove('tcm-ai-fab--hidden');
+    });
+
+    // 实时录音面板
+    initVoicePanel();
+
+    // Electron 桌面版：显示登录表单 + 选择患者按钮
+    if (window.__ELECTRON__) {
+      const hintEl   = document.getElementById('tcm-idle-hint');
+      const loginBtn = document.getElementById('tcm-idle-login-btn');
+      const loginForm = document.getElementById('tcm-electron-login');
+
+      // 先尝试用已有 session（已登录）→ 直接显示"选择患者"
+      // 未登录则显示登录表单
+      function showLoginForm() {
+        if (hintEl) hintEl.style.display = 'none';
+        if (loginForm) loginForm.style.display = 'block';
+        if (loginBtn) loginBtn.style.display = 'none';
+      }
+      function showSelectPatientBtn() {
+        if (hintEl) { hintEl.textContent = '请选择患者开始工作'; hintEl.style.display = ''; }
+        if (loginForm) loginForm.style.display = 'none';
+        if (loginBtn) {
+          loginBtn.style.display = 'inline-flex';
+          loginBtn.innerHTML = ICONS.user + '&nbsp;选择患者';
+        }
+      }
+
+      // 检测是否已登录
+      chrome.storage.local.get(['serverUrl'], (r) => {
+        const serverUrl = (r.serverUrl || 'http://localhost:8015').replace(/\/$/, '');
+        fetch(serverUrl + '/tools/profile/me', { credentials: 'include' })
+          .then(res => {
+            if (res.ok) showSelectPatientBtn();
+            else showLoginForm();
+          })
+          .catch(() => showLoginForm());
+      });
+
+      // 选择患者按钮
+      if (loginBtn) {
+        loginBtn.addEventListener('click', () => {
+          openDrawer('tcm-drawer-patients', loadPatientListDrawer);
+        });
+      }
+
+      // 登录表单提交
+      const submitBtn = document.getElementById('tcm-login-submit');
+      const errEl = document.getElementById('tcm-login-error');
+      if (submitBtn) {
+        submitBtn.addEventListener('click', async () => {
+          const phone = document.getElementById('tcm-login-phone')?.value.trim();
+          const password = document.getElementById('tcm-login-password')?.value;
+          if (!phone || !password) {
+            if (errEl) { errEl.textContent = '请填写账号和密码'; errEl.style.display = 'block'; }
+            return;
+          }
+          submitBtn.textContent = '登录中…';
+          submitBtn.disabled = true;
+          if (errEl) errEl.style.display = 'none';
+          try {
+            const r = await new Promise(res => chrome.storage.local.get(['serverUrl'], res));
+            const serverUrl = (r.serverUrl || 'http://localhost:8015').replace(/\/$/, '');
+            const resp = await fetch(serverUrl + '/tools/auth/login', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ phone, password }),
+            });
+            const data = await resp.json();
+            if (resp.ok && data.success !== false) {
+              showSelectPatientBtn();
+              showToast('登录成功', 'success');
+            } else {
+              const msg = data?.error?.message || data?.detail || '账号或密码错误';
+              if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+              submitBtn.textContent = '登录';
+              submitBtn.disabled = false;
+            }
+          } catch (e) {
+            if (errEl) { errEl.textContent = '网络错误，请检查服务器是否运行'; errEl.style.display = 'block'; }
+            submitBtn.textContent = '登录';
+            submitBtn.disabled = false;
+          }
+        });
+
+        // 回车提交
+        document.getElementById('tcm-login-password')?.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') submitBtn.click();
+        });
+      }
+    }
   }
 
   // ─── 抽屉管理 ───────────────────────────────────────────────────────────────
@@ -707,11 +889,11 @@
           </div>
         </div>
 
-        <!-- Block B: 体质/风险结论 -->
+        <!-- Block B: 体质与风险 -->
         <div class="tcm-block tcm-block-b" id="tcm-block-b">
           <div class="tcm-block-header" data-collapse-header>
             <span class="tcm-block-icon tcm-block-icon-amber">${ICONS.bolt}</span>
-            <span class="tcm-block-title">体质/风险</span>
+            <span class="tcm-block-title">体质与风险</span>
             <button class="tcm-block-expand" data-block="b">详情</button>
             ${ICONS.chevronDown}
           </div>
@@ -720,11 +902,11 @@
           </div>
         </div>
 
-        <!-- Block C: 方案状态 -->
+        <!-- Block C: 干预方案 -->
         <div class="tcm-block tcm-block-c" id="tcm-block-c">
           <div class="tcm-block-header" data-collapse-header>
             <span class="tcm-block-icon tcm-block-icon-green">${ICONS.clipboard}</span>
-            <span class="tcm-block-title">方案状态</span>
+            <span class="tcm-block-title">干预方案</span>
             <button class="tcm-block-expand" data-block="c">详情</button>
             ${ICONS.chevronDown}
           </div>
@@ -733,11 +915,11 @@
           </div>
         </div>
 
-        <!-- Block D: 复评/召回 -->
+        <!-- Block D: 随访管理 -->
         <div class="tcm-block tcm-block-d" id="tcm-block-d">
           <div class="tcm-block-header" data-collapse-header>
             <span class="tcm-block-icon tcm-block-icon-blue">${ICONS.refresh}</span>
-            <span class="tcm-block-title">复评/召回</span>
+            <span class="tcm-block-title">随访管理</span>
             <button class="tcm-block-expand" data-block="d">详情</button>
             ${ICONS.chevronDown}
           </div>
@@ -779,16 +961,16 @@
       loadAiBrief();
     })();
 
-    // 显示 AI dock
+    // 显示 AI dock（重置到折叠态：FAB 可见，面板隐藏）
     const dock = document.getElementById('tcm-ai-dock');
-    if (dock) dock.style.display = 'flex';
+    if (dock) {
+      dock.style.display = 'block';
+      const fab   = document.getElementById('tcm-ai-fab');
+      const panel = document.getElementById('tcm-ai-panel');
+      if (fab)   fab.classList.remove('tcm-ai-fab--hidden');
+      if (panel) panel.style.display = 'none';
+    }
 
-    // 更新工作台召回徽章
-    msg('getRecallSuggestions', { patient_id: patient.archive_id }).then(resp => {
-      const total = resp?.success ? (resp.data?.total || 0) : 0;
-      const badge = document.getElementById('tcm-recall-badge');
-      if (badge) badge.textContent = total > 0 ? String(total) : '';
-    });
   }
 
   // Block A: 关键提醒（分类：过敏史 / 禁忌 / 共病 / 近期异常指标 / 依从性）
@@ -873,7 +1055,7 @@
       </div>`;
   }
 
-  // Block B: 体质/风险结论
+  // Block B: 体质与风险
   async function loadBlockB() {
     const body = document.getElementById('tcm-block-b-body');
     if (!body) return;
@@ -1378,7 +1560,7 @@
       closeDrawer('tcm-drawer-supplement'));
   }
 
-  // Block C: 方案状态
+  // Block C: 干预方案
   async function loadBlockC() {
     const body = document.getElementById('tcm-block-c-body');
     if (!body) return;
@@ -1430,7 +1612,7 @@
       : (plan.created_at || '').slice(0, 10);
 
     body.innerHTML = `
-      <div class="tcm-c-card" id="tcm-c-card" style="cursor:pointer" title="点击查看方案">
+      <div class="tcm-c-card" id="tcm-c-card">
         <div class="tcm-c-status-row">
           <span class="tcm-c-status-dot" style="background:${st.color}"></span>
           <span class="tcm-c-status-label" style="color:${st.color}">${st.label}</span>
@@ -1438,40 +1620,38 @@
         </div>
         <div class="tcm-c-title">${esc(plan.title || '当前方案')}</div>
         ${summary ? `<div class="tcm-c-preview">${esc(summary)}…</div>` : ''}
-        <div style="margin-top:6px">
-          <button class="tcm-btn tcm-btn-primary tcm-btn-xs" id="tcm-c-preview-btn">查看方案</button>
+        <div style="margin-top:6px;display:flex;gap:6px;align-items:center;">
+          <button class="tcm-btn tcm-btn-ghost tcm-btn-xs" id="tcm-c-new-plan-btn">+ 新增方案</button>
+          <button class="tcm-btn tcm-btn-ghost tcm-btn-xs" id="tcm-c-preview-btn">查看</button>
         </div>
       </div>
     `;
 
-    // 按钮和整张卡片都可点击
-    const openPreview = () => openDrawer('tcm-drawer-preview', () => loadPreviewDrawer(planId));
-    document.getElementById('tcm-c-preview-btn')?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      openPreview();
+    document.getElementById('tcm-c-preview-btn')?.addEventListener('click', () =>
+      openDrawer('tcm-drawer-preview', () => loadPreviewDrawer(planId))
+    );
+    document.getElementById('tcm-c-new-plan-btn')?.addEventListener('click', () => {
+      currentPlan = null;
+      currentPlanVersions = null;
+      openDrawer('tcm-drawer-plan', loadPlanDrawer);
     });
-    document.getElementById('tcm-c-card')?.addEventListener('click', openPreview);
   }
 
-  // Block D: 复评/召回
+  // Block D: 随访管理
   async function loadBlockD() {
     const body = document.getElementById('tcm-block-d-body');
     if (!body) return;
 
-    const [tasksResp, recallResp] = await Promise.all([
-      msg('listFollowupTasks',    { patient_id: currentPatient.archive_id }),
-      msg('getRecallSuggestions', { patient_id: currentPatient.archive_id }),
-    ]);
+    const tasksResp = await msg('listFollowupTasks', { patient_id: currentPatient.archive_id });
 
-    const tasks  = tasksResp?.success
+    const tasks = tasksResp?.success
       ? (Array.isArray(tasksResp.data) ? tasksResp.data : (tasksResp.data?.items || []))
       : [];
-    const recalls = recallResp?.success ? (recallResp.data?.total || 0) : 0;
 
-    // 下一次待随访
     const pending = tasks.filter(t => !t.completed_at && !t.is_overdue);
     const next    = pending[0];
     const overdue = tasks.filter(t => t.is_overdue).length;
+    const total   = tasks.length;
 
     body.innerHTML = `
       <div class="tcm-d-row">
@@ -1485,19 +1665,9 @@
         : ''}
       <div class="tcm-d-row">
         ${ICONS.bell}
-        <span>召回建议：<strong style="color:${recalls > 0 ? '#D95C4A' : '#4E7A61'}">${recalls}</strong> 条待处理</span>
+        <span>随访任务：共 <strong>${total}</strong> 条，待完成 <strong>${pending.length}</strong> 条</span>
       </div>
-      ${recalls > 0 ? `
-      <button class="tcm-ai-action-btn" id="tcm-recall-script-btn">
-        <span>✦</span> 生成召回话术
-      </button>` : ''}
     `;
-
-    if (recalls > 0) {
-      document.getElementById('tcm-recall-script-btn')?.addEventListener('click', () => {
-        loadRecallScript();
-      });
-    }
   }
 
   // ─── AI 简报加载 ───────────────────────────────────────────────────────────
@@ -1507,13 +1677,13 @@
     const body = document.getElementById('tcm-ai-brief-body');
     if (!card || !body || !currentPatient?.archive_id) return;
 
-    card.style.display = 'block';
+    // 拿到有效数据再显示，避免先闪现再消失
     const resp = await msg('getPatientBrief', { patient_id: currentPatient.archive_id });
-    if (!resp?.success) { card.style.display = 'none'; return; }
+    if (!resp?.success) return;
 
     const d = resp.data;
     const brief = d.ai_brief;
-    if (!brief) { card.style.display = 'none'; return; }
+    if (!brief) return;
 
     const actions = (brief.actions || []).map(a =>
       `<span class="tcm-brief-action">${esc(a)}</span>`
@@ -1523,48 +1693,7 @@
       <p class="tcm-brief-summary">${esc(brief.summary || '')}</p>
       ${actions ? `<div class="tcm-brief-actions">${actions}</div>` : ''}
     `;
-  }
-
-  // ─── 召回话术加载 ─────────────────────────────────────────────────────────
-
-  async function loadRecallScript() {
-    const body = document.getElementById('tcm-block-d-body');
-    if (!body || !currentPatient?.archive_id) return;
-
-    const btn = document.getElementById('tcm-recall-script-btn');
-    if (btn) { btn.disabled = true; btn.textContent = '生成中…'; }
-
-    const resp = await msg('getRecallScript', { patient_id: currentPatient.archive_id });
-    if (!resp?.success) {
-      if (btn) { btn.disabled = false; btn.innerHTML = '<span>✦</span> 生成召回话术'; }
-      return;
-    }
-
-    const s = resp.data.script;
-    const scriptDiv = document.createElement('div');
-    scriptDiv.className = 'tcm-recall-script';
-    scriptDiv.innerHTML = `
-      <div class="tcm-script-title">✦ AI 召回话术</div>
-      <div class="tcm-script-section">
-        <div class="tcm-script-label">开场白</div>
-        <div class="tcm-script-content">${esc(s.opening || '')}</div>
-      </div>
-      ${(s.concern_points || []).length ? `
-      <div class="tcm-script-section">
-        <div class="tcm-script-label">关注要点</div>
-        <ul class="tcm-script-list">${s.concern_points.map(p => `<li>${esc(p)}</li>`).join('')}</ul>
-      </div>` : ''}
-      <div class="tcm-script-section">
-        <div class="tcm-script-label">预约引导</div>
-        <div class="tcm-script-content">${esc(s.appointment_guide || '')}</div>
-      </div>
-      <div class="tcm-script-section">
-        <div class="tcm-script-label">结束语</div>
-        <div class="tcm-script-content">${esc(s.closing || '')}</div>
-      </div>
-    `;
-    body.appendChild(scriptDiv);
-    if (btn) btn.remove();
+    card.style.display = 'block';
   }
 
   // ─── 加载超时包装 ─────────────────────────────────────────────────────────
@@ -1902,6 +2031,128 @@
   async function loadPlanDrawer() {
     const body = document.getElementById('tcm-drawer-plan-body');
     if (!body) return;
+
+    // ── 新增方案模式（从 Block C "新增方案" 按钮进入，currentPlan === null）──
+    // 当 currentPlanVersions 也为 null 时，直接展示新增模板选择界面
+    if (!currentPlan && !currentPlanVersions) {
+      body.innerHTML = '<div class="tcm-loading-sm">加载模板库…</div>';
+      const tResp = await msg('listTemplates', {});
+      const templates = tResp?.success
+        ? (Array.isArray(tResp.data) ? tResp.data : (tResp.data?.items || []))
+        : [];
+
+      const optionsHtml = templates.map(t =>
+        `<option value="${esc(t.template_id || t.id)}" data-content="${esc(t.content || '')}">${esc(t.name)}</option>`
+      ).join('');
+
+      body.innerHTML = `
+        <div style="padding:12px 14px 0;display:flex;align-items:center;gap:8px;">
+          <button class="tcm-btn tcm-btn-secondary tcm-btn-xs" id="tcm-new-plan-back">← 返回</button>
+          <span style="font-size:13px;font-weight:600;color:var(--tcm-text-1)">新增方案</span>
+        </div>
+        <div style="padding:10px 14px;display:flex;flex-direction:column;gap:8px;">
+          <input type="text" id="tcm-np-title" class="tcm-input" placeholder="方案标题（必填）" />
+          <select id="tcm-np-tpl-select" class="tcm-input" style="height:32px;">
+            <option value="">— 选择模板（可选）—</option>
+            ${optionsHtml}
+          </select>
+          <textarea id="tcm-np-content" class="tcm-textarea" rows="12"
+            placeholder="在此编辑方案内容…"
+            style="font-size:12px;line-height:1.6;resize:vertical;"></textarea>
+          <div style="display:flex;gap:6px;padding-top:2px;border-top:1px solid var(--tcm-border-lt);margin-top:2px;">
+            <button class="tcm-btn tcm-btn-primary tcm-btn-sm" id="tcm-np-publish-btn">发布</button>
+            <button class="tcm-btn tcm-btn-secondary tcm-btn-sm" id="tcm-np-save-tpl-btn" disabled>另存为模板</button>
+          </div>
+        </div>`;
+
+      // 模板切换 → 填充 textarea
+      let originalContent = '';
+      const selectEl  = document.getElementById('tcm-np-tpl-select');
+      const contentEl = document.getElementById('tcm-np-content');
+      const saveTplBtn = document.getElementById('tcm-np-save-tpl-btn');
+
+      selectEl?.addEventListener('change', async () => {
+        const opt = selectEl.options[selectEl.selectedIndex];
+        if (!opt.value) { contentEl.value = ''; originalContent = ''; saveTplBtn.disabled = true; return; }
+        // 从 data-content 快速填充（避免再次请求）
+        const cached = opt.dataset.content || '';
+        if (cached) {
+          contentEl.value = cached;
+          originalContent = cached;
+          saveTplBtn.disabled = true;
+        } else {
+          // 按需拉取完整内容
+          const r = await msg('getTemplate', { template_id: opt.value });
+          if (r?.success) {
+            contentEl.value = r.data?.content || '';
+            originalContent = contentEl.value;
+          }
+          saveTplBtn.disabled = true;
+        }
+      });
+
+      // 内容变化 → 启用"另存为模板"
+      contentEl?.addEventListener('input', () => {
+        saveTplBtn.disabled = (contentEl.value.trim() === originalContent.trim() || !contentEl.value.trim());
+      });
+
+      // 返回 → 进入版本列表模式
+      document.getElementById('tcm-new-plan-back')?.addEventListener('click', () => {
+        currentPlanVersions = [];  // 设为空数组以进入列表模式
+        loadPlanDrawer();
+      });
+
+      // 发布
+      document.getElementById('tcm-np-publish-btn')?.addEventListener('click', async () => {
+        const title   = document.getElementById('tcm-np-title')?.value.trim();
+        const content = contentEl?.value.trim();
+        if (!title)   { showToast('请填写方案标题', 'error'); return; }
+        if (!content) { showToast('请填写方案内容', 'error'); return; }
+
+        const publishBtn = document.getElementById('tcm-np-publish-btn');
+        if (publishBtn) { publishBtn.textContent = '发布中…'; publishBtn.disabled = true; }
+
+        // 先创建草稿
+        const dr = await msg('createDraft', { body: { patient_id: currentPatient.archive_id, title, content } });
+        if (!dr?.success) {
+          if (publishBtn) { publishBtn.textContent = '发布'; publishBtn.disabled = false; }
+          showToast(`创建失败：${dr?.error || ''}`, 'error');
+          return;
+        }
+        // 再发布
+        const planId = dr.data?.plan_id || dr.data?.id;
+        const pr = await msg('publishPlan', { plan_id: planId });
+        if (publishBtn) { publishBtn.textContent = '发布'; publishBtn.disabled = false; }
+        if (pr?.success) {
+          showToast('方案已发布', 'success');
+          currentPlan = null; currentPlanVersions = null;
+          loadBlockC();
+          // 关闭抽屉回到 Block C
+          const drawer = document.getElementById('tcm-drawer-plan');
+          if (drawer) drawer.style.display = 'none';
+        } else {
+          showToast(`发布失败：${pr?.error || ''}`, 'error');
+        }
+      });
+
+      // 另存为模板
+      saveTplBtn?.addEventListener('click', async () => {
+        const titleVal = document.getElementById('tcm-np-title')?.value.trim();
+        const content  = contentEl?.value.trim();
+        if (!content) { showToast('请先填写内容', 'error'); return; }
+        const name = titleVal || prompt('请输入模板名称') || '';
+        if (!name) return;
+        saveTplBtn.textContent = '保存中…'; saveTplBtn.disabled = true;
+        const r = await msg('saveTemplate', { body: { name, content, guidance_type: 'GUIDANCE' } });
+        saveTplBtn.textContent = '另存为模板'; saveTplBtn.disabled = false;
+        if (r?.success) showToast('已另存为模板', 'success');
+        else showToast(`保存失败：${r?.error || ''}`, 'error');
+      });
+
+      return;
+    }
+
+    // ── 版本列表模式（查看历史版本）──
     body.innerHTML = '<div class="tcm-loading-sm">加载方案版本…</div>';
 
     const [currentResp, versionsResp] = await Promise.all([
@@ -1926,21 +2177,19 @@
     const versionsHtml = versions.length
       ? versions.map((v, i) => {
           const st = PLAN_STATES[v.status] || { label: v.status || '未知', color: '#9A9188', icon: '' };
+          const planId = esc(v.plan_id || v.id);
+          const prevId  = i > 0 ? esc(versions[i-1].plan_id || versions[i-1].id) : '';
           return `
             <div class="tcm-plan-card">
               <div class="tcm-plan-card-header">
-                <span style="color:${st.color};font-size:12px">${st.icon} ${st.label}</span>
+                <span style="color:${st.color};font-size:12px;">${st.icon} ${st.label}</span>
                 <span class="tcm-plan-date">${esc((v.created_at||v.updated_at||'').slice(0,10))}</span>
               </div>
               <div class="tcm-plan-title">${esc(v.title || `方案 v${i+1}`)}</div>
               <div class="tcm-plan-preview">${esc((v.content_preview || v.summary || '').slice(0,80))}</div>
               <div class="tcm-plan-actions">
-                ${v.status === 'DRAFT' ? `
-                  <button class="tcm-state-btn tcm-state-btn-preview" data-preview-id="${esc(v.plan_id||v.id)}">预览方案</button>
-                  <button class="tcm-state-btn" data-publish-id="${esc(v.plan_id||v.id)}">发布</button>` : ''}
-                ${v.status === 'CONFIRMED' ? `<button class="tcm-state-btn tcm-state-btn-preview" data-preview-id="${esc(v.plan_id||v.id)}">预览/分发</button>` : ''}
-                <button class="tcm-state-btn tcm-state-btn-alt" data-summary-id="${esc(v.plan_id||v.id)}">摘要</button>
-                ${i > 0 ? `<button class="tcm-state-btn tcm-state-btn-alt" data-diff-a="${esc(versions[i-1].plan_id||versions[i-1].id)}" data-diff-b="${esc(v.plan_id||v.id)}">与上版对比</button>` : ''}
+                <button class="tcm-state-btn tcm-state-btn-preview" data-preview-id="${planId}">查看详情</button>
+                ${prevId ? `<button class="tcm-state-btn tcm-state-btn-alt" data-diff-a="${prevId}" data-diff-b="${planId}">与上版对比</button>` : ''}
               </div>
             </div>`;
         }).join('')
@@ -1948,121 +2197,10 @@
 
     body.innerHTML = `
       ${currentPlanHtml}
-      <div class="tcm-plan-actions-bar">
-        <button class="tcm-btn tcm-btn-primary tcm-btn-sm" id="tcm-new-draft-btn">+ 新建草稿</button>
-        <button class="tcm-btn tcm-btn-secondary tcm-btn-sm" id="tcm-pick-template-btn">模板库</button>
-      </div>
-      <div id="tcm-draft-form" style="display:none;" class="tcm-section">
-        <div class="tcm-section-title">新建草稿（结构化录入）</div>
-        <input type="text" id="tcm-draft-title" class="tcm-input" placeholder="方案标题" />
-        <div class="tcm-module-grid">
-          <div class="tcm-module-card">
-            <div class="tcm-module-label">作息建议</div>
-            <textarea class="tcm-textarea tcm-module-ta" id="tcm-mod-rest" rows="2" placeholder="睡眠、起居规律建议…"></textarea>
-          </div>
-          <div class="tcm-module-card">
-            <div class="tcm-module-label">饮食/食疗</div>
-            <textarea class="tcm-textarea tcm-module-ta" id="tcm-mod-diet" rows="2" placeholder="饮食原则、推荐食材…"></textarea>
-          </div>
-          <div class="tcm-module-card">
-            <div class="tcm-module-label">运动建议</div>
-            <textarea class="tcm-textarea tcm-module-ta" id="tcm-mod-exercise" rows="2" placeholder="运动方式、频率…"></textarea>
-          </div>
-          <div class="tcm-module-card">
-            <div class="tcm-module-label">情志建议</div>
-            <textarea class="tcm-textarea tcm-module-ta" id="tcm-mod-emotion" rows="2" placeholder="情绪调节、心理建议…"></textarea>
-          </div>
-          <div class="tcm-module-card">
-            <div class="tcm-module-label">穴位/艾灸</div>
-            <textarea class="tcm-textarea tcm-module-ta" id="tcm-mod-acupoint" rows="2" placeholder="推荐穴位、外治方法…"></textarea>
-          </div>
-          <div class="tcm-module-card">
-            <div class="tcm-module-label">到院项目</div>
-            <textarea class="tcm-textarea tcm-module-ta" id="tcm-mod-visit" rows="2" placeholder="建议到院诊疗项目…"></textarea>
-          </div>
-          <div class="tcm-module-card tcm-module-card-wide">
-            <div class="tcm-module-label">复评节点</div>
-            <div style="display:flex;gap:6px;align-items:center">
-              <input type="number" id="tcm-mod-days" class="tcm-input" style="width:70px" placeholder="天数" min="1" max="365" />
-              <span class="tcm-form-label">天后复评</span>
-            </div>
-            <textarea class="tcm-textarea tcm-module-ta" id="tcm-mod-goal" rows="1" placeholder="复评目标…" style="margin-top:4px"></textarea>
-          </div>
-        </div>
-        <div style="display:flex;gap:6px;margin-top:8px">
-          <button class="tcm-btn tcm-btn-primary tcm-btn-sm" id="tcm-save-draft-btn">保存草稿</button>
-          <button class="tcm-btn tcm-btn-secondary tcm-btn-sm" id="tcm-cancel-draft-btn">取消</button>
-        </div>
-      </div>
-      <div id="tcm-template-panel" style="display:none;" class="tcm-section"></div>
-      <div id="tcm-diff-panel"     style="display:none;" class="tcm-section"></div>
-      <div id="tcm-summary-panel"  style="display:none;" class="tcm-section"></div>
+      <div id="tcm-diff-panel" style="display:none;" class="tcm-section"></div>
       <div class="tcm-plan-list">${versionsHtml}</div>
     `;
 
-    // 绑定事件
-    document.getElementById('tcm-new-draft-btn')?.addEventListener('click', () => {
-      const f = document.getElementById('tcm-draft-form');
-      if (f) f.style.display = f.style.display === 'none' ? 'block' : 'none';
-    });
-    document.getElementById('tcm-cancel-draft-btn')?.addEventListener('click', () => {
-      const f = document.getElementById('tcm-draft-form');
-      if (f) f.style.display = 'none';
-    });
-    document.getElementById('tcm-save-draft-btn')?.addEventListener('click', async () => {
-      const title = document.getElementById('tcm-draft-title')?.value.trim();
-      if (!title) { showToast('请填写方案标题', 'error'); return; }
-
-      // 收集各模块内容
-      const modules = [
-        { key: 'rest',     label: '作息建议',   id: 'tcm-mod-rest' },
-        { key: 'diet',     label: '饮食/食疗',  id: 'tcm-mod-diet' },
-        { key: 'exercise', label: '运动建议',   id: 'tcm-mod-exercise' },
-        { key: 'emotion',  label: '情志建议',   id: 'tcm-mod-emotion' },
-        { key: 'acupoint', label: '穴位/艾灸',  id: 'tcm-mod-acupoint' },
-        { key: 'visit',    label: '到院项目',   id: 'tcm-mod-visit' },
-      ];
-      const days = document.getElementById('tcm-mod-days')?.value.trim();
-      const goal = document.getElementById('tcm-mod-goal')?.value.trim();
-
-      // 合并为 Markdown 内容
-      const parts = modules
-        .map(m => {
-          const val = document.getElementById(m.id)?.value.trim();
-          return val ? `## ${m.label}\n${val}` : '';
-        })
-        .filter(Boolean);
-
-      if (days || goal) {
-        parts.push(`## 复评节点\n${days ? `复评时间：${days}天后` : ''}${goal ? `\n目标：${goal}` : ''}`);
-      }
-
-      if (!parts.length) { showToast('请至少填写一个模块内容', 'error'); return; }
-      const content = `# ${title}\n\n${parts.join('\n\n')}`;
-
-      const btn = document.getElementById('tcm-save-draft-btn');
-      if (btn) { btn.textContent = '保存中…'; btn.disabled = true; }
-      const r = await msg('createDraft', { body: { patient_id: currentPatient.archive_id, title, content } });
-      if (btn) { btn.textContent = '保存草稿'; btn.disabled = false; }
-      if (r?.success) {
-        showToast('草稿已保存', 'success');
-        currentPlan = null; currentPlanVersions = null;
-        loadPlanDrawer();
-        loadBlockC();
-      } else showToast(`保存失败：${r?.error || ''}`, 'error');
-    });
-    document.getElementById('tcm-pick-template-btn')?.addEventListener('click', loadTemplatePanel);
-
-    body.querySelectorAll('[data-publish-id]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const r = await msg('publishPlan', { plan_id: btn.dataset.publishId });
-        if (r?.success) { showToast('已发布', 'success'); currentPlan = null; loadPlanDrawer(); loadBlockC(); }
-        else showToast(`发布失败：${r?.error || ''}`, 'error');
-      });
-    });
-    body.querySelectorAll('[data-summary-id]').forEach(btn => {
-      btn.addEventListener('click', () => loadSummaryPanel(btn.dataset.summaryId));
-    });
     body.querySelectorAll('[data-diff-a]').forEach(btn => {
       btn.addEventListener('click', () => loadDiffPanel(btn.dataset.diffA, btn.dataset.diffB));
     });
@@ -2075,7 +2213,7 @@
   async function loadPreviewDrawer(plan_id) {
     const body = document.getElementById('tcm-drawer-preview-body');
     if (!body) return;
-    body.innerHTML = '<div class="tcm-loading-sm">加载预览…</div>';
+    body.innerHTML = '<div class="tcm-loading-sm">加载方案…</div>';
 
     const r = await msg('getPlanPreview', { plan_id });
     if (!r?.success) {
@@ -2083,69 +2221,102 @@
       return;
     }
     const d = r.data;
+    const isDraft       = d.status === 'DRAFT';
     const isConfirmed   = d.status === 'CONFIRMED';
     const isDistributed = d.status === 'DISTRIBUTED';
-    const isDraft       = d.status === 'DRAFT';
+    const isPublished   = d.status === 'PUBLISHED';
 
-    const tabsHtml = `
-      <div class="tcm-tab-bar" id="tcm-preview-tabs">
-        <button class="tcm-tab tcm-tab-active" data-tab="his">HIS版</button>
-        <button class="tcm-tab" data-tab="h5">患者H5版</button>
-        <button class="tcm-tab" data-tab="mgmt">管理端</button>
-        <button class="tcm-tab" data-tab="change">变更清单</button>
+    const st = PLAN_STATES[d.status] || { label: d.status || '未知', color: '#9A9188' };
+    const mgmt = d.management || {};
+    const modules = (mgmt.modules || []);
+    const date = (d.created_at || '').slice(0, 10);
+
+    // 主内容：优先 patient_h5，其次 his_text，其次 summary/content
+    const rawContent = d.patient_h5 || d.his_text || d.summary || d.content || '';
+
+    // 将文本按段落渲染，识别章节标题和列表项
+    function renderContent(text) {
+      if (!text) return '<p class="tcm-pv-para" style="color:var(--tcm-text-muted)">暂无内容</p>';
+      const out = [];
+      text.split(/\n\n+/).forEach(block => {
+        const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
+        if (!lines.length) return;
+        let buf = [];
+        const flushBuf = () => {
+          if (buf.length) { out.push(`<p class="tcm-pv-para">${buf.join('<br>')}</p>`); buf = []; }
+        };
+        lines.forEach(t => {
+          // 章节标题：单独成段，前后不拼 <br>
+          if (/^【.+】$/.test(t) || /^[一二三四五六七八九十]+[、．.]/.test(t) || /^\d+[、．.]\s/.test(t)) {
+            flushBuf();
+            out.push(`<p class="tcm-pv-para tcm-pv-para-h"><strong class="tcm-pv-h">${esc(t)}</strong></p>`);
+          } else if (/^[·\-•]\s*/.test(t)) {
+            buf.push(`<span class="tcm-pv-li">${esc(t.replace(/^[·\-•]\s*/, ''))}</span>`);
+          } else {
+            buf.push(esc(t));
+          }
+        });
+        flushBuf();
+      });
+      return out.join('') || '<p class="tcm-pv-para" style="color:var(--tcm-text-muted)">暂无内容</p>';
+    }
+
+    // meta 信息拼接（一行，用间隔符分隔）
+    const metaParts = [];
+    if (date) metaParts.push(date);
+    if (mgmt.syndrome) metaParts.push(`证候：${mgmt.syndrome}`);
+    if (mgmt.risk_level) metaParts.push(`风险：${mgmt.risk_level}`);
+    if (mgmt.followup_days) metaParts.push(`随访每${mgmt.followup_days}天`);
+
+    // 复制内容：优先 his_text（可粘贴到 HIS），其次原文
+    const copyText = d.his_text || rawContent;
+
+    body.innerHTML = `
+      <div class="tcm-pv">
+
+        <!-- 标题 -->
+        <h2 class="tcm-pv-title">${esc(d.title || '当前调理方案')}</h2>
+
+        <!-- meta 行：状态 · 日期 · 证候 · 随访 -->
+        <div class="tcm-pv-meta">
+          <span class="tcm-pv-status" style="background:${st.color}1a;color:${st.color}">${st.label}</span>
+          ${metaParts.map(p => `<span class="tcm-pv-meta-sep">·</span><span class="tcm-pv-meta-item">${esc(p)}</span>`).join('')}
+        </div>
+
+        <!-- 模块 chips（可选） -->
+        ${modules.length ? `<div class="tcm-pv-tags">${modules.map(m => `<span class="tcm-pv-tag">${esc(m)}</span>`).join('')}</div>` : ''}
+
+        <!-- 分割线 -->
+        <hr class="tcm-pv-rule">
+
+        <!-- 正文 -->
+        <div class="tcm-pv-body">${renderContent(rawContent)}</div>
+
+        <!-- 操作栏 -->
+        <div class="tcm-pv-footer">
+          <button class="tcm-btn tcm-btn-secondary tcm-btn-xs tcm-plan-copy-btn">${ICONS.clipboard} 复制</button>
+          ${isDraft     ? `<button class="tcm-btn tcm-btn-primary tcm-btn-xs" id="tcm-preview-confirm-btn">✓ 确认方案</button>` : ''}
+          ${isConfirmed ? `<button class="tcm-btn tcm-btn-distribute tcm-btn-xs" id="tcm-preview-distribute-btn">🚀 分发</button>` : ''}
+          ${(isDistributed || isPublished) ? `<span class="tcm-pv-active">✓ 已生效</span>` : ''}
+        </div>
+        <div id="tcm-distribute-result" style="display:none"></div>
+
       </div>
-      <div id="tcm-preview-panel-his" class="tcm-tab-panel">
-        <div class="tcm-preview-label">HIS 病历可直接粘贴此文本：</div>
-        <textarea class="tcm-textarea tcm-preview-textarea" rows="8" readonly>${esc(d.his_text)}</textarea>
-        <button class="tcm-btn tcm-btn-secondary tcm-btn-xs" id="tcm-copy-his-btn">复制</button>
-      </div>
-      <div id="tcm-preview-panel-h5" class="tcm-tab-panel" style="display:none">
-        <div class="tcm-preview-label">患者 H5 端显示版本：</div>
-        <div class="tcm-preview-h5-content">${esc(d.patient_h5).replace(/\n/g, '<br>')}</div>
-      </div>
-      <div id="tcm-preview-panel-mgmt" class="tcm-tab-panel" style="display:none">
-        <div class="tcm-preview-label">管理端结构化字段：</div>
-        <div class="tcm-mgmt-field"><span class="tcm-mgmt-key">证候：</span><span>${esc(d.management.syndrome)}</span></div>
-        <div class="tcm-mgmt-field"><span class="tcm-mgmt-key">风险：</span><span>${esc(d.management.risk_level)}</span></div>
-        <div class="tcm-mgmt-field"><span class="tcm-mgmt-key">随访间隔：</span><span>${d.management.followup_days} 天</span></div>
-        <div class="tcm-mgmt-field"><span class="tcm-mgmt-key">方案模块：</span><span>${esc((d.management.modules||[]).join('、') || '—')}</span></div>
-      </div>
-      <div id="tcm-preview-panel-change" class="tcm-tab-panel" style="display:none">
-        <div class="tcm-preview-label">分发将执行以下变更：</div>
-        <ul class="tcm-change-list">
-          ${(d.change_list||[]).map(item => `<li>${esc(item)}</li>`).join('')}
-        </ul>
-      </div>
-      <div class="tcm-preview-actions">
-        ${isDraft ? `<button class="tcm-btn tcm-btn-primary tcm-btn-sm" id="tcm-preview-confirm-btn">✓ 确认方案</button>` : ''}
-        ${isConfirmed ? `<button class="tcm-btn tcm-btn-distribute tcm-btn-sm" id="tcm-preview-distribute-btn">🚀 一键分发</button>` : ''}
-        ${isDistributed ? `<div class="tcm-distributed-badge">✓ 已分发</div>` : ''}
-      </div>
-      <div id="tcm-distribute-result" style="display:none"></div>
     `;
 
-    body.innerHTML = tabsHtml;
-
-    // Tab 切换
-    body.querySelectorAll('.tcm-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        body.querySelectorAll('.tcm-tab').forEach(t => t.classList.remove('tcm-tab-active'));
-        body.querySelectorAll('.tcm-tab-panel').forEach(p => p.style.display = 'none');
-        tab.classList.add('tcm-tab-active');
-        const panelId = `tcm-preview-panel-${tab.dataset.tab}`;
-        const panel = document.getElementById(panelId);
-        if (panel) panel.style.display = 'block';
-      });
-    });
-
-    // 复制 HIS 文本
-    document.getElementById('tcm-copy-his-btn')?.addEventListener('click', () => {
-      const ta = body.querySelector('.tcm-preview-textarea');
-      if (ta) {
-        navigator.clipboard.writeText(ta.value)
-          .then(() => showToast('已复制到剪贴板', 'success'))
-          .catch(() => { ta.select(); document.execCommand('copy'); showToast('已复制到剪贴板', 'success'); });
-      }
+    // 复制按钮
+    body.querySelector('.tcm-plan-copy-btn')?.addEventListener('click', () => {
+      navigator.clipboard.writeText(copyText)
+        .then(() => showToast('已复制到剪贴板', 'success'))
+        .catch(() => {
+          const ta = document.createElement('textarea');
+          ta.value = copyText;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          ta.remove();
+          showToast('已复制到剪贴板', 'success');
+        });
     });
 
     // 确认方案
@@ -2267,7 +2438,7 @@
       ${templates.slice(0, 10).map(t => `
         <div class="tcm-template-item">
           <div class="tcm-template-name">${esc(t.name)}</div>
-          <div class="tcm-template-cat">${esc(t.category || t.guidance_type || '')}</div>
+          <div class="tcm-template-cat">${esc(GUIDANCE_TYPE_CN[t.category || t.guidance_type] || t.category || t.guidance_type || '')}</div>
           <button class="tcm-state-btn" data-use-tpl-id="${esc(t.template_id || t.id)}">使用此模板</button>
         </div>`).join('')}`;
     panel.querySelector('.tcm-close-panel')?.addEventListener('click', () => { panel.style.display = 'none'; });
@@ -2334,9 +2505,23 @@
       panel.querySelector('.tcm-close-panel')?.addEventListener('click', () => { panel.style.display = 'none'; });
       return;
     }
-    const text = r.data.his_text || r.data.patient_text || r.data.content || JSON.stringify(r.data);
+    const PLAN_STATUS_CN = { DRAFT: '草稿', PUBLISHED: '当前方案', CONFIRMED: '已确认', ARCHIVED: '已归档' };
+    const d = r.data;
+    const text = d.his_text || d.patient_text || d.content || d.summary || '';
+    if (!text) {
+      panel.innerHTML = `<div class="tcm-section-title">方案摘要 <button class="tcm-close-panel" data-panel="tcm-summary-panel">×</button></div><p class="tcm-hint">暂无摘要内容</p>`;
+      panel.querySelector('.tcm-close-panel')?.addEventListener('click', () => { panel.style.display = 'none'; });
+      return;
+    }
+    const statusLabel = PLAN_STATUS_CN[d.status] || d.status || '';
+    const metaHtml = (d.title || statusLabel) ? `
+      <div class="tcm-summary-meta">
+        ${d.title ? `<span class="tcm-summary-title">${esc(d.title)}</span>` : ''}
+        ${statusLabel ? `<span class="tcm-pl-type">${esc(statusLabel)}</span>` : ''}
+      </div>` : '';
     panel.innerHTML = `
       <div class="tcm-section-title">方案摘要（HIS格式）<button class="tcm-close-panel" data-panel="tcm-summary-panel">×</button></div>
+      ${metaHtml}
       <div class="tcm-summary-text">${esc(text)}</div>
       <button class="tcm-btn tcm-btn-secondary tcm-btn-sm" id="tcm-copy-summary-btn">复制到剪贴板</button>`;
     panel.querySelector('.tcm-close-panel')?.addEventListener('click', () => { panel.style.display = 'none'; });
@@ -2345,197 +2530,106 @@
     });
   }
 
-  // 随访管理抽屉（原随访 Tab）
+  // 随访管理抽屉
   async function loadFollowupDrawer() {
     const body = document.getElementById('tcm-drawer-followup-body');
     if (!body) return;
     body.innerHTML = '<div class="tcm-loading-sm">加载随访任务…</div>';
 
-    const [tasksResp, statsResp, feedbackResp] = await Promise.all([
+    const [tasksResp, feedbackResp] = await Promise.all([
       msg('listFollowupTasks',  { patient_id: currentPatient.archive_id }),
-      msg('getRiskStats', {}),
-      msg('getPatientFeedback', { patient_id: currentPatient.archive_id, limit: 5 }),
+      msg('getPatientFeedback', { patient_id: currentPatient.archive_id, limit: 10 }),
     ]);
 
     const tasks = tasksResp?.success
       ? (Array.isArray(tasksResp.data) ? tasksResp.data : (tasksResp.data?.items || []))
       : [];
 
+    const feedbackItems = feedbackResp?.success ? (feedbackResp.data?.items || []) : [];
+
+    // 将打卡记录按 task_id 分组，合并到任务卡片
+    const feedbackByTask = {};
+    feedbackItems.forEach(fb => {
+      const key = fb.task_id || fb.followup_task_id;
+      if (key) {
+        if (!feedbackByTask[key]) feedbackByTask[key] = [];
+        feedbackByTask[key].push(fb);
+      }
+    });
+
+    const STATUS_CN = { DONE: '已打卡', PENDING: '待打卡', SKIPPED: '已跳过', MISSED: '已错过' };
+    const STATUS_COLOR = { DONE: '#4E7A61', PENDING: '#B8885E', SKIPPED: '#9A9188', MISSED: '#D95C4A' };
+
     const tasksHtml = tasks.length
-      ? tasks.map(t => `
-          <div class="tcm-plan-card">
-            <div class="tcm-plan-card-header">
-              <span style="color:${t.completed_at ? '#4E7A61' : (t.is_overdue ? '#D95C4A' : '#B8885E')};font-size:12px">
-                ${t.completed_at ? `${ICONS.checkCircle} 已完成` : (t.is_overdue ? `${ICONS.warning} 已逾期` : `${ICONS.clock} 待随访`)}
-              </span>
-              <span class="tcm-plan-date">${esc((t.scheduled_date || t.plan_date || '').slice(0,10))}</span>
-            </div>
-            <div class="tcm-plan-title">${esc(t.title || t.name || '随访任务')}</div>
-            ${t.note || t.content ? `<div class="tcm-plan-preview">${esc((t.note || t.content || '').slice(0,60))}</div>` : ''}
-          </div>`).join('')
+      ? tasks.map(t => {
+          const taskId = t.task_id || t.id;
+          const relatedFeedback = feedbackByTask[taskId] || [];
+          const fbHtml = relatedFeedback.length
+            ? relatedFeedback.slice(0, 2).map(fb => `
+                <div style="display:flex;align-items:center;gap:6px;padding:4px 0 0;border-top:1px solid var(--tcm-border-lt);margin-top:4px;font-size:11px;">
+                  <span style="color:${STATUS_COLOR[fb.status] || '#9A9188'};">${STATUS_CN[fb.status] || fb.status || '-'}</span>
+                  <span style="color:var(--tcm-text-muted);">${esc((fb.checked_at || fb.created_at || '').slice(0,10))}</span>
+                  ${fb.note ? `<span style="color:var(--tcm-text-2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(fb.note)}</span>` : ''}
+                </div>`).join('')
+            : '';
+          return `
+            <div class="tcm-plan-card">
+              <div class="tcm-plan-card-header">
+                <span style="color:${t.completed_at ? '#4E7A61' : (t.is_overdue ? '#D95C4A' : '#B8885E')};font-size:12px;">
+                  ${t.completed_at ? `${ICONS.checkCircle} 已完成` : (t.is_overdue ? `${ICONS.warning} 已逾期` : `${ICONS.clock} 待随访`)}
+                </span>
+                <span class="tcm-plan-date">${esc((t.scheduled_date || t.plan_date || '').slice(0,10))}</span>
+              </div>
+              <div class="tcm-plan-title">${esc(t.title || t.name || '随访任务')}</div>
+              ${t.note || t.content ? `<div class="tcm-plan-preview">${esc((t.note || t.content || '').slice(0,60))}</div>` : ''}
+              ${fbHtml}
+            </div>`;
+        }).join('')
       : '<div class="tcm-empty"><p>暂无随访任务</p></div>';
 
-    let statsHtml = '';
-    if (statsResp?.success) {
-      const d = statsResp.data || {};
-      statsHtml = `
-        <div class="tcm-section">
-          <div class="tcm-section-title">业务统计</div>
-          <div class="tcm-stats-grid">
-            <div class="tcm-kpi-card"><div class="tcm-kpi-value">${d.total_analyzed ?? 0}</div><div class="tcm-kpi-label">总分析次数</div></div>
-            <div class="tcm-kpi-card"><div class="tcm-kpi-value">${d.total_issued ?? 0}</div><div class="tcm-kpi-label">已下达方案</div></div>
-          </div>
-        </div>`;
-    }
-
-    const feedbackItems = feedbackResp?.success ? (feedbackResp.data?.items || []) : [];
-    const STATUS_CN = { DONE: '已完成', PENDING: '待打卡', SKIPPED: '已跳过', MISSED: '已错过' };
-    const feedbackHtml = feedbackItems.length
-      ? `<div class="tcm-section"><div class="tcm-section-title">患者反馈摘要</div>${
-          feedbackItems.map(fb => `
-            <div class="tcm-feedback-item">
-              <div class="tcm-feedback-header">
-                <span class="tcm-feedback-status tcm-feedback-${(fb.status||'').toLowerCase()}">${STATUS_CN[fb.status] || fb.status || '-'}</span>
-                <span class="tcm-feedback-date">${esc((fb.checked_at || fb.created_at || '').slice(0, 10))}</span>
-              </div>
-              ${fb.note ? `<div class="tcm-feedback-note">备注：${esc(fb.note)}</div>` : ''}
-            </div>`).join('')
-        }</div>`
-      : `<div class="tcm-section"><div class="tcm-section-title">患者反馈摘要</div><p class="tcm-hint">暂无打卡反馈</p></div>`;
+    // 无法关联到任务的打卡记录单独展示
+    const orphanFeedback = feedbackItems.filter(fb => {
+      const key = fb.task_id || fb.followup_task_id;
+      return !key;
+    });
+    const orphanHtml = orphanFeedback.length
+      ? `<div class="tcm-section">
+           <div class="tcm-section-title">近期打卡记录</div>
+           ${orphanFeedback.slice(0, 5).map(fb => `
+             <div class="tcm-feedback-item">
+               <div class="tcm-feedback-header">
+                 <span style="color:${STATUS_COLOR[fb.status] || '#9A9188'};font-size:12px;">${STATUS_CN[fb.status] || fb.status || '-'}</span>
+                 <span class="tcm-feedback-date">${esc((fb.checked_at || fb.created_at || '').slice(0,10))}</span>
+               </div>
+               ${fb.note ? `<div class="tcm-feedback-note">${esc(fb.note)}</div>` : ''}
+             </div>`).join('')}
+         </div>`
+      : '';
 
     body.innerHTML = `
-      <div class="tcm-plan-actions-bar">
-        <button class="tcm-btn tcm-btn-primary tcm-btn-sm" id="tcm-create-fw-btn">+ 新建随访</button>
-      </div>
-      <div id="tcm-followup-create-section" style="display:none;" class="tcm-section">
-        <div class="tcm-section-title">快速创建随访</div>
-        <input type="text" id="tcm-fw-title" class="tcm-input" placeholder="随访标题" />
-        <select id="tcm-fw-days" class="tcm-select" style="margin-top:4px;width:100%;">
-          <option value="3">3天后</option>
-          <option value="7" selected>7天后</option>
-          <option value="14">14天后</option>
-          <option value="30">30天后</option>
-        </select>
-        <div style="display:flex;gap:6px;margin-top:6px">
-          <button class="tcm-btn tcm-btn-primary tcm-btn-sm" id="tcm-fw-save-btn">创建</button>
-          <button class="tcm-btn tcm-btn-secondary tcm-btn-sm" id="tcm-fw-cancel-btn">取消</button>
-        </div>
-      </div>
       <div class="tcm-section">
         <div class="tcm-section-title">随访任务（${tasks.length}条）</div>
         ${tasksHtml}
       </div>
-      ${feedbackHtml}
-      ${statsHtml}
+      ${orphanHtml}
+      <div style="padding:0 0 12px;">
+        <a class="tcm-btn tcm-btn-secondary tcm-btn-sm" style="display:inline-flex;align-items:center;gap:4px;"
+           href="${serverUrl}/gui/admin/followup" target="_blank">
+          在管理端新建随访 ↗
+        </a>
+      </div>
     `;
-
-    document.getElementById('tcm-create-fw-btn')?.addEventListener('click', () => {
-      const s = document.getElementById('tcm-followup-create-section');
-      if (s) s.style.display = s.style.display === 'none' ? 'block' : 'none';
-    });
-    document.getElementById('tcm-fw-cancel-btn')?.addEventListener('click', () => {
-      const s = document.getElementById('tcm-followup-create-section');
-      if (s) s.style.display = 'none';
-    });
-    document.getElementById('tcm-fw-save-btn')?.addEventListener('click', async () => {
-      const title = document.getElementById('tcm-fw-title')?.value.trim();
-      const days  = parseInt(document.getElementById('tcm-fw-days')?.value || '7', 10);
-      if (!title) { showToast('请输入随访标题', 'error'); return; }
-      const schedDate = new Date();
-      schedDate.setDate(schedDate.getDate() + days);
-      const dateStr = schedDate.toISOString().slice(0, 10);
-      const btn = document.getElementById('tcm-fw-save-btn');
-      if (btn) { btn.textContent = '创建中…'; btn.disabled = true; }
-      const r = await msg('createFollowupPlan', { body: {
-        patient_id: currentPatient.archive_id, title, scheduled_date: dateStr,
-      }});
-      if (btn) { btn.textContent = '创建'; btn.disabled = false; }
-      if (r?.success) { showToast('随访已创建', 'success'); loadFollowupDrawer(); loadBlockD(); }
-      else showToast(`创建失败：${r?.error || ''}`, 'error');
-    });
   }
 
-  // 召回建议抽屉
-  async function loadRecallDrawer() {
-    const body = document.getElementById('tcm-drawer-recall-body');
-    if (!body) return;
-    body.innerHTML = '<div class="tcm-loading-sm">加载召回建议…</div>';
 
-    const resp  = await msg('getRecallSuggestions', { patient_id: currentPatient.archive_id });
-    const items = resp?.success ? (resp.data?.items || []) : [];
-
-    const SEV_COLOR = { HIGH: '#D95C4A', MEDIUM: '#B8885E', LOW: '#4E7A61' };
-    const SEV_CN    = { HIGH: '高风险',  MEDIUM: '中风险',  LOW: '低风险' };
-    const STATUS_CN = { OPEN: '待处理',  ACKED: '已确认',   CLOSED: '已关闭' };
-
-    const itemsHtml = items.length
-      ? items.map(item => `
-          <div class="tcm-recall-card" data-alert-id="${esc(item.recall_id)}">
-            <div class="tcm-recall-header">
-              <span class="tcm-recall-sev" style="color:${SEV_COLOR[item.severity]||'#6b7280'}">${SEV_CN[item.severity]||item.severity}</span>
-              <span class="tcm-recall-status">${STATUS_CN[item.current_status]||item.current_status}</span>
-              <span class="tcm-recall-date">${esc((item.triggered_at||'').slice(0,10))}</span>
-            </div>
-            <div class="tcm-recall-reason"><strong>触发：</strong>${esc(item.trigger_reason)}</div>
-            <div class="tcm-recall-recommend"><strong>建议：</strong>${esc(item.recommendation)}</div>
-            ${item.current_status === 'OPEN' ? `
-            <div class="tcm-recall-actions">
-              <input type="text" class="tcm-input tcm-recall-note-input" placeholder="备注（可选）" style="font-size:11px;padding:5px 8px;margin-bottom:4px;" />
-              <div style="display:flex;gap:4px;flex-wrap:wrap;">
-                <button class="tcm-btn tcm-btn-primary tcm-btn-xs tcm-recall-accept-btn">${ICONS.check} 接受召回</button>
-                <button class="tcm-btn tcm-btn-secondary tcm-btn-xs tcm-recall-plan-btn">${ICONS.pen} 调整方案</button>
-                <button class="tcm-btn tcm-btn-secondary tcm-btn-xs tcm-recall-visit-btn">${ICONS.phone} 建议回院</button>
-                <button class="tcm-btn tcm-btn-secondary tcm-btn-xs tcm-recall-ignore-btn">${ICONS.xMark} 忽略</button>
-              </div>
-            </div>` : ''}
-          </div>`).join('')
-      : '<div class="tcm-empty"><p>当前无待处理召回建议</p></div>';
-
-    body.innerHTML = `<div class="tcm-recall-list">${itemsHtml}</div>`;
-
-    body.querySelectorAll('.tcm-recall-card').forEach(card => {
-      const alertId   = card.dataset.alertId;
-      const noteInput = card.querySelector('.tcm-recall-note-input');
-
-      card.querySelector('.tcm-recall-accept-btn')?.addEventListener('click', async () => {
-        const note = noteInput?.value.trim() || '';
-        const r = await msg('handleRecallAction', { alert_id: alertId, recall_action: 'accept', note });
-        if (r?.success) { showToast('已接受召回建议', 'success'); loadRecallDrawer(); loadBlockD(); }
-        else showToast(`操作失败：${r?.error || ''}`, 'error');
-      });
-      card.querySelector('.tcm-recall-ignore-btn')?.addEventListener('click', async () => {
-        const note = noteInput?.value.trim() || '';
-        const r = await msg('handleRecallAction', { alert_id: alertId, recall_action: 'ignore', note });
-        if (r?.success) { showToast('已忽略', 'success'); loadRecallDrawer(); loadBlockD(); }
-        else showToast(`操作失败：${r?.error || ''}`, 'error');
-      });
-      card.querySelector('.tcm-recall-plan-btn')?.addEventListener('click', () => {
-        openDrawer('tcm-drawer-plan', loadPlanDrawer, 'tcm-drawer-recall');
-      });
-      card.querySelector('.tcm-recall-visit-btn')?.addEventListener('click', async () => {
-        const note = noteInput?.value.trim() || '建议回院就诊';
-        const r = await msg('handleRecallAction', { alert_id: alertId, recall_action: 'suggest_visit', note });
-        if (r?.success) showToast('已标记建议回院', 'success');
-        else showToast(`操作失败：${r?.error || ''}`, 'error');
-      });
-    });
-  }
-
-  // 工作台抽屉（含当前患者召回 + 全局工作台）
+  // 工作台抽屉
   async function loadWorkbenchDrawer() {
     const body = document.getElementById('tcm-drawer-workbench-body');
     if (!body) return;
     body.innerHTML = '<div class="tcm-loading-sm">加载工作台…</div>';
 
-    // 并行加载：当前患者召回 + 工作台全局数据
-    const promises = [msg('getWorkbenchPending', {})];
-    if (currentPatient?.archive_id) {
-      promises.push(msg('getRecallSuggestions', { patient_id: currentPatient.archive_id }));
-    }
-    const [wbResp, recallResp] = await Promise.all(promises);
-
+    const wbResp = await msg('getWorkbenchPending', {});
     const data = wbResp?.success ? wbResp.data : null;
-    const recallItems = recallResp?.success ? (recallResp.data?.items || []) : [];
 
     function patientListHtml(list, emptyText) {
       if (!list || !list.length) return `<p class="tcm-hint">${emptyText}</p>`;
@@ -2547,70 +2641,23 @@
             <span class="tcm-wb-date">${esc(p.recent_visit_at||'-')}</span>
           </div>
           <div class="tcm-wb-action">${esc(p.pending_action||'')}</div>
-          <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;">
+          <div style="display:flex;gap:4px;margin-top:6px;">
             <button class="tcm-btn tcm-btn-primary tcm-btn-xs tcm-wb-enter-btn">进入患者→</button>
-            <button class="tcm-btn tcm-btn-secondary tcm-btn-xs tcm-wb-recall-btn">召回建议</button>
           </div>
         </div>`).join('');
     }
 
-    const SEV_COLOR = { HIGH: '#D95C4A', MEDIUM: '#B8885E', LOW: '#4E7A61' };
-    const SEV_CN    = { HIGH: '高风险',  MEDIUM: '中风险',  LOW: '低风险' };
-
-    // 当前患者召回区
-    const currentRecallHtml = currentPatient ? `
-      <div class="tcm-wb-section">
-        <div class="tcm-wb-section-title">${ICONS.warning} 当前患者召回 — ${esc(currentPatient.name)}
-          <span class="tcm-wb-badge tcm-wb-badge-red">${recallItems.length}</span>
-        </div>
-        ${recallItems.length ? recallItems.map(item => `
-          <div class="tcm-recall-card" data-alert-id="${esc(item.recall_id)}">
-            <div class="tcm-recall-header">
-              <span class="tcm-recall-sev" style="color:${SEV_COLOR[item.severity]||'#6b7280'}">${SEV_CN[item.severity]||item.severity}</span>
-              <span class="tcm-recall-date">${esc((item.triggered_at||item.evidence_summary||'').slice(0,10))}</span>
-            </div>
-            <div class="tcm-recall-reason">${esc(item.trigger_reason||item.evidence_summary||item.recommendation||'')}</div>
-            ${item.current_status === 'OPEN' ? `
-            <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;">
-              <button class="tcm-btn tcm-btn-primary tcm-btn-xs tcm-recall-accept-btn" data-alert-id="${esc(item.recall_id)}">${ICONS.check} 接受</button>
-              <button class="tcm-btn tcm-btn-secondary tcm-btn-xs tcm-recall-ignore-btn" data-alert-id="${esc(item.recall_id)}">${ICONS.xMark} 忽略</button>
-            </div>` : ''}
-          </div>`).join('')
-        : '<p class="tcm-hint">当前患者无待处理召回</p>'}
-      </div>` : '';
-
     const counts = data?.counts || {};
     body.innerHTML = `
-      ${currentRecallHtml}
       <div class="tcm-wb-section">
         <div class="tcm-wb-section-title">${ICONS.clock} 今日待复评 <span class="tcm-wb-badge">${counts.reassess_today||0}</span></div>
         ${patientListHtml(data?.reassess_today, '今日无待复评患者')}
-      </div>
-      <div class="tcm-wb-section">
-        <div class="tcm-wb-section-title">${ICONS.bell} 已触发召回 <span class="tcm-wb-badge tcm-wb-badge-red">${counts.recall_triggered||0}</span></div>
-        ${patientListHtml(data?.recall_triggered, '当前无召回待处理')}
       </div>
       <div class="tcm-wb-section">
         <div class="tcm-wb-section-title">${ICONS.warning} 随访异常 <span class="tcm-wb-badge tcm-wb-badge-orange">${counts.followup_abnormal||0}</span></div>
         ${patientListHtml(data?.followup_abnormal, '无随访异常患者')}
       </div>
     `;
-
-    // 当前患者召回操作绑定
-    body.querySelectorAll('.tcm-recall-accept-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const r = await msg('handleRecallAction', { alert_id: btn.dataset.alertId, recall_action: 'accept', note: '' });
-        if (r?.success) { showToast('已接受召回建议', 'success'); loadWorkbenchDrawer(); loadBlockD(); }
-        else showToast(`操作失败：${r?.error || ''}`, 'error');
-      });
-    });
-    body.querySelectorAll('.tcm-recall-ignore-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const r = await msg('handleRecallAction', { alert_id: btn.dataset.alertId, recall_action: 'ignore', note: '' });
-        if (r?.success) { showToast('已忽略', 'success'); loadWorkbenchDrawer(); loadBlockD(); }
-        else showToast(`操作失败：${r?.error || ''}`, 'error');
-      });
-    });
 
     body.querySelectorAll('.tcm-wb-patient-card').forEach(card => {
       const archiveId = card.dataset.archiveId;
@@ -2626,9 +2673,6 @@
           },
           (errMsg) => renderError(errMsg)
         );
-      });
-      card.querySelector('.tcm-wb-recall-btn')?.addEventListener('click', () => {
-        openDrawer('tcm-drawer-recall', loadRecallDrawer, 'tcm-drawer-workbench');
       });
     });
   }
@@ -2658,7 +2702,7 @@
       listEl.innerHTML = list.slice(0, 30).map(p => `
         <div class="tcm-pl-card" data-archive-id="${esc(p.patient_id||p.archive_id)}" data-name="${esc(p.name)}">
           <div class="tcm-pl-name">${esc(p.name)}
-            ${p.archive_type ? `<span class="tcm-pl-type">${esc(p.archive_type)}</span>` : ''}
+            ${p.archive_type ? `<span class="tcm-pl-type">${esc(ARCHIVE_TYPE_CN[p.archive_type] || p.archive_type)}</span>` : ''}
             ${(p.patient_id||p.archive_id) === currentPatient?.archive_id ? '<span class="tcm-pl-current">当前</span>' : ''}
           </div>
           <div class="tcm-pl-meta">
@@ -2749,7 +2793,7 @@
       risk:     '请分析当前患者的风险评估结果，给出中医调理建议',
       plan:     '请查看并汇总当前患者的干预方案状态',
       followup: '请查询当前患者的随访任务安排，并给出本次随访重点',
-      recall:   '请查看当前患者的召回建议，并生成电话话术',
+      summary:  '请生成当前患者的临床摘要',
     };
     if (input) { input.value = presets[chip] || ''; input.focus(); }
   }
@@ -2763,7 +2807,6 @@
     const resp = document.getElementById('tcm-ai-response');
     if (!resp) return;
 
-    // 展示问题 + 思考状态
     resp.style.display = 'block';
     resp.innerHTML = `
       <div class="tcm-ai-card">
@@ -2772,11 +2815,9 @@
       </div>`;
     _showThinking();
 
-    // 禁用输入
     const sendBtn = document.getElementById('tcm-ai-send-btn');
     if (sendBtn) { sendBtn.disabled = true; sendBtn.style.opacity = '0.5'; }
 
-    // 构建患者上下文
     const patientCtx = currentPatient ? {
       id:   currentPatientId,
       name: currentPatient.name,
@@ -2784,22 +2825,20 @@
       gender: currentPatient.gender,
     } : null;
 
-    // 传递图片 OCR 数据
     const imageData = _pendingImage || null;
     _clearImagePreview();
 
-    // 发送给 background 执行 Agent 循环
     chrome.runtime.sendMessage({
-      action:         'agentChat',
-      message:        text,
-      patientContext: patientCtx,
-      imageData:      imageData,
+      action:          'agentChat',
+      message:         text,
+      patientContext:  patientCtx,
+      imageData:       imageData,
+      voiceTranscript: buildVoiceContext() || null,
     }, (response) => {
       if (chrome.runtime.lastError) {
         _appendAgentError('无法连接扩展后台：' + chrome.runtime.lastError.message);
         _enableSend();
       }
-      // runAgentLoop 完成时也会触发 agentProgress done/error，此处不再处理
     });
   }
 
@@ -2810,23 +2849,27 @@
         _showThinking();
         break;
       case 'tool_call': {
-        const label = TOOL_LABELS[msg.toolName] || msg.toolName;
-        _appendStep(msg.toolName, `调用：${label}`, 'tcm-step-calling');
+        const label = msg.label || TOOL_LABELS[msg.toolName] || msg.toolName;
+        _appendStep(msg.toolName, label, 'calling');
         break;
       }
       case 'tool_done': {
-        const label = TOOL_LABELS[msg.toolName] || msg.toolName;
-        _updateStep(msg.toolName, `✓ ${label}`, 'tcm-step-done');
+        const label = msg.label || TOOL_LABELS[msg.toolName] || msg.toolName;
+        _updateStep(msg.toolName, label, msg.summary || '', msg.status === 'error' ? 'error' : 'done');
         break;
       }
       case 'tool_error': {
-        const label = TOOL_LABELS[msg.toolName] || msg.toolName;
-        _updateStep(msg.toolName, `✗ ${label}：${msg.error}`, 'tcm-step-error');
+        const label = msg.label || TOOL_LABELS[msg.toolName] || msg.toolName;
+        _updateStep(msg.toolName, label, msg.error || '执行失败', 'error');
         break;
       }
+      case 'text_chunk':
+        _clearThinking();
+        _appendTextChunk(msg.text);
+        break;
       case 'done':
         _clearThinking();
-        _appendAnswer(msg.text);
+        _finalizeStream(msg.text);
         _enableSend();
         break;
       case 'error':
@@ -2846,8 +2889,7 @@
   function _showThinking() {
     const p = _progressEl();
     if (!p) return;
-    const existing = p.querySelector('.tcm-agent-thinking');
-    if (existing) return; // 已有则不重复
+    if (p.querySelector('.tcm-agent-thinking')) return;
     const el = document.createElement('div');
     el.className = 'tcm-agent-thinking';
     el.innerHTML = `<div class="tcm-dots"><span></span><span></span><span></span></div><span>AI 推理中…</span>`;
@@ -2855,48 +2897,135 @@
   }
 
   function _clearThinking() {
-    const p = _progressEl();
-    if (!p) return;
-    const t = p.querySelector('.tcm-agent-thinking');
+    const t = _progressEl()?.querySelector('.tcm-agent-thinking');
     if (t) t.remove();
   }
 
-  function _appendStep(toolName, text, cls) {
+  // 步骤卡片：调用中
+  function _appendStep(toolName, label, state) {
     const p = _progressEl();
     if (!p) return;
     const el = document.createElement('div');
-    el.className = `tcm-agent-step ${cls}`;
+    el.className = `tcm-step tcm-step-${state}`;
     el.dataset.tool = toolName;
-    el.textContent = text;
+    el.innerHTML = `
+      <span class="tcm-step-icon">${state === 'calling' ? '⟳' : state === 'done' ? '✓' : '✗'}</span>
+      <span class="tcm-step-label">${esc(label)}</span>`;
     p.appendChild(el);
   }
 
-  function _updateStep(toolName, text, cls) {
+  // 步骤卡片：更新为完成/错误，附加摘要
+  function _updateStep(toolName, label, summary, state) {
     const p = _progressEl();
     if (!p) return;
-    const el = p.querySelector(`[data-tool="${toolName}"].tcm-agent-step`);
-    if (el) {
-      el.textContent = text;
-      el.className = `tcm-agent-step ${cls}`;
-    } else {
-      _appendStep(toolName, text, cls);
-    }
+    let el = p.querySelector(`[data-tool="${toolName}"].tcm-step`);
+    if (!el) { _appendStep(toolName, label, state); el = p.querySelector(`[data-tool="${toolName}"].tcm-step`); }
+    if (!el) return;
+    el.className = `tcm-step tcm-step-${state}`;
+    const icon = state === 'done' ? '✓' : '✗';
+    el.innerHTML = `
+      <span class="tcm-step-icon">${icon}</span>
+      <div class="tcm-step-body">
+        <span class="tcm-step-label">${esc(label)}</span>
+        ${summary ? `<span class="tcm-step-summary">${esc(summary)}</span>` : ''}
+      </div>`;
   }
 
-  function _appendAnswer(text) {
+  // 流式文字追加：往 streaming div 里 append 文字块
+  let _streamEl = null;
+  let _streamText = '';
+
+  function _appendTextChunk(chunk) {
     const p = _progressEl();
     if (!p) return;
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = `
-      <div class="tcm-agent-answer">${esc(text)}</div>
-      <button class="tcm-tts-btn" title="朗读回答">
-        ${ICONS.volume}<span>朗读</span>
-      </button>`;
-    wrapper.querySelector('.tcm-tts-btn').addEventListener('click', () => speakText(text));
-    p.appendChild(wrapper);
-    // 滚动到底部
+    if (!_streamEl) {
+      _streamEl = document.createElement('div');
+      _streamEl.className = 'tcm-agent-stream';
+      p.appendChild(_streamEl);
+    }
+    _streamText += chunk;
+    _streamEl.innerHTML = _renderMarkdown(_streamText);
+    // 追加光标
+    const cursor = document.createElement('span');
+    cursor.className = 'tcm-stream-cursor';
+    _streamEl.appendChild(cursor);
+    // 滚动
     const respEl = document.getElementById('tcm-ai-response');
     if (respEl) respEl.scrollTop = respEl.scrollHeight;
+  }
+
+  // 流式结束：移除光标，附加操作栏（朗读 / 复制）
+  function _finalizeStream(fullText) {
+    const p = _progressEl();
+    if (!p) return;
+    const text = fullText || _streamText;
+    if (_streamEl) {
+      // 去掉光标，重渲染确保干净
+      _streamEl.innerHTML = _renderMarkdown(text);
+      _streamEl = null;
+    } else if (text) {
+      // 没有流式块（极快响应），直接渲染
+      const el = document.createElement('div');
+      el.className = 'tcm-agent-stream';
+      el.innerHTML = _renderMarkdown(text);
+      p.appendChild(el);
+    }
+    _streamText = '';
+    // 操作栏
+    if (text) {
+      const bar = document.createElement('div');
+      bar.className = 'tcm-agent-bar';
+      bar.innerHTML = `
+        <button class="tcm-tts-btn" title="朗读">${ICONS.volume}<span>朗读</span></button>
+        <button class="tcm-copy-btn" title="复制">${ICONS.clipboard}<span>复制</span></button>`;
+      bar.querySelector('.tcm-tts-btn').addEventListener('click', () => speakText(text));
+      bar.querySelector('.tcm-copy-btn').addEventListener('click', () =>
+        navigator.clipboard.writeText(text).then(() => showToast('已复制', 'success')).catch(() => {})
+      );
+      p.appendChild(bar);
+    }
+    const respEl = document.getElementById('tcm-ai-response');
+    if (respEl) respEl.scrollTop = respEl.scrollHeight;
+  }
+
+  // Markdown 轻量渲染（加粗 / 标题 / 列表 / 分隔线）
+  function _renderMarkdown(text) {
+    if (!text) return '';
+    const lines = text.split('\n');
+    let html = '';
+    let inList = false;
+    for (const raw of lines) {
+      const line = raw;
+      // 关闭未结束的列表
+      const isListItem = /^[\-\*•·]\s+/.test(line) || /^\d+[\.、]\s+/.test(line);
+      if (!isListItem && inList) { html += '</ul>'; inList = false; }
+      if (/^#{1,2}\s+/.test(line)) {
+        html += `<p class="tcm-md-h">${esc(line.replace(/^#+\s+/, ''))}</p>`;
+      } else if (/^#{3}\s+/.test(line)) {
+        html += `<p class="tcm-md-h3">${esc(line.replace(/^#+\s+/, ''))}</p>`;
+      } else if (/^---+$/.test(line.trim())) {
+        html += `<hr class="tcm-md-hr">`;
+      } else if (/^[\-\*•·]\s+/.test(line)) {
+        if (!inList) { html += '<ul class="tcm-md-ul">'; inList = true; }
+        html += `<li>${_inlineMarkdown(line.replace(/^[\-\*•·]\s+/, ''))}</li>`;
+      } else if (/^\d+[\.、]\s+/.test(line)) {
+        if (!inList) { html += '<ul class="tcm-md-ul tcm-md-ol">'; inList = true; }
+        html += `<li>${_inlineMarkdown(line.replace(/^\d+[\.、]\s+/, ''))}</li>`;
+      } else if (line.trim() === '') {
+        html += '<div class="tcm-md-gap"></div>';
+      } else {
+        html += `<p class="tcm-md-p">${_inlineMarkdown(line)}</p>`;
+      }
+    }
+    if (inList) html += '</ul>';
+    return html;
+  }
+
+  function _inlineMarkdown(text) {
+    return esc(text)
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/`(.+?)`/g, '<code class="tcm-md-code">$1</code>');
   }
 
   function _appendAgentError(text) {
@@ -2908,7 +3037,14 @@
     p.appendChild(el);
   }
 
+  // 兼容旧调用（部分路径可能还走 _appendAnswer）
+  function _appendAnswer(text) {
+    _finalizeStream(text);
+  }
+
   function _enableSend() {
+    _streamEl = null;
+    _streamText = '';
     const sendBtn = document.getElementById('tcm-ai-send-btn');
     if (sendBtn) { sendBtn.disabled = false; sendBtn.style.opacity = ''; }
   }
@@ -3002,8 +3138,178 @@
 
   // ── TTS ────────────────────────────────────────────────────────────────────
 
+  // ─── 实时录音 ─────────────────────────────────────────────────────────────────
+
+  function buildVoiceContext() {
+    return _voiceTranscript.trim();
+  }
+
+  function _updateVoiceUI() {
+    const bar       = document.getElementById('tcm-voice-bar');
+    const wave      = document.getElementById('tcm-voice-wave');
+    const mic       = document.getElementById('tcm-voice-mic');
+    const stateLabel = document.getElementById('tcm-voice-state-label');
+    const stateSub  = document.getElementById('tcm-voice-state-sub');
+    const count     = document.getElementById('tcm-voice-count');
+    const toggleBtn = document.getElementById('tcm-voice-toggle-btn');
+    const body      = document.getElementById('tcm-voice-body');
+
+    if (_voiceActive) {
+      bar?.classList.add('tcm-voice-active');
+      wave?.classList.add('tcm-wave-on');
+      mic?.classList.add('tcm-mic-on');
+      if (stateLabel) stateLabel.textContent = '录音中…';
+      if (stateSub) stateSub.textContent = _voiceTranscript.length
+        ? _voiceTranscript.replace(/\n/g, ' ').trim()
+        : '正在聆听，请说话…';
+      if (toggleBtn) {
+        toggleBtn.textContent = '暂停';
+        toggleBtn.classList.add('tcm-voice-stop');
+      }
+      if (body) body.style.display = 'block';
+    } else {
+      bar?.classList.remove('tcm-voice-active');
+      wave?.classList.remove('tcm-wave-on');
+      mic?.classList.remove('tcm-mic-on');
+      if (stateLabel) stateLabel.textContent = '实时录音';
+      if (stateSub) stateSub.textContent = _voiceTranscript.length
+        ? _voiceTranscript.replace(/\n/g, ' ').trim()
+        : '点击开始，医患对话自动转写';
+      if (toggleBtn) {
+        toggleBtn.textContent = '开始';
+        toggleBtn.classList.remove('tcm-voice-stop');
+      }
+    }
+    if (count) count.textContent = _voiceTranscript.length ? `${_voiceTranscript.length}字` : '';
+  }
+
+  function _appendTranscriptLine(text) {
+    const container = document.getElementById('tcm-voice-transcript');
+    if (!container) return;
+    const ph = document.getElementById('tcm-voice-placeholder');
+    if (ph) ph.remove();
+    const line = document.createElement('div');
+    line.className = 'tcm-voice-line';
+    line.textContent = text;
+    if (_voiceInterimEl && container.contains(_voiceInterimEl)) {
+      container.insertBefore(line, _voiceInterimEl);
+    } else {
+      container.appendChild(line);
+    }
+    const body = document.getElementById('tcm-voice-body');
+    if (body) body.scrollTop = body.scrollHeight;
+    // 同步更新 sub 预览文字
+    const stateSub = document.getElementById('tcm-voice-state-sub');
+    if (stateSub) stateSub.textContent = _voiceTranscript.replace(/\n/g, ' ').trim();
+  }
+
+  function _updateInterim(text) {
+    const container = document.getElementById('tcm-voice-transcript');
+    if (!container) return;
+    if (!_voiceInterimEl) {
+      _voiceInterimEl = document.createElement('div');
+      _voiceInterimEl.className = 'tcm-voice-interim';
+      container.appendChild(_voiceInterimEl);
+    }
+    _voiceInterimEl.textContent = text ? text + '…' : '';
+    const body = document.getElementById('tcm-voice-body');
+    if (body) body.scrollTop = body.scrollHeight;
+  }
+
+  function startPersistentRecording() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      showToast('当前浏览器不支持语音识别，请使用 Chrome', 'error');
+      return;
+    }
+    _voiceRecognition = new SR();
+    _voiceRecognition.lang = 'zh-CN';
+    _voiceRecognition.continuous = true;       // 持续录音
+    _voiceRecognition.interimResults = true;   // 实时显示未确认文字
+    _voiceRecognition.maxAlternatives = 1;
+
+    _voiceRecognition.onresult = (e) => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const transcript = e.results[i][0].transcript;
+        if (e.results[i].isFinal) {
+          _voiceTranscript += (_voiceTranscript ? '\n' : '') + transcript;
+          _appendTranscriptLine(transcript);
+          interim = '';
+        } else {
+          interim += transcript;
+        }
+      }
+      _updateInterim(interim);
+      _updateVoiceUI();
+    };
+
+    _voiceRecognition.onerror = (e) => {
+      if (e.error === 'no-speech' || e.error === 'aborted') return;
+      showToast('录音错误：' + e.error, 'error');
+      _voiceActive = false;
+      _voiceRecognition = null;
+      _updateVoiceUI();
+    };
+
+    // SpeechRecognition 在静音约 10s 后自动停止，onend 时用局部引用安全重启
+    const recRef = _voiceRecognition;
+    recRef.onend = () => {
+      if (_voiceActive && _voiceRecognition === recRef) {
+        try { recRef.start(); } catch (_) {
+          // 重启失败时创建新实例
+          _voiceRecognition = null;
+          startPersistentRecording();
+        }
+      }
+    };
+
+    try {
+      _voiceRecognition.start();
+      _voiceActive = true;
+      _updateVoiceUI();
+    } catch (err) {
+      showToast('无法启动录音：' + err.message, 'error');
+    }
+  }
+
+  function stopPersistentRecording() {
+    _voiceActive = false;
+    if (_voiceRecognition) {
+      try { _voiceRecognition.stop(); } catch (_) {}
+      _voiceRecognition = null;
+    }
+    _updateInterim('');
+    _updateVoiceUI();
+  }
+
+  function toggleVoiceRecording() {
+    if (_voiceActive) stopPersistentRecording();
+    else startPersistentRecording();
+  }
+
+  function loadTranscriptDrawer() {
+    const body = document.getElementById('tcm-drawer-transcript-body');
+    if (!body) return;
+    if (!_voiceTranscript.trim()) {
+      body.innerHTML = '<p style="color:var(--tcm-text-muted);padding:16px 12px;font-size:13px;">暂无转写内容</p>';
+      return;
+    }
+    body.innerHTML = `<div style="padding:12px 16px;font-size:13px;line-height:2;color:var(--tcm-text);white-space:pre-wrap;word-break:break-all;">${_voiceTranscript.trim().replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`;
+  }
+
+  function initVoicePanel() {
+    const toggleBtn = document.getElementById('tcm-voice-toggle-btn');
+    const stateSub  = document.getElementById('tcm-voice-state-sub');
+    if (toggleBtn) toggleBtn.addEventListener('click', toggleVoiceRecording);
+    if (stateSub)  stateSub.addEventListener('click', () => {
+      openDrawer('tcm-drawer-transcript', loadTranscriptDrawer);
+    });
+    // 进入工作站自动开始录音
+    startPersistentRecording();
+  }
+
   function speakText(text) {
-    if (!window.speechSynthesis) { showToast('当前浏览器不支持语音合成', 'error'); return; }
     window.speechSynthesis.cancel();
     const utt = new SpeechSynthesisUtterance(text);
     utt.lang = 'zh-CN';
@@ -3043,6 +3349,11 @@
       el.style.display = 'none';
     });
     renderDashboard();
+
+    // 每次切换患者重置录音，重新自动开始
+    stopPersistentRecording();
+    _voiceTranscript = '';
+    startPersistentRecording();
   }
 
   // ─── URL 检测 ───────────────────────────────────────────────────────────────
@@ -3166,7 +3477,8 @@
   // ─── 初始化 ────────────────────────────────────────────────────────────────
   async function init() {
     const config = await getConfig();
-    isCollapsed  = config.sidebarCollapsed === true;
+    // Electron 桌面版：侧边栏即整个窗口，始终展开，无需折叠/吸附
+    isCollapsed = window.__ELECTRON__ ? false : (config.sidebarCollapsed === true);
     createSidebar();
     if (isCollapsed) {
       const s = document.getElementById(SIDEBAR_ID);
@@ -3179,11 +3491,13 @@
       }
     }
 
-    // 吸附/浮动模式初始化
-    if (isDocked) enterDockedMode();
-    else          enterFloatingMode();
-    updateDockToggleIcon();
-    bindResizeHandle();
+    // 吸附/浮动模式初始化（Electron 跳过，由 main.js CSS override 接管）
+    if (!window.__ELECTRON__) {
+      if (isDocked) enterDockedMode();
+      else          enterFloatingMode();
+      updateDockToggleIcon();
+      bindResizeHandle();
+    }
 
     checkUrl();
   }

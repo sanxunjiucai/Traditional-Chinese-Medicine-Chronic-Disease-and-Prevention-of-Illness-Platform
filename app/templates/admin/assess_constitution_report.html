@@ -38,7 +38,23 @@
   <!-- 右侧：报告编辑 -->
   <div class="col-span-2 space-y-4">
     <div class="bg-white rounded-xl shadow-sm p-5">
-      <h3 class="font-semibold text-gray-700 mb-4">报告结论</h3>
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-gray-700">报告结论</h3>
+        <button onclick="aiGenerateConstitutionReport()" id="btn-ai-const"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
+          style="background:#4E7A61;">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.346a.5.5 0 01-.73-.649 3 3 0 10-4.25 0 .5.5 0 01-.731.649l-.346-.346z"/>
+          </svg>
+          <span id="btn-ai-const-text">AI 生成体质报告</span>
+        </button>
+      </div>
+      <!-- AI 进度 -->
+      <div id="ai-const-progress" class="hidden mb-3 flex items-center gap-2 text-xs text-rose-700 bg-rose-50 rounded-lg px-3 py-2">
+        <div class="w-3 h-3 border-2 border-rose-500 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+        <span>AI 正在生成中医体质分析报告...</span>
+      </div>
       <div class="mb-4">
         <label class="block text-sm text-gray-600 mb-1">主体质判定</label>
         <input id="rpt-primary" type="text" placeholder="主体质名称"
@@ -157,5 +173,61 @@ async function saveReport(status) {
 }
 
 loadSummary();
+
+// ── AI 生成体质报告内容 ───────────────────────────────────────────────────────
+async function aiGenerateConstitutionReport() {
+  const btn = document.getElementById('btn-ai-const');
+  const btnText = document.getElementById('btn-ai-const-text');
+  const progress = document.getElementById('ai-const-progress');
+  btn.disabled = true;
+  btnText.textContent = '生成中...';
+  progress.classList.remove('hidden');
+
+  const summaryEl = document.getElementById('report-summary');
+  const primaryType = document.getElementById('rpt-primary').value
+    || summaryEl?.querySelector?.('.text-rose-600')?.textContent || '未知体质';
+  const query = `为体质评估记录（ID: ${ASSESS_ID}）生成完整的中医体质报告，`
+    + `患者主体质为${primaryType}，请输出：`
+    + `1）综合体质评估结论（150字以上） 2）饮食调护建议 3）运动调护建议 4）起居调护建议 `
+    + `5）情志调护建议 6）外治建议（针灸/推拿）。请内容详细实用，体现中医特色。`;
+
+  let fullText = '';
+  try {
+    const resp = await fetch('/tools/agent/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n'); buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try { const ev = JSON.parse(line.slice(6)); if (ev.type === 'done' && ev.data) fullText = ev.data.plan_markdown || ''; } catch {}
+      }
+    }
+    if (fullText) {
+      // 按段落拆分填入各字段
+      const sections = fullText.split(/\n#+\s*/);
+      if (sections.length >= 2) {
+        document.getElementById('rpt-conclusion').value = sections[0].trim();
+        const recIds = ['rec-diet','rec-exercise','rec-lifestyle','rec-emotion','rec-treatment'];
+        sections.slice(1).forEach((s, i) => {
+          if (recIds[i]) document.getElementById(recIds[i]).value = s.replace(/^[^\n]+\n/, '').trim();
+        });
+      } else {
+        document.getElementById('rpt-conclusion').value = fullText;
+      }
+      showToast('✅ AI 已生成体质报告草稿，请确认后保存');
+    } else showToast('AI 未能生成内容，请手动填写');
+  } catch (e) { showToast('AI 生成失败：' + e.message); }
+  finally { btn.disabled = false; btnText.textContent = 'AI 生成体质报告'; progress.classList.add('hidden'); }
+}
 </script>
 {% endblock %}
